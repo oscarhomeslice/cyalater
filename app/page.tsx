@@ -749,7 +749,11 @@ export default function Page() {
                   <Button
                     type="submit"
                     disabled={userInput.trim().length < 20}
-                    className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-primary via-emerald-400 to-primary bg-[length:200%_100%] hover:bg-[position:100%_0] transition-all duration-500 text-black shadow-lg shadow-primary/20 hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98] focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-black disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                    className={`w-full h-14 text-lg font-semibold bg-gradient-to-r from-primary via-emerald-400 to-primary bg-[length:200%_100%] transition-all duration-500 text-black shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 ${
+                      userInput.trim().length >= 20
+                        ? "hover:bg-[position:100%_0] shadow-primary/20 hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98] focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-black animate-pulse"
+                        : "shadow-primary/10"
+                    }`}
                     aria-label="Generate activity ideas"
                   >
                     Generate Ideas
