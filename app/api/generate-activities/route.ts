@@ -62,6 +62,16 @@ export async function POST(request: NextRequest) {
 
       console.log(`[v0] Found ${tripAdvisorResults.length} activities from TripAdvisor`)
 
+      if (tripAdvisorResults.length > 0) {
+        console.log("[v0] Sample enriched location:", {
+          name: tripAdvisorResults[0].name,
+          rating: tripAdvisorResults[0].rating,
+          reviewCount: tripAdvisorResults[0].reviewCount,
+          hasImage: !!tripAdvisorResults[0].image,
+          hasUrl: !!tripAdvisorResults[0].tripAdvisorUrl,
+        })
+      }
+
       if (!tripAdvisorResults || tripAdvisorResults.length === 0) {
         return NextResponse.json(
           { error: "Couldn't find activities for this location. Try another city?" },
@@ -81,6 +91,16 @@ export async function POST(request: NextRequest) {
     let recommendations
     try {
       recommendations = await generateActivityRecommendations(userInput, tripAdvisorResults)
+
+      if (recommendations?.activities?.length > 0) {
+        console.log("[v0] Sample activity response:", {
+          name: recommendations.activities[0].name,
+          hasRating: recommendations.activities[0].rating !== undefined,
+          hasReviewCount: recommendations.activities[0].reviewCount !== undefined,
+          hasImage: !!recommendations.activities[0].image,
+          hasUrl: !!recommendations.activities[0].tripAdvisorUrl,
+        })
+      }
 
       if (!recommendations || !recommendations.activities || recommendations.activities.length === 0) {
         return NextResponse.json(

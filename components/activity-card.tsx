@@ -35,6 +35,7 @@ export interface ActivityData {
   tripAdvisorRating?: number
   reviewCount?: number
   tripAdvisorUrl?: string
+  image?: string // Added image field for TripAdvisor photos
 }
 
 interface ActivityCardProps {
@@ -67,11 +68,21 @@ const renderStars = (rating: number) => {
   const stars = []
 
   for (let i = 0; i < fullStars; i++) {
-    stars.push(<Star key={`full-${i}`} className="w-3 h-3 fill-yellow-400 text-yellow-400" />)
+    stars.push(
+      <Star
+        key={`full-${i}`}
+        className="w-3 h-3 fill-[#00AA6C] text-[#00AA6C] dark:fill-[#84E9BD] dark:text-[#84E9BD]"
+      />,
+    )
   }
 
   if (hasHalfStar) {
-    stars.push(<Star key="half" className="w-3 h-3 fill-yellow-400 text-yellow-400 opacity-50" />)
+    stars.push(
+      <Star
+        key="half"
+        className="w-3 h-3 fill-[#00AA6C] text-[#00AA6C] dark:fill-[#84E9BD] dark:text-[#84E9BD] opacity-50"
+      />,
+    )
   }
 
   return stars
@@ -95,191 +106,214 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
 
   return (
     <article
-      className="group bg-zinc-900/50 backdrop-blur-sm border border-zinc-800 rounded-2xl p-6 shadow-lg hover:shadow-2xl hover:shadow-primary/10 hover:-translate-y-1 hover:border-zinc-700 transition-all duration-300 focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2 focus-within:ring-offset-black"
+      className="group bg-zinc-900/50 backdrop-blur-sm border border-zinc-800 rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl hover:shadow-primary/10 hover:-translate-y-1 hover:border-zinc-700 transition-all duration-300 focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2 focus-within:ring-offset-black"
       aria-label={`${activity?.title || "Activity"} activity`}
     >
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4 mb-4">
-        <h3 className="text-xl md:text-2xl font-bold text-white leading-tight flex-1">
-          {activity?.title || "Untitled Activity"}
-        </h3>
-        <Badge
-          variant="outline"
-          className={`${
-            activity?.locationType === "Outdoor"
-              ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
-              : activity?.locationType === "Indoor"
-                ? "bg-blue-500/20 text-blue-400 border-blue-500/30"
-                : "bg-purple-500/20 text-purple-400 border-purple-500/30"
-          } flex items-center gap-1 shrink-0`}
-          aria-label={`${activity?.locationType || "Unknown"} activity`}
-        >
-          {activity?.locationType === "Outdoor" ? (
-            <Sun className="w-3 h-3" aria-hidden="true" />
-          ) : (
-            <Home className="w-3 h-3" aria-hidden="true" />
-          )}
-          {activity?.locationType || "Both"}
-        </Badge>
-      </div>
-
-      {/* Description */}
-      <p className="text-zinc-400 leading-relaxed mb-4">{activity?.description || ""}</p>
-
-      {/* TripAdvisor rating display */}
-      {activity?.tripAdvisorRating && (
-        <div className="flex items-center gap-2 mb-4">
-          <div className="flex items-center gap-1">{renderStars(activity.tripAdvisorRating)}</div>
-          <span className="text-sm text-zinc-400">{activity.tripAdvisorRating.toFixed(1)}</span>
-          {activity?.reviewCount && (
-            <span className="text-xs text-zinc-500">({activity.reviewCount.toLocaleString()} reviews)</span>
-          )}
+      {activity?.image && (
+        <div className="relative w-full h-48 overflow-hidden">
+          <img
+            src={activity.image || "/placeholder.svg"}
+            alt={activity.title}
+            className="w-full h-full object-cover"
+            loading="lazy"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-zinc-900 to-transparent" />
         </div>
       )}
 
-      {/* Tags */}
-      {activity?.tags && activity.tags.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-4" role="list" aria-label="Activity tags">
-          {activity.tags.map((tag) => (
-            <Badge
-              key={tag}
-              variant="outline"
-              className={`${tagColors[tag] || "bg-zinc-700/50 text-zinc-300 border-zinc-600"} text-xs`}
-              role="listitem"
-            >
-              {tag}
-            </Badge>
-          ))}
-        </div>
-      )}
-
-      {/* Info Grid */}
-      <div className="grid grid-cols-3 gap-4 mb-4 py-4 border-y border-zinc-800">
-        <div className="flex flex-col items-center text-center">
-          <div className="flex items-center gap-1 text-primary mb-1">
-            <Euro className="w-4 h-4" aria-hidden="true" />
-            <span className="font-bold text-lg">{activity?.cost ?? 0}</span>
-          </div>
-          <span className="text-xs text-zinc-500">per person</span>
-        </div>
-
-        <div className="flex flex-col items-center text-center">
-          <div className="flex items-center gap-1 text-primary mb-1">
-            <Clock className="w-4 h-4" aria-hidden="true" />
-            <span className="font-bold text-lg">{activity?.duration || "TBD"}</span>
-          </div>
-          <span className="text-xs text-zinc-500">duration</span>
-        </div>
-
-        <div className="flex flex-col items-center text-center">
-          <div
-            className={`flex items-center gap-1 mb-1 ${activity?.activityLevel ? activityLevelConfig[activity.activityLevel]?.color : "text-zinc-400"}`}
-          >
-            {ActivityLevelIcon && <ActivityLevelIcon className="w-4 h-4" aria-hidden="true" />}
-            <span className="font-bold text-lg">{activity?.activityLevel || "Low"}</span>
-          </div>
-          <span className="text-xs text-zinc-500">intensity</span>
-        </div>
-      </div>
-
-      {/* Special Feature */}
-      {activity?.specialFeature && (
-        <div className="bg-gradient-to-r from-primary/10 to-emerald-400/10 border border-primary/20 rounded-xl p-4 mb-4">
-          <div className="flex items-start gap-2">
-            <Sparkles className="w-5 h-5 text-primary shrink-0 mt-0.5" aria-hidden="true" />
-            <div>
-              <p className="text-sm font-medium text-primary mb-1">What makes it special</p>
-              <p className="text-sm text-zinc-300 leading-relaxed">{activity.specialFeature}</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Expandable Details */}
-      {activity?.details && (
-        <div className="mb-4">
-          <button
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="flex items-center gap-2 text-sm text-zinc-400 hover:text-primary transition-colors duration-200 w-full focus:outline-none focus:text-primary"
-            aria-expanded={isExpanded}
-            aria-controls={`details-${activity.id}`}
-          >
-            {isExpanded ? (
-              <ChevronUp className="w-4 h-4" aria-hidden="true" />
-            ) : (
-              <ChevronDown className="w-4 h-4" aria-hidden="true" />
-            )}
-            <span className="font-medium">Learn More</span>
-          </button>
-          {isExpanded && (
-            <div
-              id={`details-${activity.id}`}
-              className="mt-3 pl-6 text-sm text-zinc-400 leading-relaxed animate-in fade-in slide-in-from-top-2 duration-300"
-            >
-              {activity.details}
-            </div>
-          )}
-        </div>
-      )}
-
-      <div className="flex gap-2">
-        <Button
-          onClick={handleShortlist}
-          variant="outline"
-          className={`flex-1 relative overflow-hidden ${
-            isShortlisted
-              ? "bg-primary/20 border-primary text-primary hover:bg-primary/30"
-              : "bg-zinc-800/50 border-zinc-700 text-white hover:bg-zinc-800 hover:border-primary/50"
-          } transition-all duration-200 focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-zinc-900`}
-          aria-label={
-            isShortlisted ? `Remove ${activity?.title} from shortlist` : `Add ${activity?.title} to shortlist`
-          }
-          aria-pressed={isShortlisted}
-        >
-          {showCheckmark && (
-            <div
-              className="absolute inset-0 bg-primary/30 flex items-center justify-center animate-in fade-in zoom-in duration-300"
-              aria-hidden="true"
-            >
-              <Check className="w-8 h-8 text-primary animate-in zoom-in duration-200" />
-            </div>
-          )}
-          <Activity className="w-4 h-4 mr-2" aria-hidden="true" />
-          {isShortlisted ? "Added" : "Add to Shortlist"}
-        </Button>
-
-        {activity?.tripAdvisorUrl && (
-          <Button
-            onClick={() => window.open(activity.tripAdvisorUrl, "_blank", "noopener,noreferrer")}
+      <div className="p-6">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-4 mb-4">
+          <h3 className="text-xl md:text-2xl font-bold text-white leading-tight flex-1">
+            {activity?.title || "Untitled Activity"}
+          </h3>
+          <Badge
             variant="outline"
-            className="bg-zinc-800/50 border-zinc-700 text-white hover:bg-zinc-800 hover:border-primary/50 transition-all duration-200 focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-zinc-900"
-            aria-label={`View ${activity?.title} on TripAdvisor`}
+            className={`${
+              activity?.locationType === "Outdoor"
+                ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                : activity?.locationType === "Indoor"
+                  ? "bg-blue-500/20 text-blue-400 border-blue-500/30"
+                  : "bg-purple-500/20 text-purple-400 border-purple-500/30"
+            } flex items-center gap-1 shrink-0`}
+            aria-label={`${activity?.locationType || "Unknown"} activity`}
           >
-            <ExternalLink className="w-4 h-4" aria-hidden="true" />
+            {activity?.locationType === "Outdoor" ? (
+              <Sun className="w-3 h-3" aria-hidden="true" />
+            ) : (
+              <Home className="w-3 h-3" aria-hidden="true" />
+            )}
+            {activity?.locationType || "Both"}
+          </Badge>
+        </div>
+
+        {/* Description */}
+        <p className="text-zinc-400 leading-relaxed mb-4">{activity?.description || ""}</p>
+
+        {activity?.tripAdvisorRating && (
+          <div className="mb-4 p-3 rounded-lg bg-zinc-800/30 border border-zinc-700/50">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-lg" role="img" aria-label="TripAdvisor" aria-hidden="true">
+                🦉
+              </span>
+              <span className="text-xs font-semibold" style={{ color: "#34E0A1" }}>
+                TripAdvisor
+              </span>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-1">{renderStars(activity.tripAdvisorRating)}</div>
+              <span className="text-sm font-semibold text-white">{activity.tripAdvisorRating.toFixed(1)}</span>
+              {activity?.reviewCount && (
+                <span className="text-xs text-zinc-400">({activity.reviewCount.toLocaleString()} reviews)</span>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Tags */}
+        {activity?.tags && activity.tags.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-4" role="list" aria-label="Activity tags">
+            {activity.tags.map((tag) => (
+              <Badge
+                key={tag}
+                variant="outline"
+                className={`${tagColors[tag] || "bg-zinc-700/50 text-zinc-300 border-zinc-600"} text-xs`}
+                role="listitem"
+              >
+                {tag}
+              </Badge>
+            ))}
+          </div>
+        )}
+
+        {/* Info Grid */}
+        <div className="grid grid-cols-3 gap-4 mb-4 py-4 border-y border-zinc-800">
+          <div className="flex flex-col items-center text-center">
+            <div className="flex items-center gap-1 text-primary mb-1">
+              <Euro className="w-4 h-4" aria-hidden="true" />
+              <span className="font-bold text-lg">{activity?.cost ?? 0}</span>
+            </div>
+            <span className="text-xs text-zinc-500">per person</span>
+          </div>
+
+          <div className="flex flex-col items-center text-center">
+            <div className="flex items-center gap-1 text-primary mb-1">
+              <Clock className="w-4 h-4" aria-hidden="true" />
+              <span className="font-bold text-lg">{activity?.duration || "TBD"}</span>
+            </div>
+            <span className="text-xs text-zinc-500">duration</span>
+          </div>
+
+          <div className="flex flex-col items-center text-center">
+            <div
+              className={`flex items-center gap-1 mb-1 ${activity?.activityLevel ? activityLevelConfig[activity.activityLevel]?.color : "text-zinc-400"}`}
+            >
+              {ActivityLevelIcon && <ActivityLevelIcon className="w-4 h-4" aria-hidden="true" />}
+              <span className="font-bold text-lg">{activity?.activityLevel || "Low"}</span>
+            </div>
+            <span className="text-xs text-zinc-500">intensity</span>
+          </div>
+        </div>
+
+        {/* Special Feature */}
+        {activity?.specialFeature && (
+          <div className="bg-gradient-to-r from-primary/10 to-emerald-400/10 border border-primary/20 rounded-xl p-4 mb-4">
+            <div className="flex items-start gap-2">
+              <Sparkles className="w-5 h-5 text-primary shrink-0 mt-0.5" aria-hidden="true" />
+              <div>
+                <p className="text-sm font-medium text-primary mb-1">What makes it special</p>
+                <p className="text-sm text-zinc-300 leading-relaxed">{activity.specialFeature}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Expandable Details */}
+        {activity?.details && (
+          <div className="mb-4">
+            <button
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="flex items-center gap-2 text-sm text-zinc-400 hover:text-primary transition-colors duration-200 w-full focus:outline-none focus:text-primary"
+              aria-expanded={isExpanded}
+              aria-controls={`details-${activity.id}`}
+            >
+              {isExpanded ? (
+                <ChevronUp className="w-4 h-4" aria-hidden="true" />
+              ) : (
+                <ChevronDown className="w-4 h-4" aria-hidden="true" />
+              )}
+              <span className="font-medium">Learn More</span>
+            </button>
+            {isExpanded && (
+              <div
+                id={`details-${activity.id}`}
+                className="mt-3 pl-6 text-sm text-zinc-400 leading-relaxed animate-in fade-in slide-in-from-top-2 duration-300"
+              >
+                {activity.details}
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="flex gap-2">
+          <Button
+            onClick={handleShortlist}
+            variant="outline"
+            className={`flex-1 relative overflow-hidden ${
+              isShortlisted
+                ? "bg-primary/20 border-primary text-primary hover:bg-primary/30"
+                : "bg-zinc-800/50 border-zinc-700 text-white hover:bg-zinc-800 hover:border-primary/50"
+            } transition-all duration-200 focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-zinc-900`}
+            aria-label={
+              isShortlisted ? `Remove ${activity?.title} from shortlist` : `Add ${activity?.title} to shortlist`
+            }
+            aria-pressed={isShortlisted}
+          >
+            {showCheckmark && (
+              <div
+                className="absolute inset-0 bg-primary/30 flex items-center justify-center animate-in fade-in zoom-in duration-300"
+                aria-hidden="true"
+              >
+                <Check className="w-8 h-8 text-primary animate-in zoom-in duration-200" />
+              </div>
+            )}
+            <Activity className="w-4 h-4 mr-2" aria-hidden="true" />
+            {isShortlisted ? "Added" : "Add to Shortlist"}
           </Button>
+
+          {activity?.tripAdvisorUrl && (
+            <Button
+              onClick={() => window.open(activity.tripAdvisorUrl, "_blank", "noopener,noreferrer")}
+              variant="outline"
+              className="bg-zinc-800/50 border-zinc-700 text-white hover:bg-[#00AA6C]/20 hover:border-[#00AA6C] dark:hover:bg-[#84E9BD]/20 dark:hover:border-[#84E9BD] transition-all duration-200 focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-zinc-900"
+              aria-label={`View ${activity?.title} on TripAdvisor`}
+            >
+              <ExternalLink className="w-4 h-4" aria-hidden="true" />
+            </Button>
+          )}
+        </div>
+
+        {/* TripAdvisor attribution footer */}
+        {activity?.tripAdvisorUrl && (
+          <div className="mt-4 pt-4 border-t border-zinc-800/50 flex items-center justify-center gap-2">
+            <span className="text-[11px] text-zinc-600">Powered by</span>
+            <a
+              href="https://www.tripadvisor.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 hover:opacity-80 transition-opacity"
+              aria-label="TripAdvisor"
+            >
+              <span className="text-lg" role="img" aria-hidden="true">
+                🦉
+              </span>
+              <span className="text-[11px] font-semibold" style={{ color: "#34E0A1" }}>
+                TripAdvisor
+              </span>
+            </a>
+          </div>
         )}
       </div>
-
-      {/* TripAdvisor attribution footer */}
-      {activity?.tripAdvisorUrl && (
-        <div className="mt-4 pt-4 border-t border-zinc-800/50 flex items-center justify-center gap-2">
-          <span className="text-[11px] text-zinc-600">Powered by</span>
-          <a
-            href="https://www.tripadvisor.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1.5 hover:opacity-80 transition-opacity"
-            aria-label="TripAdvisor"
-          >
-            <span className="text-lg" role="img" aria-hidden="true">
-              🦉
-            </span>
-            <span className="text-[11px] font-semibold" style={{ color: "#34E0A1" }}>
-              TripAdvisor
-            </span>
-          </a>
-        </div>
-      )}
     </article>
   )
 }
