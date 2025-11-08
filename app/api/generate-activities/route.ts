@@ -46,7 +46,18 @@ export async function POST(request: NextRequest) {
     console.log("[v0] Parsing user input...")
     let parsedQuery
     try {
-      parsedQuery = await generateActivityQuery(userInput)
+      const result = await generateActivityQuery(userInput)
+
+      if (result && typeof result === "object" && "success" in result && result.success === false) {
+        return NextResponse.json(
+          {
+            error: result.error || "Failed to understand your request. Please try rephrasing.",
+          },
+          { status: 400 },
+        )
+      }
+
+      parsedQuery = result as any
       console.log("[v0] Parsed query:", parsedQuery)
     } catch (error: any) {
       console.error("[v0] OpenAI parsing error:", error)
@@ -59,6 +70,11 @@ export async function POST(request: NextRequest) {
     try {
       const location = parsedQuery.location || "popular destinations"
       tripAdvisorResults = await getNearbyAttractions(location, "attractions")
+
+      if (!tripAdvisorResults) {
+        console.warn("[v0] TripAdvisor returned undefined, using empty array")
+        tripAdvisorResults = []
+      }
 
       console.log(`[v0] Found ${tripAdvisorResults.length} activities from TripAdvisor`)
 
@@ -80,17 +96,39 @@ export async function POST(request: NextRequest) {
       }
     } catch (error: any) {
       console.error("[v0] TripAdvisor error:", error)
+      tripAdvisorResults = []
       return NextResponse.json(
         { error: "Couldn't find activities for this location. Try another city?" },
         { status: 404 },
       )
     }
 
+    // Verify TripAdvisor data exists and is valid
+    if (!tripAdvisorResults || tripAdvisorResults.length === 0) {
+      console.warn("[TripAdvisor] No results found. Passing empty list to OpenAI.")
+    }
+
+    // Ensure the variable is always initialized as an array
+    const safeTripAdvisorResults = Array.isArray(tripAdvisorResults) ? tripAdvisorResults : []
+    console.log(`[v0] Validated TripAdvisor results: ${safeTripAdvisorResults.length} activities`)
+
     // Step 3: Use OpenAI to generate recommendations from TripAdvisor results
     console.log("[v0] Generating personalized recommendations...")
     let recommendations
     try {
-      recommendations = await generateActivityRecommendations(userInput, tripAdvisorResults)
+      const result = await generateActivityRecommendations(userInput, safeTripAdvisorResults)
+
+      if (result && typeof result === "object" && "success" in result && result.success === false) {
+        return NextResponse.json(
+          {
+            error: "Failed to generate recommendations. Please try again.",
+            details: process.env.NODE_ENV === "development" ? result.error : undefined,
+          },
+          { status: 503 },
+        )
+      }
+
+      recommendations = result
 
       if (recommendations?.activities?.length > 0) {
         console.log("[v0] Sample activity response:", {

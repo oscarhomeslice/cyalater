@@ -14,7 +14,20 @@ interface ParsedQuery {
   duration?: string
 }
 
-export async function generateActivityQuery(userInput: string): Promise<ParsedQuery> {
+interface ErrorResponse {
+  success: false
+  error: string
+  recommendations: {
+    activities: any[]
+    backupOptions: {}
+    proTips: string[]
+    refinementPrompts: string[]
+  }
+}
+
+export async function generateActivityQuery(
+  userInput: string,
+): Promise<ParsedQuery | { success: false; error: string }> {
   try {
     const completion = await openai.chat.completions.create({
       model: "gpt-5-nano",
@@ -50,29 +63,40 @@ Return ONLY a JSON object with these fields. If a field is not mentioned, omit i
 
     console.log("[v0] Parsed user query:", parsed)
     return parsed
-  } catch (error) {
-    console.error("[v0] Error parsing user query:", error)
-    throw new Error("Failed to parse user input")
+  } catch (error: any) {
+    console.error("[OpenAI Error] Failed to parse user query:", error.message)
+    return {
+      success: false,
+      error: `Failed to understand your request: ${error.message || "Unknown error"}`,
+    }
   }
 }
 
 export async function generateActivityRecommendations(
   userInput: string,
   enrichedLocations: EnrichedLocation[],
-): Promise<{
-  activities: any[]
-  backupOptions?: any
-  refinementPrompts?: string[]
-  proTips?: string[]
-}> {
+): Promise<
+  | {
+      activities: any[]
+      backupOptions?: any
+      refinementPrompts?: string[]
+      proTips?: string[]
+    }
+  | ErrorResponse
+> {
   try {
+    if (!enrichedLocations) {
+      console.warn("[openai-helper] enrichedLocations is undefined, passing empty array to model.")
+      enrichedLocations = []
+    }
+
     const systemPrompt = `You are an expert group activity planner. Based on the user's description and available TripAdvisor locations, recommend the best activities.
 
 CRITICAL: Always use the exact "name" field from TripAdvisor data for each activity. DO NOT make up activity names.
 
 Available TripAdvisor locations with enriched details:
 ${JSON.stringify(
-  enrichedLocations.slice(0, 15).map((loc) => ({
+  (enrichedLocations || []).slice(0, 15).map((loc) => ({
     name: loc.name,
     rating: loc.rating,
     reviewCount: loc.reviewCount,
@@ -230,9 +254,18 @@ Guidelines:
     })
 
     return recommendations
-  } catch (error) {
-    console.error("[v0] Error generating recommendations:", error)
-    throw new Error("Failed to generate activity recommendations")
+  } catch (error: any) {
+    console.error("[OpenAI Error] Failed to generate recommendations:", error.message)
+    return {
+      success: false,
+      error: error.message || "Failed to generate recommendations",
+      recommendations: {
+        activities: [],
+        backupOptions: {},
+        proTips: [],
+        refinementPrompts: [],
+      },
+    }
   }
 }
 

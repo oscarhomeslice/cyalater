@@ -46,8 +46,9 @@ const errorConfig: Record<
   },
   tripadvisor: {
     icon: AlertTriangle,
-    title: "No Activities Found",
-    defaultMessage: "Couldn't find activities for this location. Try another city?",
+    title: "Service Temporarily Unavailable",
+    defaultMessage:
+      "We couldn't generate activities right now. TripAdvisor data may be temporarily unavailable. Please try again in a few minutes.",
     color: "text-orange-400",
   },
   openai: {
@@ -77,7 +78,7 @@ const errorConfig: Record<
   generic: {
     icon: AlertCircle,
     title: "Something Went Wrong",
-    defaultMessage: "Please try again.",
+    defaultMessage: "We couldn't generate activities right now. Please try again in a few minutes.",
     color: "text-red-400",
   },
 }
@@ -96,6 +97,15 @@ export function ErrorAlert({ type, message, onRetry, onCancel, onKeepWaiting }: 
           <h3 className="font-bold text-lg mb-1">{config.title}</h3>
           <p className="text-zinc-300 text-sm mb-4">{message || config.defaultMessage}</p>
 
+          {type === "tripadvisor" && (
+            <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4 mb-4">
+              <p className="text-xs text-blue-300 flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4" />
+                <span>TripAdvisor data may be temporarily unavailable. Please try again in a few minutes.</span>
+              </p>
+            </div>
+          )}
+
           {type === "empty" && (
             <div className="bg-zinc-800/50 rounded-lg p-4 mb-4 border border-zinc-700">
               <p className="text-xs text-zinc-400 mb-2 font-medium">Suggestions for better results:</p>
@@ -109,12 +119,12 @@ export function ErrorAlert({ type, message, onRetry, onCancel, onKeepWaiting }: 
           )}
 
           <div className="flex flex-wrap gap-2">
-            {onRetry && (
+            {onRetry && type !== "timeout" && (
               <Button
                 onClick={onRetry}
                 className="bg-gradient-to-r from-primary to-emerald-400 hover:from-primary/90 hover:to-emerald-400/90 text-black font-semibold"
               >
-                Try Again
+                Retry
               </Button>
             )}
             {onKeepWaiting && (

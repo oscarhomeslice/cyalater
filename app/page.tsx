@@ -270,14 +270,29 @@ export default function Page() {
       })
 
       if (!data.success) {
-        throw { type: "generic", message: data.error || "Failed to generate activities" }
+        // Check if this is a TripAdvisor-related error
+        const isTripAdvisorError = data.error?.toLowerCase().includes("tripadvisor")
+
+        if (isTripAdvisorError) {
+          throw {
+            type: "tripadvisor",
+            message:
+              "We couldn't generate activities right now. TripAdvisor data may be temporarily unavailable. Please try again in a few minutes.",
+          }
+        }
+
+        throw {
+          type: "generic",
+          message: data.error || "We couldn't generate activities right now. Please try again in a few minutes.",
+        }
       }
 
       if (!data.recommendations.activities || data.recommendations.activities.length === 0) {
         console.warn("[v0] No activities returned from API")
         setError({
           type: "empty",
-          message: "No activities found. Try describing your request differently.",
+          message:
+            "We couldn't generate activities right now. Please try again in a few minutes or try describing your request differently.",
         })
         setIsLoading(false)
         return
@@ -314,12 +329,17 @@ export default function Page() {
       } else if (err.type) {
         // Structured error from API
         setError({ type: err.type, message: err.message })
-        showToast(err.message || "An error occurred", "error")
+        const userMessage =
+          err.type === "tripadvisor" ? "TripAdvisor data temporarily unavailable" : err.message || "An error occurred"
+        showToast(userMessage, "error")
       } else if (err.message?.includes("fetch") || err.message?.includes("network")) {
-        setError({ type: "network", message: "Connection problem. Check your internet." })
+        setError({ type: "network", message: "Connection problem. Check your internet and try again." })
         showToast("Network error. Check your connection.", "error")
       } else {
-        setError({ type: "generic", message: "Something went wrong. Please try again." })
+        setError({
+          type: "generic",
+          message: "We couldn't generate activities right now. Please try again in a few minutes.",
+        })
         showToast("Something went wrong. Please try again.", "error")
       }
     } finally {
