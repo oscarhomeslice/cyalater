@@ -40,7 +40,7 @@ export interface ActivityData {
 interface ActivityCardProps {
   activity: ActivityData
   onAddToShortlist?: (id: string) => void
-  isShortlisted?: boolean // Added prop to track shortlist state
+  isShortlisted?: boolean
 }
 
 const tagColors: Record<string, string> = {
@@ -81,7 +81,9 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
   const [isExpanded, setIsExpanded] = useState(false)
   const [showCheckmark, setShowCheckmark] = useState(false)
 
-  const ActivityLevelIcon = activityLevelConfig[activity.activityLevel].icon
+  if (!activity) return null
+
+  const ActivityLevelIcon = activity?.activityLevel ? activityLevelConfig[activity.activityLevel]?.icon : Heart
 
   const handleShortlist = () => {
     if (!isShortlisted) {
@@ -94,65 +96,69 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
   return (
     <article
       className="group bg-zinc-900/50 backdrop-blur-sm border border-zinc-800 rounded-2xl p-6 shadow-lg hover:shadow-2xl hover:shadow-primary/10 hover:-translate-y-1 hover:border-zinc-700 transition-all duration-300 focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2 focus-within:ring-offset-black"
-      aria-label={`${activity.title} activity`}
+      aria-label={`${activity?.title || "Activity"} activity`}
     >
       {/* Header */}
       <div className="flex items-start justify-between gap-4 mb-4">
-        <h3 className="text-xl md:text-2xl font-bold text-white leading-tight flex-1">{activity.title}</h3>
+        <h3 className="text-xl md:text-2xl font-bold text-white leading-tight flex-1">
+          {activity?.title || "Untitled Activity"}
+        </h3>
         <Badge
           variant="outline"
           className={`${
-            activity.locationType === "Outdoor"
+            activity?.locationType === "Outdoor"
               ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
-              : activity.locationType === "Indoor"
+              : activity?.locationType === "Indoor"
                 ? "bg-blue-500/20 text-blue-400 border-blue-500/30"
                 : "bg-purple-500/20 text-purple-400 border-purple-500/30"
           } flex items-center gap-1 shrink-0`}
-          aria-label={`${activity.locationType} activity`}
+          aria-label={`${activity?.locationType || "Unknown"} activity`}
         >
-          {activity.locationType === "Outdoor" ? (
+          {activity?.locationType === "Outdoor" ? (
             <Sun className="w-3 h-3" aria-hidden="true" />
           ) : (
             <Home className="w-3 h-3" aria-hidden="true" />
           )}
-          {activity.locationType}
+          {activity?.locationType || "Both"}
         </Badge>
       </div>
 
       {/* Description */}
-      <p className="text-zinc-400 leading-relaxed mb-4">{activity.description}</p>
+      <p className="text-zinc-400 leading-relaxed mb-4">{activity?.description || ""}</p>
 
       {/* TripAdvisor rating display */}
-      {activity.tripAdvisorRating && (
+      {activity?.tripAdvisorRating && (
         <div className="flex items-center gap-2 mb-4">
           <div className="flex items-center gap-1">{renderStars(activity.tripAdvisorRating)}</div>
           <span className="text-sm text-zinc-400">{activity.tripAdvisorRating.toFixed(1)}</span>
-          {activity.reviewCount && (
+          {activity?.reviewCount && (
             <span className="text-xs text-zinc-500">({activity.reviewCount.toLocaleString()} reviews)</span>
           )}
         </div>
       )}
 
       {/* Tags */}
-      <div className="flex flex-wrap gap-2 mb-4" role="list" aria-label="Activity tags">
-        {activity.tags.map((tag) => (
-          <Badge
-            key={tag}
-            variant="outline"
-            className={`${tagColors[tag] || "bg-zinc-700/50 text-zinc-300 border-zinc-600"} text-xs`}
-            role="listitem"
-          >
-            {tag}
-          </Badge>
-        ))}
-      </div>
+      {activity?.tags && activity.tags.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-4" role="list" aria-label="Activity tags">
+          {activity.tags.map((tag) => (
+            <Badge
+              key={tag}
+              variant="outline"
+              className={`${tagColors[tag] || "bg-zinc-700/50 text-zinc-300 border-zinc-600"} text-xs`}
+              role="listitem"
+            >
+              {tag}
+            </Badge>
+          ))}
+        </div>
+      )}
 
       {/* Info Grid */}
       <div className="grid grid-cols-3 gap-4 mb-4 py-4 border-y border-zinc-800">
         <div className="flex flex-col items-center text-center">
           <div className="flex items-center gap-1 text-primary mb-1">
             <Euro className="w-4 h-4" aria-hidden="true" />
-            <span className="font-bold text-lg">{activity.cost}</span>
+            <span className="font-bold text-lg">{activity?.cost ?? 0}</span>
           </div>
           <span className="text-xs text-zinc-500">per person</span>
         </div>
@@ -160,33 +166,37 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
         <div className="flex flex-col items-center text-center">
           <div className="flex items-center gap-1 text-primary mb-1">
             <Clock className="w-4 h-4" aria-hidden="true" />
-            <span className="font-bold text-lg">{activity.duration}</span>
+            <span className="font-bold text-lg">{activity?.duration || "TBD"}</span>
           </div>
           <span className="text-xs text-zinc-500">duration</span>
         </div>
 
         <div className="flex flex-col items-center text-center">
-          <div className={`flex items-center gap-1 mb-1 ${activityLevelConfig[activity.activityLevel].color}`}>
-            <ActivityLevelIcon className="w-4 h-4" aria-hidden="true" />
-            <span className="font-bold text-lg">{activity.activityLevel}</span>
+          <div
+            className={`flex items-center gap-1 mb-1 ${activity?.activityLevel ? activityLevelConfig[activity.activityLevel]?.color : "text-zinc-400"}`}
+          >
+            {ActivityLevelIcon && <ActivityLevelIcon className="w-4 h-4" aria-hidden="true" />}
+            <span className="font-bold text-lg">{activity?.activityLevel || "Low"}</span>
           </div>
           <span className="text-xs text-zinc-500">intensity</span>
         </div>
       </div>
 
       {/* Special Feature */}
-      <div className="bg-gradient-to-r from-primary/10 to-emerald-400/10 border border-primary/20 rounded-xl p-4 mb-4">
-        <div className="flex items-start gap-2">
-          <Sparkles className="w-5 h-5 text-primary shrink-0 mt-0.5" aria-hidden="true" />
-          <div>
-            <p className="text-sm font-medium text-primary mb-1">What makes it special</p>
-            <p className="text-sm text-zinc-300 leading-relaxed">{activity.specialFeature}</p>
+      {activity?.specialFeature && (
+        <div className="bg-gradient-to-r from-primary/10 to-emerald-400/10 border border-primary/20 rounded-xl p-4 mb-4">
+          <div className="flex items-start gap-2">
+            <Sparkles className="w-5 h-5 text-primary shrink-0 mt-0.5" aria-hidden="true" />
+            <div>
+              <p className="text-sm font-medium text-primary mb-1">What makes it special</p>
+              <p className="text-sm text-zinc-300 leading-relaxed">{activity.specialFeature}</p>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Expandable Details */}
-      {activity.details && (
+      {activity?.details && (
         <div className="mb-4">
           <button
             onClick={() => setIsExpanded(!isExpanded)}
@@ -221,7 +231,9 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
               ? "bg-primary/20 border-primary text-primary hover:bg-primary/30"
               : "bg-zinc-800/50 border-zinc-700 text-white hover:bg-zinc-800 hover:border-primary/50"
           } transition-all duration-200 focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-zinc-900`}
-          aria-label={isShortlisted ? `Remove ${activity.title} from shortlist` : `Add ${activity.title} to shortlist`}
+          aria-label={
+            isShortlisted ? `Remove ${activity?.title} from shortlist` : `Add ${activity?.title} to shortlist`
+          }
           aria-pressed={isShortlisted}
         >
           {showCheckmark && (
@@ -236,12 +248,12 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
           {isShortlisted ? "Added" : "Add to Shortlist"}
         </Button>
 
-        {activity.tripAdvisorUrl && (
+        {activity?.tripAdvisorUrl && (
           <Button
             onClick={() => window.open(activity.tripAdvisorUrl, "_blank", "noopener,noreferrer")}
             variant="outline"
             className="bg-zinc-800/50 border-zinc-700 text-white hover:bg-zinc-800 hover:border-primary/50 transition-all duration-200 focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-zinc-900"
-            aria-label={`View ${activity.title} on TripAdvisor`}
+            aria-label={`View ${activity?.title} on TripAdvisor`}
           >
             <ExternalLink className="w-4 h-4" aria-hidden="true" />
           </Button>
@@ -249,7 +261,7 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
       </div>
 
       {/* TripAdvisor attribution footer */}
-      {activity.tripAdvisorUrl && (
+      {activity?.tripAdvisorUrl && (
         <div className="mt-4 pt-4 border-t border-zinc-800/50 flex items-center justify-center gap-2">
           <span className="text-[11px] text-zinc-600">Powered by</span>
           <a

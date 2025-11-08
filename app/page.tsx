@@ -38,6 +38,7 @@ import {
 import { VotingLinkModal } from "@/components/voting-link-modal"
 import { EmailModal } from "@/components/email-modal"
 import { ToastContainer, showToast } from "@/components/toast"
+import { ErrorBoundary } from "@/components/error-boundary"
 
 const loadingMessages = [
   "Understanding your group...",
@@ -234,12 +235,16 @@ export default function Page() {
     requestAbortRef.current = new AbortController()
 
     try {
+      console.log("[v0] Starting API request with input:", userInput)
+
       const response = await fetch("/api/generate-activities", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userInput }),
         signal: requestAbortRef.current.signal,
       })
+
+      console.log("[v0] API response status:", response.status)
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
@@ -256,12 +261,20 @@ export default function Page() {
       }
 
       const data: ApiResponse = await response.json()
+      console.log("[v0] API response data:", {
+        success: data.success,
+        activitiesCount: data.recommendations?.activities?.length || 0,
+        proTipsCount: data.recommendations?.proTips?.length || 0,
+        hasBackupOptions: !!data.recommendations?.backupOptions,
+        refinementPromptsCount: data.recommendations?.refinementPrompts?.length || 0,
+      })
 
       if (!data.success) {
         throw { type: "generic", message: data.error || "Failed to generate activities" }
       }
 
       if (!data.recommendations.activities || data.recommendations.activities.length === 0) {
+        console.warn("[v0] No activities returned from API")
         setError({
           type: "empty",
           message: "No activities found. Try describing your request differently.",
@@ -269,6 +282,11 @@ export default function Page() {
         setIsLoading(false)
         return
       }
+
+      console.log("[v0] Successfully received activities:", data.recommendations.activities.length)
+      console.log("[v0] Pro tips:", data.recommendations.proTips)
+      console.log("[v0] Backup options:", data.recommendations.backupOptions)
+      console.log("[v0] Refinement prompts:", data.recommendations.refinementPrompts)
 
       setActivities(data.recommendations.activities || [])
       setProTips(data.recommendations.proTips || [])
@@ -284,6 +302,8 @@ export default function Page() {
           timestamp: Date.now(),
         },
       ])
+
+      console.log("[v0] ✅ Data rendered successfully!")
       showToast(`Found ${data.recommendations.activities.length} activities for you!`, "success")
     } catch (err: any) {
       console.error("[v0] Error generating activities:", err)
@@ -1209,182 +1229,202 @@ export default function Page() {
                 </aside>
 
                 <div className="flex-1 space-y-12">
-                  {filteredActivities.length > 0 ? (
-                    <div
-                      className="grid grid-cols-1 md:grid-cols-2 gap-6"
-                      role="list"
-                      aria-label="Activity suggestions"
-                    >
-                      {filteredActivities.map((activity, index) => (
+                  <ErrorBoundary>
+                    {!filteredActivities || filteredActivities.length === 0 ? (
+                      <div className="text-center py-16" role="status" aria-live="polite">
                         <div
-                          key={activity.id}
-                          className="animate-in fade-in slide-in-from-bottom-4"
-                          style={{ animationDelay: `${index * 100}ms`, animationFillMode: "backwards" }}
-                          role="listitem"
+                          className="w-20 h-20 bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-4"
+                          aria-hidden="true"
                         >
-                          <ActivityCard
-                            activity={activity}
-                            onAddToShortlist={handleAddToShortlist}
-                            isShortlisted={shortlist.includes(activity.id)}
-                          />
+                          <Filter className="w-10 h-10 text-zinc-600" />
                         </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-16" role="status" aria-live="polite">
-                      <div
-                        className="w-20 h-20 bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-4"
-                        aria-hidden="true"
-                      >
-                        <Filter className="w-10 h-10 text-zinc-600" />
+                        <h3 className="text-xl font-bold mb-2">No activities found</h3>
+                        <p className="text-zinc-400 mb-4">
+                          {activities.length === 0
+                            ? "We couldn't find any activities matching your request. Try describing your group differently."
+                            : "No activities match your current filters. Try adjusting your filter settings."}
+                        </p>
+                        <Button
+                          onClick={() => {
+                            setFilterLocation("all")
+                            setFilterLevel("all")
+                            setFilterBudget("all")
+                            showToast("Filters cleared", "info")
+                          }}
+                          variant="outline"
+                          className="bg-zinc-800/50 border-zinc-700 hover:bg-zinc-800 focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-black"
+                        >
+                          Clear All Filters
+                        </Button>
                       </div>
-                      <h3 className="text-xl font-bold mb-2">No activities match your filters</h3>
-                      <p className="text-zinc-400 mb-4">Try adjusting your filter settings</p>
-                      <Button
-                        onClick={() => {
-                          setFilterLocation("all")
-                          setFilterLevel("all")
-                          setFilterBudget("all")
-                          showToast("Filters cleared", "info")
-                        }}
-                        variant="outline"
-                        className="bg-zinc-800/50 border-zinc-700 hover:bg-zinc-800 focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-black"
+                    ) : (
+                      <div
+                        className="grid grid-cols-1 md:grid-cols-2 gap-6"
+                        role="list"
+                        aria-label="Activity suggestions"
                       >
-                        Clear All Filters
-                      </Button>
-                    </div>
-                  )}
+                        {filteredActivities.map((activity, index) => {
+                          if (!activity) return null
 
-                  {backupOptions &&
-                    (backupOptions.weatherAlternative || backupOptions.timeSaver || backupOptions.budgetFriendly) && (
-                      <div className="border-t border-zinc-800 pt-12">
-                        <div className="mb-6">
-                          <h3 className="text-2xl font-bold mb-2">Backup Options</h3>
-                          <p className="text-zinc-400">Just in case you need a Plan B</p>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          {backupOptions.weatherAlternative && (
-                            <div className="bg-zinc-900/30 backdrop-blur-sm border-2 border-dashed border-zinc-700/50 rounded-xl p-5 hover:border-zinc-600 transition-all duration-300 group">
-                              <div className="flex items-center gap-2 mb-3">
-                                <div className="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center">
-                                  <CloudRain className="w-4 h-4 text-blue-400" />
-                                </div>
-                                <h4 className="font-bold">Weather Alternative</h4>
-                              </div>
-                              <p className="text-sm text-zinc-300 mb-2">{backupOptions.weatherAlternative.title}</p>
-                              <p className="text-xs text-zinc-500 mb-3">
-                                {backupOptions.weatherAlternative.description}
-                              </p>
-                              <div className="flex items-center gap-3 text-xs text-zinc-500">
-                                <span>€{backupOptions.weatherAlternative.cost}</span>
-                                <span>•</span>
-                                <span>{backupOptions.weatherAlternative.duration}</span>
-                              </div>
+                          return (
+                            <div
+                              key={activity.id}
+                              className="animate-in fade-in slide-in-from-bottom-4"
+                              style={{ animationDelay: `${index * 100}ms`, animationFillMode: "backwards" }}
+                              role="listitem"
+                            >
+                              <ActivityCard
+                                activity={activity}
+                                onAddToShortlist={handleAddToShortlist}
+                                isShortlisted={shortlist.includes(activity.id)}
+                              />
                             </div>
-                          )}
-                          {backupOptions.timeSaver && (
-                            <div className="bg-zinc-900/30 backdrop-blur-sm border-2 border-dashed border-zinc-700/50 rounded-xl p-5 hover:border-zinc-600 transition-all duration-300 group">
-                              <div className="flex items-center gap-2 mb-3">
-                                <div className="w-8 h-8 bg-yellow-500/20 rounded-lg flex items-center justify-center">
-                                  <Clock className="w-4 h-4 text-yellow-400" />
-                                </div>
-                                <h4 className="font-bold">Time Saver</h4>
-                              </div>
-                              <p className="text-sm text-zinc-300 mb-2">{backupOptions.timeSaver.title}</p>
-                              <p className="text-xs text-zinc-500 mb-3">{backupOptions.timeSaver.description}</p>
-                              <div className="flex items-center gap-3 text-xs text-zinc-500">
-                                <span>€{backupOptions.timeSaver.cost}</span>
-                                <span>•</span>
-                                <span>{backupOptions.timeSaver.duration}</span>
-                              </div>
-                            </div>
-                          )}
-                          {backupOptions.budgetFriendly && (
-                            <div className="bg-zinc-900/30 backdrop-blur-sm border-2 border-dashed border-zinc-700/50 rounded-xl p-5 hover:border-zinc-600 transition-all duration-300 group">
-                              <div className="flex items-center gap-2 mb-3">
-                                <div className="w-8 h-8 bg-green-500/20 rounded-lg flex items-center justify-center">
-                                  <Wallet className="w-4 h-4 text-green-400" />
-                                </div>
-                                <h4 className="font-bold">Budget-Friendly</h4>
-                              </div>
-                              <p className="text-sm text-zinc-300 mb-2">{backupOptions.budgetFriendly.title}</p>
-                              <p className="text-xs text-zinc-500 mb-3">{backupOptions.budgetFriendly.description}</p>
-                              <div className="flex items-center gap-3 text-xs text-zinc-500">
-                                <span>€{backupOptions.budgetFriendly.cost}</span>
-                                <span>•</span>
-                                <span>{backupOptions.budgetFriendly.duration}</span>
-                              </div>
-                            </div>
-                          )}
-                        </div>
+                          )
+                        })}
                       </div>
                     )}
 
-                  {/* Pro Tips Section */}
-                  {proTips.length > 0 && (
-                    <div className="border-t border-zinc-800 pt-12">
-                      <button
-                        onClick={() => setShowProTips(!showProTips)}
-                        className="flex items-center justify-between w-full mb-6 group"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center">
-                            <Lightbulb className="w-5 h-5 text-primary" />
+                    {backupOptions &&
+                      (backupOptions.weatherAlternative || backupOptions.timeSaver || backupOptions.budgetFriendly) && (
+                        <div className="border-t border-zinc-800 pt-12">
+                          <div className="mb-6">
+                            <h3 className="text-2xl font-bold mb-2">Backup Options</h3>
+                            <p className="text-zinc-400">Just in case you need a Plan B</p>
                           </div>
-                          <div className="text-left">
-                            <h3 className="text-2xl font-bold">Pro Tips for Success</h3>
-                            <p className="text-sm text-zinc-400">Make the most of your group activity</p>
-                          </div>
-                        </div>
-                        {showProTips ? (
-                          <ChevronUp className="w-6 h-6 text-zinc-400 group-hover:text-primary transition-colors" />
-                        ) : (
-                          <ChevronDown className="w-6 h-6 text-zinc-400 group-hover:text-primary transition-colors" />
-                        )}
-                      </button>
-
-                      {showProTips && (
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-in fade-in slide-in-from-top-2 duration-300">
-                          {proTips.map((tip, index) => (
-                            <div
-                              key={index}
-                              className="bg-gradient-to-br from-primary/10 to-emerald-400/10 border border-primary/20 rounded-xl p-6"
-                            >
-                              <div className="w-8 h-8 bg-primary/20 rounded-lg flex items-center justify-center mb-3">
-                                <Lightbulb className="w-4 h-4 text-primary" />
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            {backupOptions?.weatherAlternative && (
+                              <div className="bg-zinc-900/30 backdrop-blur-sm border-2 border-dashed border-zinc-700/50 rounded-xl p-5 hover:border-zinc-600 transition-all duration-300 group">
+                                <div className="flex items-center gap-2 mb-3">
+                                  <div className="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                                    <CloudRain className="w-4 h-4 text-blue-400" />
+                                  </div>
+                                  <h4 className="font-bold">Weather Alternative</h4>
+                                </div>
+                                <p className="text-sm text-zinc-300 mb-2">
+                                  {backupOptions.weatherAlternative?.title || "Alternative activity"}
+                                </p>
+                                <p className="text-xs text-zinc-500 mb-3">
+                                  {backupOptions.weatherAlternative?.description || "Indoor option for rainy days"}
+                                </p>
+                                <div className="flex items-center gap-3 text-xs text-zinc-500">
+                                  <span>€{backupOptions.weatherAlternative?.cost ?? 0}</span>
+                                  <span>•</span>
+                                  <span>{backupOptions.weatherAlternative?.duration || "TBD"}</span>
+                                </div>
                               </div>
-                              <p className="text-sm text-zinc-300 leading-relaxed">{tip}</p>
-                            </div>
-                          ))}
+                            )}
+                            {backupOptions?.timeSaver && (
+                              <div className="bg-zinc-900/30 backdrop-blur-sm border-2 border-dashed border-zinc-700/50 rounded-xl p-5 hover:border-zinc-600 transition-all duration-300 group">
+                                <div className="flex items-center gap-2 mb-3">
+                                  <div className="w-8 h-8 bg-yellow-500/20 rounded-lg flex items-center justify-center">
+                                    <Clock className="w-4 h-4 text-yellow-400" />
+                                  </div>
+                                  <h4 className="font-bold">Time Saver</h4>
+                                </div>
+                                <p className="text-sm text-zinc-300 mb-2">
+                                  {backupOptions.timeSaver?.title || "Quick activity"}
+                                </p>
+                                <p className="text-xs text-zinc-500 mb-3">
+                                  {backupOptions.timeSaver?.description || "Perfect when time is limited"}
+                                </p>
+                                <div className="flex items-center gap-3 text-xs text-zinc-500">
+                                  <span>€{backupOptions.timeSaver?.cost ?? 0}</span>
+                                  <span>•</span>
+                                  <span>{backupOptions.timeSaver?.duration || "TBD"}</span>
+                                </div>
+                              </div>
+                            )}
+                            {backupOptions?.budgetFriendly && (
+                              <div className="bg-zinc-900/30 backdrop-blur-sm border-2 border-dashed border-zinc-700/50 rounded-xl p-5 hover:border-zinc-600 transition-all duration-300 group">
+                                <div className="flex items-center gap-2 mb-3">
+                                  <div className="w-8 h-8 bg-green-500/20 rounded-lg flex items-center justify-center">
+                                    <Wallet className="w-4 h-4 text-green-400" />
+                                  </div>
+                                  <h4 className="font-bold">Budget-Friendly</h4>
+                                </div>
+                                <p className="text-sm text-zinc-300 mb-2">
+                                  {backupOptions.budgetFriendly?.title || "Affordable activity"}
+                                </p>
+                                <p className="text-xs text-zinc-500 mb-3">
+                                  {backupOptions.budgetFriendly?.description || "Great value for money"}
+                                </p>
+                                <div className="flex items-center gap-3 text-xs text-zinc-500">
+                                  <span>€{backupOptions.budgetFriendly?.cost ?? 0}</span>
+                                  <span>•</span>
+                                  <span>{backupOptions.budgetFriendly?.duration || "TBD"}</span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       )}
-                    </div>
-                  )}
 
-                  {refinementPrompts && refinementPrompts.length > 0 && (
-                    <div className="border-t border-zinc-800 pt-12">
-                      <div className="text-center mb-6">
-                        <h3 className="text-2xl font-bold mb-2">Not quite right?</h3>
-                        <p className="text-zinc-400">Let's refine your search with these quick adjustments</p>
+                    {/* Pro Tips Section */}
+                    {proTips && proTips.length > 0 && (
+                      <div className="border-t border-zinc-800 pt-12">
+                        <button
+                          onClick={() => setShowProTips(!showProTips)}
+                          className="flex items-center justify-between w-full mb-6 group"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center">
+                              <Lightbulb className="w-5 h-5 text-primary" />
+                            </div>
+                            <div className="text-left">
+                              <h3 className="text-2xl font-bold">Pro Tips for Success</h3>
+                              <p className="text-sm text-zinc-400">Make the most of your group activity</p>
+                            </div>
+                          </div>
+                          {showProTips ? (
+                            <ChevronUp className="w-6 h-6 text-zinc-400 group-hover:text-primary transition-colors" />
+                          ) : (
+                            <ChevronDown className="w-6 h-6 text-zinc-400 group-hover:text-primary transition-colors" />
+                          )}
+                        </button>
+
+                        {showProTips && (
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                            {proTips.map((tip, index) => (
+                              <div
+                                key={index}
+                                className="bg-gradient-to-br from-primary/10 to-emerald-400/10 border border-primary/20 rounded-xl p-6"
+                              >
+                                <div className="w-8 h-8 bg-primary/20 rounded-lg flex items-center justify-center mb-3">
+                                  <Lightbulb className="w-4 h-4 text-primary" aria-hidden="true" />
+                                </div>
+                                <p className="text-sm text-zinc-300 leading-relaxed">{tip}</p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                      <div className="flex flex-wrap justify-center gap-3">
-                        {refinementPrompts.map((prompt, index) => (
-                          <Button
-                            key={index}
-                            onClick={() => {
-                              setRefinementInput(prompt)
-                              handleCustomRefinement()
-                            }}
-                            variant="outline"
-                            className="bg-zinc-900/50 border-zinc-700 hover:bg-zinc-800 hover:border-primary/50 rounded-full px-6"
-                          >
-                            <Sparkles className="w-4 h-4 mr-2" />
-                            {prompt}
-                          </Button>
-                        ))}
+                    )}
+
+                    {refinementPrompts && refinementPrompts.length > 0 && (
+                      <div className="border-t border-zinc-800 pt-12">
+                        <div className="text-center mb-6">
+                          <h3 className="text-2xl font-bold mb-2">Not quite right?</h3>
+                          <p className="text-zinc-400">Let's refine your search with these quick adjustments</p>
+                        </div>
+                        <div className="flex flex-wrap justify-center gap-3">
+                          {refinementPrompts.map((prompt, index) => (
+                            <Button
+                              key={index}
+                              onClick={() => {
+                                setRefinementInput(prompt)
+                                handleCustomRefinement()
+                              }}
+                              variant="outline"
+                              className="bg-zinc-900/50 border-zinc-700 hover:bg-zinc-800 hover:border-primary/50 rounded-full px-6"
+                            >
+                              <Sparkles className="w-4 h-4 mr-2" />
+                              {prompt}
+                            </Button>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </ErrorBoundary>
                 </div>
               </div>
 
