@@ -85,30 +85,35 @@ export async function generateActivityRecommendations(
   | ErrorResponse
 > {
   try {
-    if (!enrichedLocations) {
-      console.warn("[openai-helper] enrichedLocations is undefined, passing empty array to model.")
-      enrichedLocations = []
+    const safeEnrichedLocations = Array.isArray(enrichedLocations) ? enrichedLocations : []
+
+    if (!safeEnrichedLocations || safeEnrichedLocations.length === 0) {
+      console.warn("[openai-helper] No enriched locations provided, will generate generic recommendations")
     }
+
+    const safeLocationData = safeEnrichedLocations
+      .slice(0, 15)
+      .map((loc) => {
+        if (!loc) return null
+        return {
+          name: loc.name || "Unknown Location",
+          rating: loc.rating || 0,
+          reviewCount: loc.reviewCount || 0,
+          tripAdvisorUrl: loc.tripAdvisorUrl || "",
+          image: loc.image || "",
+          category: loc.category || "attraction",
+          ranking: loc.ranking || "",
+          locationId: loc.locationId || "",
+        }
+      })
+      .filter(Boolean) // Remove any null entries
 
     const systemPrompt = `You are an expert group activity planner. Based on the user's description and available TripAdvisor locations, recommend the best activities.
 
 CRITICAL: Always use the exact "name" field from TripAdvisor data for each activity. DO NOT make up activity names.
 
 Available TripAdvisor locations with enriched details:
-${JSON.stringify(
-  (enrichedLocations || []).slice(0, 15).map((loc) => ({
-    name: loc.name,
-    rating: loc.rating,
-    reviewCount: loc.reviewCount,
-    tripAdvisorUrl: loc.tripAdvisorUrl,
-    image: loc.image,
-    category: loc.category,
-    ranking: loc.ranking,
-    locationId: loc.locationId,
-  })),
-  null,
-  2,
-)}
+${JSON.stringify(safeLocationData, null, 2)}
 
 Return a JSON object with:
 {
@@ -195,34 +200,15 @@ Guidelines:
 
     if (recommendations.activities && Array.isArray(recommendations.activities)) {
       recommendations.activities = recommendations.activities.map((activity: any, index: number) => {
-        // Try to match with enriched location data
-        const matchedLocation = enrichedLocations.find(
+        const matchedLocation = safeEnrichedLocations.find(
           (loc) =>
-            loc.name === activity.name ||
-            loc.locationId === activity.id ||
-            loc.tripAdvisorUrl === activity.tripAdvisorUrl,
+            loc &&
+            (loc.name === activity.name ||
+              loc.locationId === activity.id ||
+              loc.tripAdvisorUrl === activity.tripAdvisorUrl),
         )
 
-        // If no name exists, create fallback
-        if (!activity.name || activity.name.trim() === "") {
-          console.warn(`[v0] Activity ${index} missing name, applying fallback`)
-
-          // Try to extract from URL
-          if (activity.tripAdvisorUrl) {
-            const urlParts = activity.tripAdvisorUrl.split("/")
-            const lastPart = urlParts[urlParts.length - 1]
-            activity.name = lastPart.replaceAll("-", " ").replaceAll("_", " ")
-          } else if (matchedLocation) {
-            activity.name = matchedLocation.name
-          } else if (activity.category && userInput) {
-            const location = userInput.split(" ")[0] || "location"
-            activity.name = `${activity.category} in ${location}`
-          } else {
-            activity.name = "Activity"
-          }
-        }
-
-        // Ensure ALL enriched data is preserved from matched location
+        // Try to match with enriched location data
         if (matchedLocation) {
           activity.name = matchedLocation.name
           activity.rating = matchedLocation.rating
