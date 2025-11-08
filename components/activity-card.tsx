@@ -16,6 +16,8 @@ import {
   Zap,
   Mountain,
   Check,
+  ExternalLink,
+  Star,
 } from "lucide-react"
 
 export interface ActivityData {
@@ -30,6 +32,9 @@ export interface ActivityData {
   locationType: "Indoor" | "Outdoor" | "Both"
   specialFeature: string
   details?: string
+  tripAdvisorRating?: number
+  reviewCount?: number
+  tripAdvisorUrl?: string
 }
 
 interface ActivityCardProps {
@@ -54,6 +59,22 @@ const activityLevelConfig = {
   Low: { icon: Heart, color: "text-emerald-400" },
   Moderate: { icon: Zap, color: "text-yellow-400" },
   High: { icon: Mountain, color: "text-red-400" },
+}
+
+const renderStars = (rating: number) => {
+  const fullStars = Math.floor(rating)
+  const hasHalfStar = rating % 1 >= 0.5
+  const stars = []
+
+  for (let i = 0; i < fullStars; i++) {
+    stars.push(<Star key={`full-${i}`} className="w-3 h-3 fill-yellow-400 text-yellow-400" />)
+  }
+
+  if (hasHalfStar) {
+    stars.push(<Star key="half" className="w-3 h-3 fill-yellow-400 text-yellow-400 opacity-50" />)
+  }
+
+  return stars
 }
 
 export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false }: ActivityCardProps) {
@@ -100,6 +121,17 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
 
       {/* Description */}
       <p className="text-zinc-400 leading-relaxed mb-4">{activity.description}</p>
+
+      {/* TripAdvisor rating display */}
+      {activity.tripAdvisorRating && (
+        <div className="flex items-center gap-2 mb-4">
+          <div className="flex items-center gap-1">{renderStars(activity.tripAdvisorRating)}</div>
+          <span className="text-sm text-zinc-400">{activity.tripAdvisorRating.toFixed(1)}</span>
+          {activity.reviewCount && (
+            <span className="text-xs text-zinc-500">({activity.reviewCount.toLocaleString()} reviews)</span>
+          )}
+        </div>
+      )}
 
       {/* Tags */}
       <div className="flex flex-wrap gap-2 mb-4" role="list" aria-label="Activity tags">
@@ -180,29 +212,62 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
         </div>
       )}
 
-      {/* Action Button */}
-      <Button
-        onClick={handleShortlist}
-        variant="outline"
-        className={`w-full relative overflow-hidden ${
-          isShortlisted
-            ? "bg-primary/20 border-primary text-primary hover:bg-primary/30"
-            : "bg-zinc-800/50 border-zinc-700 text-white hover:bg-zinc-800 hover:border-primary/50"
-        } transition-all duration-200 focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-zinc-900`}
-        aria-label={isShortlisted ? `Remove ${activity.title} from shortlist` : `Add ${activity.title} to shortlist`}
-        aria-pressed={isShortlisted}
-      >
-        {showCheckmark && (
-          <div
-            className="absolute inset-0 bg-primary/30 flex items-center justify-center animate-in fade-in zoom-in duration-300"
-            aria-hidden="true"
+      <div className="flex gap-2">
+        <Button
+          onClick={handleShortlist}
+          variant="outline"
+          className={`flex-1 relative overflow-hidden ${
+            isShortlisted
+              ? "bg-primary/20 border-primary text-primary hover:bg-primary/30"
+              : "bg-zinc-800/50 border-zinc-700 text-white hover:bg-zinc-800 hover:border-primary/50"
+          } transition-all duration-200 focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-zinc-900`}
+          aria-label={isShortlisted ? `Remove ${activity.title} from shortlist` : `Add ${activity.title} to shortlist`}
+          aria-pressed={isShortlisted}
+        >
+          {showCheckmark && (
+            <div
+              className="absolute inset-0 bg-primary/30 flex items-center justify-center animate-in fade-in zoom-in duration-300"
+              aria-hidden="true"
+            >
+              <Check className="w-8 h-8 text-primary animate-in zoom-in duration-200" />
+            </div>
+          )}
+          <Activity className="w-4 h-4 mr-2" aria-hidden="true" />
+          {isShortlisted ? "Added" : "Add to Shortlist"}
+        </Button>
+
+        {activity.tripAdvisorUrl && (
+          <Button
+            onClick={() => window.open(activity.tripAdvisorUrl, "_blank", "noopener,noreferrer")}
+            variant="outline"
+            className="bg-zinc-800/50 border-zinc-700 text-white hover:bg-zinc-800 hover:border-primary/50 transition-all duration-200 focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-zinc-900"
+            aria-label={`View ${activity.title} on TripAdvisor`}
           >
-            <Check className="w-8 h-8 text-primary animate-in zoom-in duration-200" />
-          </div>
+            <ExternalLink className="w-4 h-4" aria-hidden="true" />
+          </Button>
         )}
-        <Activity className="w-4 h-4 mr-2" aria-hidden="true" />
-        {isShortlisted ? "Added to Shortlist" : "Add to Shortlist"}
-      </Button>
+      </div>
+
+      {/* TripAdvisor attribution footer */}
+      {activity.tripAdvisorUrl && (
+        <div className="mt-4 pt-4 border-t border-zinc-800/50 flex items-center justify-center gap-2">
+          <span className="text-[11px] text-zinc-600">Powered by</span>
+          <a
+            href="https://www.tripadvisor.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 hover:opacity-80 transition-opacity"
+            aria-label="TripAdvisor"
+          >
+            <span className="text-lg" role="img" aria-hidden="true">
+              🦉
+            </span>
+            <span className="text-[11px] font-semibold" style={{ color: "#34E0A1" }}>
+              TripAdvisor
+            </span>
+          </a>
+        </div>
+      )}
     </article>
   )
 }

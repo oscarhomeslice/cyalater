@@ -3,13 +3,14 @@
 import type React from "react"
 import type { FormEvent } from "react"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { ActivityCard, type ActivityData } from "@/components/activity-card"
 import { Badge } from "@/components/ui/badge"
+import { ErrorAlert, type ErrorType } from "@/components/error-alert"
 import {
   Filter,
   ChevronDown,
@@ -30,8 +31,10 @@ import {
   Undo2,
   Send,
   Download,
+  CloudRain,
+  Clock,
+  Wallet,
 } from "lucide-react"
-import { selectMockResponse } from "@/lib/mock-data"
 import { VotingLinkModal } from "@/components/voting-link-modal"
 import { EmailModal } from "@/components/email-modal"
 import { ToastContainer, showToast } from "@/components/toast"
@@ -74,9 +77,28 @@ const backupActivities: ActivityData[] = [
   },
 ]
 
+interface BackupOptions {
+  weatherAlternative?: ActivityData
+  timeSaver?: ActivityData
+  budgetFriendly?: ActivityData
+}
+
+interface ApiResponse {
+  success: boolean
+  recommendations: {
+    activities: ActivityData[]
+    backupOptions?: BackupOptions
+    refinementPrompts?: string[]
+    proTips?: string[]
+  }
+  error?: string
+}
+
 interface SearchHistory {
   activities: ActivityData[]
   proTips: string[]
+  backupOptions?: BackupOptions
+  refinementPrompts?: string[]
   refinement?: string
   timestamp: number
 }
@@ -86,10 +108,14 @@ export default function Page() {
   const [characterCount, setCharacterCount] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
   const [activities, setActivities] = useState<ActivityData[]>([])
-  const [error, setError] = useState("")
+  const [error, setError] = useState<{ type: ErrorType; message?: string } | null>(null)
   const [messageIndex, setMessageIndex] = useState(0)
   const [messageFade, setMessageFade] = useState(true)
   const [showResults, setShowResults] = useState(false)
+
+  const [showTimeoutWarning, setShowTimeoutWarning] = useState(false)
+  const requestTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const requestAbortRef = useRef<AbortController | null>(null)
 
   const [shortlist, setShortlist] = useState<string[]>([])
   const [draggedItem, setDraggedItem] = useState<string | null>(null)
@@ -102,6 +128,8 @@ export default function Page() {
   const [showProTips, setShowProTips] = useState(false)
 
   const [proTips, setProTips] = useState<string[]>([])
+  const [backupOptions, setBackupOptions] = useState<BackupOptions | null>(null)
+  const [refinementPrompts, setRefinementPrompts] = useState<string[]>([])
 
   const [refinementInput, setRefinementInput] = useState("")
   const [currentRefinement, setCurrentRefinement] = useState<string | null>(null)
@@ -127,6 +155,27 @@ export default function Page() {
     return () => clearInterval(interval)
   }, [isLoading])
 
+  useEffect(() => {
+    if (isLoading) {
+      // Show timeout warning after 30 seconds
+      requestTimeoutRef.current = setTimeout(() => {
+        setShowTimeoutWarning(true)
+      }, 30000)
+    } else {
+      if (requestTimeoutRef.current) {
+        clearTimeout(requestTimeoutRef.current)
+        requestTimeoutRef.current = null
+      }
+      setShowTimeoutWarning(false)
+    }
+
+    return () => {
+      if (requestTimeoutRef.current) {
+        clearTimeout(requestTimeoutRef.current)
+      }
+    }
+  }, [isLoading])
+
   const getCurrentMessage = () => {
     const message = loadingMessages[messageIndex]
     // This replacement might not be as relevant with the new conversational input, but kept for now.
@@ -136,10 +185,12 @@ export default function Page() {
 
   const validateForm = () => {
     if (userInput.trim().length < 20) {
+      setError({ type: "validation", message: "Tell us a bit more about your group (at least 20 characters)" })
       setFormErrors({ userInput: "Tell us a bit more about your group (at least 20 characters)" })
       return false
     }
     setFormErrors({})
+    setError(null)
     return true
   }
 
@@ -149,7 +200,7 @@ export default function Page() {
       setUserInput(value)
       setCharacterCount(value.length)
       setFormErrors({})
-      if (error) setError("")
+      if (error) setError(null)
     }
   }
 
@@ -163,7 +214,7 @@ export default function Page() {
 
     // Validation
     if (userInput.trim().length < 20) {
-      setError("Please provide more details (minimum 20 characters)")
+      setError({ type: "validation", message: "Please provide more details (minimum 20 characters)" })
       setFormErrors({ userInput: "Tell us a bit more about your group (at least 20 characters)" })
       showToast("Please describe your group activity (at least 20 characters)", "error")
       return
@@ -171,88 +222,117 @@ export default function Page() {
 
     // Reset states
     setIsLoading(true)
-    setError("")
+    setError(null)
     setMessageIndex(0)
     setMessageFade(true)
     setShowResults(false)
     setCurrentRefinement(null)
     setSearchHistory([])
     setFormErrors({})
+    setShowTimeoutWarning(false)
+
+    requestAbortRef.current = new AbortController()
 
     try {
-      // ============================================
-      // 🔧 FUTURE API INTEGRATION POINT
-      // ============================================
-      // Replace the mock implementation below with:
-      //
-      // const response = await fetch('/api/generate-activities', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ userInput })
-      // });
-      //
-      // if (!response.ok) {
-      //   throw new Error('Failed to generate activities');
-      // }
-      //
-      // const data = await response.json();
-      // setActivities(data.activities);
-      // setProTips(data.proTips);
-      // ============================================
+      const response = await fetch("/api/generate-activities", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userInput }),
+        signal: requestAbortRef.current.signal,
+      })
 
-      // Mock implementation - parse user input to extract parameters
-      const input = userInput.toLowerCase()
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
 
-      // Extract group size
-      let groupSize = "6-10"
-      if (input.match(/\b([2-5])\b|small|few/)) groupSize = "2-5"
-      else if (input.match(/\b([6-9]|10)\b|medium/)) groupSize = "6-10"
-      else if (input.match(/\b(1[1-9]|20)\b|large/)) groupSize = "11-20"
-      else if (input.match(/\b(2[1-9]|[3-9]\d)\b|huge|big group/)) groupSize = "20+"
+        if (response.status === 429) {
+          throw { type: "ratelimit", message: errorData.error }
+        } else if (response.status === 400) {
+          throw { type: "validation", message: errorData.error }
+        } else if (response.status >= 500) {
+          throw { type: "generic", message: "Server error. Please try again." }
+        } else {
+          throw { type: "generic", message: errorData.error }
+        }
+      }
 
-      // Extract budget
-      let budget = "50-150"
-      if (input.match(/free|no budget|zero/)) budget = "free"
-      else if (input.match(/\$?([1-4]\d|50)|cheap|low budget|under.*50/)) budget = "under-50"
-      else if (input.match(/\$?(5\d|[6-9]\d|1[0-4]\d|150)/)) budget = "50-150"
-      else if (input.match(/\$?(15[1-9]|1[6-9]\d|[2-9]\d\d)|expensive|premium|high.*budget/)) budget = "150+"
+      const data: ApiResponse = await response.json()
 
-      // Extract location
-      let location = ""
-      const locationMatch = input.match(/\b(berlin|barcelona|amsterdam|paris|london|remote|virtual|online)\b/i)
-      if (locationMatch) location = locationMatch[0]
+      if (!data.success) {
+        throw { type: "generic", message: data.error || "Failed to generate activities" }
+      }
 
-      // Extract vibe
-      let vibe = ""
-      if (input.match(/team.*build|bonding|corporate/)) vibe = "team bonding"
-      else if (input.match(/birthday|celebration|party/)) vibe = "celebration"
-      else if (input.match(/creative|workshop|artistic/)) vibe = "creative workshop"
-      else if (input.match(/adventure|exciting|active/)) vibe = "adventurous"
+      if (!data.recommendations.activities || data.recommendations.activities.length === 0) {
+        setError({
+          type: "empty",
+          message: "No activities found. Try describing your request differently.",
+        })
+        setIsLoading(false)
+        return
+      }
 
-      const mockResponse = selectMockResponse({ groupSize, budget, location, vibe })
-
-      // Simulate API delay
-      const loadingTime = 5000 + Math.random() * 3000
-      await new Promise((resolve) => setTimeout(resolve, loadingTime))
-
-      // Set results
-      setActivities(mockResponse.activities)
-      setProTips(mockResponse.proTips)
+      setActivities(data.recommendations.activities || [])
+      setProTips(data.recommendations.proTips || [])
+      setBackupOptions(data.recommendations.backupOptions || null)
+      setRefinementPrompts(data.recommendations.refinementPrompts || [])
       setShowResults(true)
       setSearchHistory([
         {
-          activities: mockResponse.activities,
-          proTips: mockResponse.proTips,
+          activities: data.recommendations.activities || [],
+          proTips: data.recommendations.proTips || [],
+          backupOptions: data.recommendations.backupOptions,
+          refinementPrompts: data.recommendations.refinementPrompts,
           timestamp: Date.now(),
         },
       ])
-      showToast(`Found ${mockResponse.activities.length} activities for you!`, "success")
-    } catch (err) {
+      showToast(`Found ${data.recommendations.activities.length} activities for you!`, "success")
+    } catch (err: any) {
       console.error("[v0] Error generating activities:", err)
-      setError("Something went wrong. Please try again.")
-      showToast("Something went wrong. Please try again.", "error")
+
+      if (err.name === "AbortError") {
+        // Request was cancelled
+        setError(null)
+      } else if (err.type) {
+        // Structured error from API
+        setError({ type: err.type, message: err.message })
+        showToast(err.message || "An error occurred", "error")
+      } else if (err.message?.includes("fetch") || err.message?.includes("network")) {
+        setError({ type: "network", message: "Connection problem. Check your internet." })
+        showToast("Network error. Check your connection.", "error")
+      } else {
+        setError({ type: "generic", message: "Something went wrong. Please try again." })
+        showToast("Something went wrong. Please try again.", "error")
+      }
     } finally {
       setIsLoading(false)
+      requestAbortRef.current = null
+    }
+  }
+
+  const handleCancelRequest = () => {
+    if (requestAbortRef.current) {
+      requestAbortRef.current.abort()
+    }
+    setIsLoading(false)
+    setShowTimeoutWarning(false)
+    showToast("Request cancelled", "info")
+  }
+
+  const handleKeepWaiting = () => {
+    setShowTimeoutWarning(false)
+    // Reset the timeout for another 30 seconds
+    if (requestTimeoutRef.current) {
+      clearTimeout(requestTimeoutRef.current)
+    }
+    requestTimeoutRef.current = setTimeout(() => {
+      setShowTimeoutWarning(true)
+    }, 30000)
+  }
+
+  const handleRetry = () => {
+    setError(null)
+    const form = document.querySelector("form")
+    if (form) {
+      form.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }))
     }
   }
 
@@ -347,6 +427,8 @@ export default function Page() {
     setProTips([])
     setUserInput("")
     setCharacterCount(0)
+    setBackupOptions(null)
+    setRefinementPrompts([])
     window.scrollTo({ top: 0, behavior: "smooth" })
   }
 
@@ -359,6 +441,8 @@ export default function Page() {
       {
         activities,
         proTips,
+        backupOptions: backupOptions || undefined,
+        refinementPrompts: refinementPrompts || undefined,
         refinement: refinementText,
         timestamp: Date.now(),
       },
@@ -415,6 +499,8 @@ export default function Page() {
     setSearchHistory(newHistory)
     setActivities(previousState.activities)
     setProTips(previousState.proTips)
+    setBackupOptions(previousState.backupOptions || null)
+    setRefinementPrompts(previousState.refinementPrompts || [])
     setCurrentRefinement(previousState.refinement || null)
     window.scrollTo({ top: 0, behavior: "smooth" })
   }
@@ -480,34 +566,40 @@ export default function Page() {
 
       {isLoading && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md animate-in fade-in duration-300">
-          <div className="flex flex-col items-center gap-8 px-4">
-            <div className="relative">
-              <div className="w-24 h-24 rounded-full border-4 border-transparent border-t-primary border-r-primary/50 animate-spin" />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary/30 to-emerald-400/30 animate-pulse" />
-              </div>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-3 h-3 rounded-full bg-primary" />
-              </div>
-            </div>
-            <div className="h-16 flex items-center justify-center">
-              <p
-                className={`text-xl md:text-2xl font-medium text-center transition-opacity duration-300 ${
-                  messageFade ? "opacity-100" : "opacity-0"
-                }`}
-              >
-                {getCurrentMessage()}
-              </p>
-            </div>
-            <div className="w-64 h-1 bg-zinc-800 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-primary to-emerald-400 rounded-full"
-                style={{
-                  animation: "progress 8s ease-in-out forwards",
-                }}
-              />
-            </div>
-            <p className="text-sm text-zinc-500 animate-pulse">Crafting something special for you...</p>
+          <div className="flex flex-col items-center gap-8 px-4 max-w-md w-full">
+            {!showTimeoutWarning ? (
+              <>
+                <div className="relative">
+                  <div className="w-24 h-24 rounded-full border-4 border-transparent border-t-primary border-r-primary/50 animate-spin" />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary/30 to-emerald-400/30 animate-pulse" />
+                  </div>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-3 h-3 rounded-full bg-primary" />
+                  </div>
+                </div>
+                <div className="h-16 flex items-center justify-center">
+                  <p
+                    className={`text-xl md:text-2xl font-medium text-center transition-opacity duration-300 ${
+                      messageFade ? "opacity-100" : "opacity-0"
+                    }`}
+                  >
+                    {getCurrentMessage()}
+                  </p>
+                </div>
+                <div className="w-64 h-1 bg-zinc-800 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-primary to-emerald-400 rounded-full"
+                    style={{
+                      animation: "progress 8s ease-in-out forwards",
+                    }}
+                  />
+                </div>
+                <p className="text-sm text-zinc-500 animate-pulse">Crafting something special for you...</p>
+              </>
+            ) : (
+              <ErrorAlert type="timeout" onKeepWaiting={handleKeepWaiting} onCancel={handleCancelRequest} />
+            )}
           </div>
         </div>
       )}
@@ -535,6 +627,12 @@ export default function Page() {
             </div>
 
             <div className="max-w-2xl mx-auto">
+              {error && (
+                <div className="mb-6">
+                  <ErrorAlert type={error.type} message={error.message} onRetry={handleRetry} />
+                </div>
+              )}
+
               <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800 rounded-3xl p-8 md:p-12 shadow-2xl hover:border-zinc-700 transition-all duration-300">
                 <form onSubmit={handleSubmit} className="space-y-6" noValidate>
                   <div className="space-y-2">
@@ -570,14 +668,14 @@ export default function Page() {
                         {characterCount}/300
                       </div>
                     </div>
-                    {(formErrors.userInput || error) && (
+                    {formErrors.userInput && (
                       <p
                         id="input-error"
                         className="text-sm text-red-400 flex items-center gap-1 animate-in fade-in slide-in-from-top-1 duration-200"
                         role="alert"
                       >
                         <AlertCircle className="w-3 h-3" />
-                        {formErrors.userInput || error}
+                        {formErrors.userInput}
                       </p>
                     )}
                   </div>
@@ -1157,36 +1255,72 @@ export default function Page() {
                     </div>
                   )}
 
-                  <div className="border-t border-zinc-800 pt-12">
-                    <div className="mb-6">
-                      <h3 className="text-2xl font-bold mb-2">Backup Options</h3>
-                      <p className="text-zinc-400">Just in case you need a Plan B</p>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {backupActivities.map((activity) => (
-                        <div
-                          key={activity.id}
-                          className="bg-zinc-900/30 backdrop-blur-sm border border-zinc-800/50 rounded-xl p-4 hover:border-zinc-700 transition-all duration-300"
-                        >
-                          <div className="flex items-start justify-between mb-2">
-                            <h4 className="font-bold text-lg">{activity.title}</h4>
-                            <Badge variant="outline" className="bg-zinc-800/50 text-zinc-400 border-zinc-700 text-xs">
-                              Backup
-                            </Badge>
-                          </div>
-                          <p className="text-sm text-zinc-400 mb-3">{activity.description}</p>
-                          <div className="flex items-center gap-4 text-xs text-zinc-500">
-                            <span>€{activity.cost}</span>
-                            <span>•</span>
-                            <span>{activity.duration}</span>
-                            <span>•</span>
-                            <span>{activity.locationType}</span>
-                          </div>
+                  {backupOptions &&
+                    (backupOptions.weatherAlternative || backupOptions.timeSaver || backupOptions.budgetFriendly) && (
+                      <div className="border-t border-zinc-800 pt-12">
+                        <div className="mb-6">
+                          <h3 className="text-2xl font-bold mb-2">Backup Options</h3>
+                          <p className="text-zinc-400">Just in case you need a Plan B</p>
                         </div>
-                      ))}
-                    </div>
-                  </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          {backupOptions.weatherAlternative && (
+                            <div className="bg-zinc-900/30 backdrop-blur-sm border-2 border-dashed border-zinc-700/50 rounded-xl p-5 hover:border-zinc-600 transition-all duration-300 group">
+                              <div className="flex items-center gap-2 mb-3">
+                                <div className="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                                  <CloudRain className="w-4 h-4 text-blue-400" />
+                                </div>
+                                <h4 className="font-bold">Weather Alternative</h4>
+                              </div>
+                              <p className="text-sm text-zinc-300 mb-2">{backupOptions.weatherAlternative.title}</p>
+                              <p className="text-xs text-zinc-500 mb-3">
+                                {backupOptions.weatherAlternative.description}
+                              </p>
+                              <div className="flex items-center gap-3 text-xs text-zinc-500">
+                                <span>€{backupOptions.weatherAlternative.cost}</span>
+                                <span>•</span>
+                                <span>{backupOptions.weatherAlternative.duration}</span>
+                              </div>
+                            </div>
+                          )}
+                          {backupOptions.timeSaver && (
+                            <div className="bg-zinc-900/30 backdrop-blur-sm border-2 border-dashed border-zinc-700/50 rounded-xl p-5 hover:border-zinc-600 transition-all duration-300 group">
+                              <div className="flex items-center gap-2 mb-3">
+                                <div className="w-8 h-8 bg-yellow-500/20 rounded-lg flex items-center justify-center">
+                                  <Clock className="w-4 h-4 text-yellow-400" />
+                                </div>
+                                <h4 className="font-bold">Time Saver</h4>
+                              </div>
+                              <p className="text-sm text-zinc-300 mb-2">{backupOptions.timeSaver.title}</p>
+                              <p className="text-xs text-zinc-500 mb-3">{backupOptions.timeSaver.description}</p>
+                              <div className="flex items-center gap-3 text-xs text-zinc-500">
+                                <span>€{backupOptions.timeSaver.cost}</span>
+                                <span>•</span>
+                                <span>{backupOptions.timeSaver.duration}</span>
+                              </div>
+                            </div>
+                          )}
+                          {backupOptions.budgetFriendly && (
+                            <div className="bg-zinc-900/30 backdrop-blur-sm border-2 border-dashed border-zinc-700/50 rounded-xl p-5 hover:border-zinc-600 transition-all duration-300 group">
+                              <div className="flex items-center gap-2 mb-3">
+                                <div className="w-8 h-8 bg-green-500/20 rounded-lg flex items-center justify-center">
+                                  <Wallet className="w-4 h-4 text-green-400" />
+                                </div>
+                                <h4 className="font-bold">Budget-Friendly</h4>
+                              </div>
+                              <p className="text-sm text-zinc-300 mb-2">{backupOptions.budgetFriendly.title}</p>
+                              <p className="text-xs text-zinc-500 mb-3">{backupOptions.budgetFriendly.description}</p>
+                              <div className="flex items-center gap-3 text-xs text-zinc-500">
+                                <span>€{backupOptions.budgetFriendly.cost}</span>
+                                <span>•</span>
+                                <span>{backupOptions.budgetFriendly.duration}</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
 
+                  {/* Pro Tips Section */}
                   {proTips.length > 0 && (
                     <div className="border-t border-zinc-800 pt-12">
                       <button
@@ -1198,7 +1332,7 @@ export default function Page() {
                             <Lightbulb className="w-5 h-5 text-primary" />
                           </div>
                           <div className="text-left">
-                            <h3 className="text-2xl font-bold">Pro Tips</h3>
+                            <h3 className="text-2xl font-bold">Pro Tips for Success</h3>
                             <p className="text-sm text-zinc-400">Make the most of your group activity</p>
                           </div>
                         </div>
@@ -1217,9 +1351,9 @@ export default function Page() {
                               className="bg-gradient-to-br from-primary/10 to-emerald-400/10 border border-primary/20 rounded-xl p-6"
                             >
                               <div className="w-8 h-8 bg-primary/20 rounded-lg flex items-center justify-center mb-3">
-                                <span className="text-primary font-bold">{index + 1}</span>
+                                <Lightbulb className="w-4 h-4 text-primary" />
                               </div>
-                              <p className="text-sm text-zinc-300">{tip}</p>
+                              <p className="text-sm text-zinc-300 leading-relaxed">{tip}</p>
                             </div>
                           ))}
                         </div>
@@ -1227,68 +1361,70 @@ export default function Page() {
                     </div>
                   )}
 
-                  <div className="border-t border-zinc-800 pt-12">
-                    <div className="text-center mb-6">
-                      <h3 className="text-2xl font-bold mb-2">Not quite right?</h3>
-                      <p className="text-zinc-400">Let's refine your search with these quick adjustments</p>
+                  {refinementPrompts && refinementPrompts.length > 0 && (
+                    <div className="border-t border-zinc-800 pt-12">
+                      <div className="text-center mb-6">
+                        <h3 className="text-2xl font-bold mb-2">Not quite right?</h3>
+                        <p className="text-zinc-400">Let's refine your search with these quick adjustments</p>
+                      </div>
+                      <div className="flex flex-wrap justify-center gap-3">
+                        {refinementPrompts.map((prompt, index) => (
+                          <Button
+                            key={index}
+                            onClick={() => {
+                              setRefinementInput(prompt)
+                              handleCustomRefinement()
+                            }}
+                            variant="outline"
+                            className="bg-zinc-900/50 border-zinc-700 hover:bg-zinc-800 hover:border-primary/50 rounded-full px-6"
+                          >
+                            <Sparkles className="w-4 h-4 mr-2" />
+                            {prompt}
+                          </Button>
+                        ))}
+                      </div>
                     </div>
-                    <div className="flex flex-wrap justify-center gap-3">
-                      <Button
-                        onClick={() => handleRefinement("adventurous")}
-                        variant="outline"
-                        className="bg-zinc-900/50 border-zinc-700 hover:bg-zinc-800 hover:border-primary/50"
-                      >
-                        <Mountain className="w-4 h-4 mr-2" />
-                        Make it more adventurous
-                      </Button>
-                      <Button
-                        onClick={() => handleRefinement("indoor")}
-                        variant="outline"
-                        className="bg-zinc-900/50 border-zinc-700 hover:bg-zinc-800 hover:border-primary/50"
-                      >
-                        <Users className="w-4 h-4 mr-2" />
-                        Keep it indoors
-                      </Button>
-                      <Button
-                        onClick={() => handleRefinement("budget")}
-                        variant="outline"
-                        className="bg-zinc-900/50 border-zinc-700 hover:bg-zinc-800 hover:border-primary/50"
-                      >
-                        <DollarSign className="w-4 h-4 mr-2" />
-                        More budget-friendly
-                      </Button>
-                      <Button
-                        onClick={() => handleRefinement("team-building")}
-                        variant="outline"
-                        className="bg-zinc-900/50 border-zinc-700 hover:bg-zinc-800 hover:border-primary/50"
-                      >
-                        <Users className="w-4 h-4 mr-2" />
-                        Add team-building focus
-                      </Button>
-                    </div>
-                  </div>
+                  )}
                 </div>
               </div>
-            </div>
 
-            <p className="text-center mt-16 text-sm text-zinc-500 italic">
-              Feels Good When Everyone's On the Same Page, Doesn't It?
-            </p>
+              <footer className="relative z-10 border-t border-zinc-800 mt-16">
+                <div className="container mx-auto px-4 py-8">
+                  <div className="flex items-center justify-center gap-2 text-xs text-zinc-600">
+                    <span>Activity data provided by</span>
+                    <a
+                      href="https://www.tripadvisor.com"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 hover:opacity-80 transition-opacity"
+                      aria-label="TripAdvisor"
+                    >
+                      <span className="text-base" role="img" aria-label="TripAdvisor logo">
+                        🦉
+                      </span>
+                      <span className="font-semibold" style={{ color: "#34E0A1" }}>
+                        TripAdvisor
+                      </span>
+                    </a>
+                  </div>
+                </div>
+              </footer>
+
+              <VotingLinkModal
+                isOpen={showVotingModal}
+                onClose={() => setShowVotingModal(false)}
+                activities={activities.filter((a) => shortlist.includes(a.id))}
+              />
+
+              <EmailModal
+                isOpen={showEmailModal}
+                onClose={() => setShowEmailModal(false)}
+                activities={activities.filter((a) => shortlist.includes(a.id))}
+              />
+            </div>
           </div>
         )}
       </div>
-
-      <VotingLinkModal
-        isOpen={showVotingModal}
-        onClose={() => setShowVotingModal(false)}
-        activities={activities.filter((a) => shortlist.includes(a.id))}
-      />
-
-      <EmailModal
-        isOpen={showEmailModal}
-        onClose={() => setShowEmailModal(false)}
-        activities={activities.filter((a) => shortlist.includes(a.id))}
-      />
     </main>
   )
 }
