@@ -22,7 +22,8 @@ import {
 
 export interface ActivityData {
   id: string
-  title: string
+  name?: string
+  title?: string
   description: string
   tags: string[]
   cost: number
@@ -94,6 +95,8 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
 
   if (!activity) return null
 
+  const activityName = activity?.name || activity?.title || "Activity"
+
   const ActivityLevelIcon = activity?.activityLevel ? activityLevelConfig[activity.activityLevel]?.icon : Heart
 
   const handleShortlist = () => {
@@ -107,15 +110,18 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
   return (
     <article
       className="group bg-zinc-900/50 backdrop-blur-sm border border-zinc-800 rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl hover:shadow-primary/10 hover:-translate-y-1 hover:border-zinc-700 transition-all duration-300 focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2 focus-within:ring-offset-black"
-      aria-label={`${activity?.title || "Activity"} activity`}
+      aria-label={`${activityName} activity`}
     >
       {activity?.image && (
         <div className="relative w-full h-48 overflow-hidden">
           <img
             src={activity.image || "/placeholder.svg"}
-            alt={activity.title}
+            alt={activityName}
             className="w-full h-full object-cover"
             loading="lazy"
+            onError={(e) => {
+              e.currentTarget.parentElement?.classList.add("hidden")
+            }}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-zinc-900 to-transparent" />
         </div>
@@ -124,9 +130,7 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
       <div className="p-6">
         {/* Header */}
         <div className="flex items-start justify-between gap-4 mb-4">
-          <h3 className="text-xl md:text-2xl font-bold text-white leading-tight flex-1">
-            {activity?.title || "Untitled Activity"}
-          </h3>
+          <h3 className="text-xl md:text-2xl font-bold text-white leading-tight flex-1">{activityName}</h3>
           <Badge
             variant="outline"
             className={`${
@@ -150,7 +154,7 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
         {/* Description */}
         <p className="text-zinc-400 leading-relaxed mb-4">{activity?.description || ""}</p>
 
-        {activity?.tripAdvisorRating && (
+        {activity?.tripAdvisorRating && activity.tripAdvisorRating > 0 && (
           <div className="mb-4 p-3 rounded-lg bg-zinc-800/30 border border-zinc-700/50">
             <div className="flex items-center gap-2 mb-2">
               <span className="text-lg" role="img" aria-label="TripAdvisor" aria-hidden="true">
@@ -264,9 +268,7 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
                 ? "bg-primary/20 border-primary text-primary hover:bg-primary/30"
                 : "bg-zinc-800/50 border-zinc-700 text-white hover:bg-zinc-800 hover:border-primary/50"
             } transition-all duration-200 focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-zinc-900`}
-            aria-label={
-              isShortlisted ? `Remove ${activity?.title} from shortlist` : `Add ${activity?.title} to shortlist`
-            }
+            aria-label={isShortlisted ? `Remove ${activityName} from shortlist` : `Add ${activityName} to shortlist`}
             aria-pressed={isShortlisted}
           >
             {showCheckmark && (
@@ -286,7 +288,7 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
               onClick={() => window.open(activity.tripAdvisorUrl, "_blank", "noopener,noreferrer")}
               variant="outline"
               className="bg-zinc-800/50 border-zinc-700 text-white hover:bg-[#00AA6C]/20 hover:border-[#00AA6C] dark:hover:bg-[#84E9BD]/20 dark:hover:border-[#84E9BD] transition-all duration-200 focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-zinc-900"
-              aria-label={`View ${activity?.title} on TripAdvisor`}
+              aria-label={`View ${activityName} on TripAdvisor`}
             >
               <ExternalLink className="w-4 h-4" aria-hidden="true" />
             </Button>

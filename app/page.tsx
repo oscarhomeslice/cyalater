@@ -42,7 +42,7 @@ import { ErrorBoundary } from "@/components/error-boundary"
 
 const loadingMessages = [
   "Understanding your group...",
-  "Finding activities in {location}...",
+  "Finding activities...",
   "Personalizing suggestions...",
   "Discovering unique ideas...",
   "Preparing your plan...",
@@ -240,7 +240,7 @@ export default function Page() {
       const response = await fetch("/api/generate-activities", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userInput }),
+        body: JSON.JSON.stringify({ userInput }),
         signal: requestAbortRef.current.signal,
       })
 
@@ -546,6 +546,26 @@ export default function Page() {
     return true
   })
 
+  const validatedActivities = filteredActivities.filter((activity) => {
+    // Check if activity has valid name or title
+    const hasValidName = Boolean(activity?.name || activity?.title)
+    // Check if activity has valid TripAdvisor URL (optional but warn if missing)
+    const hasValidUrl = Boolean(activity?.tripAdvisorUrl)
+
+    // Log warning for incomplete entries
+    if (!hasValidName || !hasValidUrl) {
+      console.warn("[v0] ⚠️ Missing name or URL for activity:", {
+        id: activity?.id,
+        name: activity?.name,
+        title: activity?.title,
+        tripAdvisorUrl: activity?.tripAdvisorUrl,
+      })
+    }
+
+    // Only filter out if name is completely missing
+    return hasValidName
+  })
+
   const refinementExamples = [
     "Something with food",
     "No physical activity",
@@ -766,7 +786,7 @@ export default function Page() {
                     <h2 className="text-3xl md:text-4xl font-bold mb-2">
                       <span className="text-primary">Your Activities</span>
                     </h2>
-                    <p className="text-zinc-400">{filteredActivities.length} activities found</p>
+                    <p className="text-zinc-400">{validatedActivities.length} activities found</p>
                   </div>
                   <div className="flex gap-2">
                     {searchHistory.length > 1 && (
@@ -960,6 +980,7 @@ export default function Page() {
                         <div className="space-y-3">
                           {shortlist.map((id) => {
                             const activity = activities.find((a) => a.id === id)
+                            const activityName = activity?.name || activity?.title || "Activity"
                             return activity ? (
                               <div
                                 key={id}
@@ -969,7 +990,7 @@ export default function Page() {
                                 onDragEnd={handleDragEnd}
                                 tabIndex={0}
                                 role="listitem"
-                                aria-label={`${activity.title}, ${activity.cost} euros, ${activity.duration}. Press space to reorder.`}
+                                aria-label={`${activityName}, ${activity.cost} euros, ${activity.duration}. Press space to reorder.`}
                                 onKeyDown={(e) => {
                                   if (e.key === "Delete" || e.key === "Backspace") {
                                     handleRemoveFromShortlist(id)
@@ -985,7 +1006,7 @@ export default function Page() {
                                     aria-hidden="true"
                                   />
                                   <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-medium mb-1 truncate">{activity.title}</p>
+                                    <p className="text-sm font-medium mb-1 truncate">{activityName}</p>
                                     <p className="text-xs text-zinc-500">
                                       €{activity.cost} • {activity.duration}
                                     </p>
@@ -993,7 +1014,7 @@ export default function Page() {
                                   <button
                                     onClick={() => handleRemoveFromShortlist(id)}
                                     className="shrink-0 w-6 h-6 rounded-full bg-zinc-700/50 hover:bg-red-500/20 flex items-center justify-center transition-colors group/btn focus:outline-none focus:ring-2 focus:ring-red-400"
-                                    aria-label={`Remove ${activity.title} from shortlist`}
+                                    aria-label={`Remove ${activityName} from shortlist`}
                                   >
                                     <X className="w-3 h-3 text-zinc-400 group-hover/btn:text-red-400" />
                                   </button>
@@ -1043,15 +1064,15 @@ export default function Page() {
                       <div className="space-y-3 text-sm">
                         <div className="flex justify-between">
                           <span className="text-zinc-400">Activities found</span>
-                          <span className="font-bold text-primary">{filteredActivities.length}</span>
+                          <span className="font-bold text-primary">{validatedActivities.length}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-zinc-400">Avg. cost</span>
                           <span className="font-bold">
                             €
-                            {filteredActivities.length > 0
+                            {validatedActivities.length > 0
                               ? Math.round(
-                                  filteredActivities.reduce((sum, a) => sum + a.cost, 0) / filteredActivities.length,
+                                  validatedActivities.reduce((sum, a) => sum + a.cost, 0) / validatedActivities.length,
                                 )
                               : 0}
                           </span>
@@ -1230,7 +1251,7 @@ export default function Page() {
 
                 <div className="flex-1 space-y-12">
                   <ErrorBoundary>
-                    {!filteredActivities || filteredActivities.length === 0 ? (
+                    {!validatedActivities || validatedActivities.length === 0 ? (
                       <div className="text-center py-16" role="status" aria-live="polite">
                         <div
                           className="w-20 h-20 bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-4"
@@ -1263,7 +1284,7 @@ export default function Page() {
                         role="list"
                         aria-label="Activity suggestions"
                       >
-                        {filteredActivities.map((activity, index) => {
+                        {validatedActivities.map((activity, index) => {
                           if (!activity) return null
 
                           return (
