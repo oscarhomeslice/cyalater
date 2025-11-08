@@ -240,7 +240,7 @@ export default function Page() {
       const response = await fetch("/api/generate-activities", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.JSON.stringify({ userInput }),
+        body: JSON.stringify({ userInput }),
         signal: requestAbortRef.current.signal,
       })
 
