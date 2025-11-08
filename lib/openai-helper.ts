@@ -30,7 +30,7 @@ export async function generateActivityQuery(
 ): Promise<ParsedQuery | { success: false; error: string }> {
   try {
     const completion = await openai.chat.completions.create({
-      model: "gpt-5-nano",
+      model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
