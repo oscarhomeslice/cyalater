@@ -108,12 +108,20 @@ export async function generateActivityRecommendations(
       })
       .filter(Boolean) // Remove any null entries
 
+    let locationDataString = "[]"
+    try {
+      locationDataString = JSON.stringify(safeLocationData, null, 2)
+    } catch (stringifyError) {
+      console.error("[openai-helper] Failed to stringify location data:", stringifyError)
+      locationDataString = "[]"
+    }
+
     const systemPrompt = `You are an expert group activity planner. Based on the user's description and available TripAdvisor locations, recommend the best activities.
 
 CRITICAL: Always use the exact "name" field from TripAdvisor data for each activity. DO NOT make up activity names.
 
 Available TripAdvisor locations with enriched details:
-${JSON.stringify(safeLocationData, null, 2)}
+${locationDataString}
 
 Return a JSON object with:
 {
@@ -196,7 +204,13 @@ Guidelines:
       response_format: { type: "json_object" },
     })
 
-    const recommendations = JSON.parse(completion.choices[0].message.content || "{}")
+    let recommendations: any = { activities: [] }
+    try {
+      recommendations = JSON.parse(completion.choices[0].message.content || "{}")
+    } catch (parseError) {
+      console.error("[openai-helper] Failed to parse OpenAI response:", parseError)
+      throw new Error("Failed to parse AI recommendations")
+    }
 
     if (recommendations.activities && Array.isArray(recommendations.activities)) {
       recommendations.activities = recommendations.activities.map((activity: any, index: number) => {
