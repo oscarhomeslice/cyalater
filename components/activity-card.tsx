@@ -29,10 +29,10 @@ export interface ActivityData {
   duration: string
   locationType: "indoor" | "outdoor" | "hybrid"
   activityLevel: "low" | "moderate" | "high"
-  specialElement: string // New field
-  preparation: string // New field
-  tripAdvisorUrl?: string
-  tripAdvisorId?: string
+  specialElement: string
+  preparation: string
+  amadeusUrl?: string
+  amadeusId?: string
   rating?: number
   reviewCount?: number
   image?: string
@@ -160,11 +160,11 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
         {activity?.rating && activity.rating > 0 && (
           <div className="mb-4 p-3 rounded-lg bg-zinc-800/30 border border-zinc-700/50">
             <div className="flex items-center gap-2 mb-2">
-              <span className="text-lg" role="img" aria-label="TripAdvisor" aria-hidden="true">
-                🦉
+              <span className="text-lg" role="img" aria-label="Amadeus" aria-hidden="true">
+                ✈️
               </span>
               <span className="text-xs font-semibold" style={{ color: "#34E0A1" }}>
-                TripAdvisor
+                Amadeus
               </span>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
@@ -285,35 +285,33 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
             {isShortlisted ? "Added" : "Add to Shortlist"}
           </Button>
 
-          {activity?.tripAdvisorUrl && (
+          {activity?.amadeusUrl && (
             <Button
-              onClick={() => window.open(activity.tripAdvisorUrl, "_blank", "noopener,noreferrer")}
+              onClick={() => window.open(activity.amadeusUrl, "_blank", "noopener,noreferrer")}
               variant="outline"
-              className="bg-zinc-800/50 border-zinc-700 text-white hover:bg-[#00AA6C]/20 hover:border-[#00AA6C] dark:hover:bg-[#84E9BD]/20 dark:hover:border-[#84E9BD] transition-all duration-200 focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-zinc-900"
-              aria-label={`View ${activityName} on TripAdvisor`}
+              className="bg-zinc-800/50 border-zinc-700 text-white hover:bg-primary/20 hover:border-primary transition-all duration-200 focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-zinc-900"
+              aria-label={`Book ${activityName} activity`}
             >
               <ExternalLink className="w-4 h-4" aria-hidden="true" />
             </Button>
           )}
         </div>
 
-        {/* TripAdvisor attribution footer */}
-        {activity?.tripAdvisorUrl && (
+        {/* Amadeus attribution footer */}
+        {activity?.amadeusUrl && (
           <div className="mt-4 pt-4 border-t border-zinc-800/50 flex items-center justify-center gap-2">
             <span className="text-[11px] text-zinc-600">Powered by</span>
             <a
-              href="https://www.tripadvisor.com"
+              href="https://www.amadeus.com"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-1.5 hover:opacity-80 transition-opacity"
-              aria-label="TripAdvisor"
+              aria-label="Amadeus"
             >
               <span className="text-lg" role="img" aria-hidden="true">
-                🦉
+                ✈️
               </span>
-              <span className="text-[11px] font-semibold" style={{ color: "#34E0A1" }}>
-                TripAdvisor
-              </span>
+              <span className="text-[11px] font-semibold text-primary">Amadeus</span>
             </a>
           </div>
         )}

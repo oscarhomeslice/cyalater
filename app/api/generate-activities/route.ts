@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { generateActivityQuery, generateActivityRecommendations } from "@/lib/openai-helper"
-import { getNearbyAttractions } from "@/lib/tripadvisor-helper"
+import { parseUserInput, generateRecommendations } from "@/lib/openai-helper"
+import { searchActivities } from "@/lib/amadeus-helper"
+import { createClient } from "@/lib/supabase/client"
 
 const rateLimit = new Map<string, number[]>()
 
@@ -8,11 +9,10 @@ function checkRateLimit(ip: string): boolean {
   const now = Date.now()
   const userRequests = rateLimit.get(ip) || []
 
-  // Filter requests from last minute
   const recentRequests = userRequests.filter((time: number) => now - time < 60000)
 
   if (recentRequests.length >= 5) {
-    return false // Too many requests
+    return false
   }
 
   recentRequests.push(now)
@@ -21,10 +21,14 @@ function checkRateLimit(ip: string): boolean {
 }
 
 export async function POST(request: NextRequest) {
-  try {
-    const ip = request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown"
+  const startTime = Date.now()
+  const supabase = createClient()
 
-    if (!checkRateLimit(ip)) {
+  const userIp = request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "anonymous"
+  const sessionId = crypto.randomUUID()
+
+  try {
+    if (!checkRateLimit(userIp)) {
       return NextResponse.json({ error: "Whoa! Too many requests. Wait 60 seconds and try again." }, { status: 429 })
     }
 
@@ -32,13 +36,10 @@ export async function POST(request: NextRequest) {
     let userInput: string
 
     if (typeof body.userInput === "string") {
-      // Old format: single text input
       userInput = body.userInput
     } else if (body.formData) {
-      // New format: structured form data
       const { groupSize, budgetPerPerson, currency, locationMode, location, inspirationPrompt, vibe } = body.formData
 
-      // Build user input string from structured data
       const parts: string[] = []
 
       if (groupSize) parts.push(`Group of ${groupSize} people`)
@@ -66,126 +67,112 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Description is too long (maximum 500 characters)" }, { status: 400 })
     }
 
-    // Step 1: Use OpenAI to parse user intent
     console.log("[v0] Parsing user input:", userInput)
-    let parsedQuery
-    try {
-      const result = await generateActivityQuery(userInput)
+    const parsedQuery = await parseUserInput(userInput)
+    console.log("[v0] Parsed query:", parsedQuery)
 
-      if (result && typeof result === "object" && "success" in result && result.success === false) {
-        return NextResponse.json(
-          {
-            error: result.error || "Failed to understand your request. Please try rephrasing.",
-          },
-          { status: 400 },
-        )
-      }
+    console.log("[v0] Searching Amadeus for:", parsedQuery.location)
+    let amadeusResults: any[] = []
 
-      parsedQuery = result as any
-      console.log("[v0] Parsed query:", parsedQuery)
-    } catch (error: any) {
-      console.error("[v0] OpenAI parsing error:", error)
-      return NextResponse.json({ error: "AI service busy. Please try again in a moment." }, { status: 503 })
+    if (
+      parsedQuery.location &&
+      parsedQuery.location !== "not_specified" &&
+      parsedQuery.location !== "remote" &&
+      parsedQuery.location !== "virtual"
+    ) {
+      amadeusResults = await searchActivities(parsedQuery.location, 30)
     }
 
-    // Step 2: Query TripAdvisor based on parsed intent
-    console.log("[v0] Searching TripAdvisor...")
-    let tripAdvisorResults
-    try {
-      const location = parsedQuery.location || "popular destinations"
-      tripAdvisorResults = await getNearbyAttractions(location, "attractions")
+    if (amadeusResults.length === 0) {
+      console.log("[v0] No results for location, trying Paris...")
+      amadeusResults = await searchActivities("Paris", 30)
+    }
 
-      if (!tripAdvisorResults) {
-        console.warn("[v0] TripAdvisor returned undefined, using empty array")
-        tripAdvisorResults = []
-      }
+    console.log(`[v0] Found ${amadeusResults.length} activities from Amadeus`)
 
-      console.log(`[v0] Found ${tripAdvisorResults.length} activities from TripAdvisor`)
-
-      if (tripAdvisorResults.length > 0) {
-        console.log("[v0] Sample enriched location:", {
-          name: tripAdvisorResults[0].name,
-          rating: tripAdvisorResults[0].rating,
-          reviewCount: tripAdvisorResults[0].reviewCount,
-          hasImage: !!tripAdvisorResults[0].image,
-          hasUrl: !!tripAdvisorResults[0].tripAdvisorUrl,
-        })
-      }
-
-      if (!tripAdvisorResults || tripAdvisorResults.length === 0) {
-        return NextResponse.json(
-          { error: "Couldn't find activities for this location. Try another city?" },
-          { status: 404 },
-        )
-      }
-    } catch (error: any) {
-      console.error("[v0] TripAdvisor error:", error)
-      tripAdvisorResults = []
+    if (amadeusResults.length === 0) {
       return NextResponse.json(
-        { error: "Couldn't find activities for this location. Try another city?" },
+        { error: "No activities found. Try a different location or check back later." },
         { status: 404 },
       )
     }
 
-    // Verify TripAdvisor data exists and is valid
-    if (!tripAdvisorResults || tripAdvisorResults.length === 0) {
-      console.warn("[TripAdvisor] No results found. Passing empty list to OpenAI.")
-    }
-
-    // Ensure the variable is always initialized as an array
-    const safeTripAdvisorResults = Array.isArray(tripAdvisorResults) ? tripAdvisorResults : []
-    console.log(`[v0] Validated TripAdvisor results: ${safeTripAdvisorResults.length} activities`)
-
-    // Step 3: Use OpenAI to generate recommendations from TripAdvisor results
     console.log("[v0] Generating personalized recommendations...")
-    let recommendations
-    try {
-      const result = await generateActivityRecommendations(userInput, safeTripAdvisorResults)
+    const recommendations = await generateRecommendations(userInput, parsedQuery, amadeusResults)
 
-      if (result && typeof result === "object" && "success" in result && result.success === false) {
-        return NextResponse.json(
-          {
-            error: "Failed to generate recommendations. Please try again.",
-            details: process.env.NODE_ENV === "development" ? result.error : undefined,
-          },
-          { status: 503 },
-        )
-      }
-
-      recommendations = result
-
-      if (recommendations?.activities?.length > 0) {
-        console.log("[v0] Sample activity response:", {
-          name: recommendations.activities[0].name,
-          hasRating: recommendations.activities[0].rating !== undefined,
-          hasReviewCount: recommendations.activities[0].reviewCount !== undefined,
-          hasImage: !!recommendations.activities[0].image,
-          hasUrl: !!recommendations.activities[0].tripAdvisorUrl,
-        })
-      }
-
-      if (!recommendations || !recommendations.activities || recommendations.activities.length === 0) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "No suitable activities found. Try adjusting your search criteria.",
-          },
-          { status: 200 },
-        )
-      }
-    } catch (error: any) {
-      console.error("[v0] OpenAI recommendation error:", error)
-      return NextResponse.json({ error: "AI service busy. Please try again in a moment." }, { status: 503 })
+    if (!recommendations || !recommendations.activities || recommendations.activities.length === 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "No suitable activities found. Try adjusting your search criteria.",
+        },
+        { status: 200 },
+      )
     }
 
-    // Step 4: Return formatted response
+    const { data: searchData } = await supabase
+      .from("activity_searches")
+      .insert({
+        user_input: userInput,
+        parsed_query: parsedQuery,
+        location: parsedQuery.location,
+        group_size: parsedQuery.group_size,
+        budget_per_person: parsedQuery.budget_per_person,
+        activity_type: parsedQuery.activity_type,
+        results_count: recommendations.activities.length,
+        user_ip: userIp,
+        session_id: sessionId,
+      })
+      .select()
+      .single()
+
+    if (searchData) {
+      const activitiesData = recommendations.activities.map((activity: any) => ({
+        search_id: searchData.id,
+        activity_name: activity.name,
+        experience: activity.experience,
+        best_for: activity.bestFor,
+        cost: activity.cost,
+        duration: activity.duration,
+        location_type: activity.locationType,
+        activity_level: activity.activityLevel,
+        special_element: activity.specialElement,
+        preparation: activity.preparation,
+        amadeus_url: activity.bookingLink,
+        amadeus_id: activity.amadeusId,
+        rating: activity.rating,
+        review_count: activity.reviewCount,
+        raw_data: activity,
+      }))
+
+      await supabase.from("generated_activities").insert(activitiesData)
+    }
+
+    await supabase.from("api_usage").insert({
+      endpoint: "/api/generate-activities",
+      user_ip: userIp,
+      session_id: sessionId,
+      response_time_ms: Date.now() - startTime,
+      status_code: 200,
+    })
+
     return NextResponse.json({
       success: true,
+      searchId: searchData?.id,
       query: parsedQuery,
       recommendations,
     })
   } catch (error: any) {
     console.error("[v0] API Error:", error)
+
+    await supabase.from("api_usage").insert({
+      endpoint: "/api/generate-activities",
+      user_ip: userIp,
+      session_id: sessionId,
+      response_time_ms: Date.now() - startTime,
+      status_code: 500,
+      error_message: error.message,
+    })
 
     return NextResponse.json(
       {
