@@ -6,10 +6,8 @@ import { Badge } from "@/components/ui/badge"
 import {
   Clock,
   Euro,
-  ChevronDown,
-  ChevronUp,
   Sparkles,
-  Activity,
+  ActivityIcon,
   Home,
   Sun,
   Heart,
@@ -18,25 +16,27 @@ import {
   Check,
   ExternalLink,
   Star,
+  Users,
+  Lightbulb,
 } from "lucide-react"
 
 export interface ActivityData {
-  id: string
-  name?: string
-  title?: string
-  description: string
-  tags: string[]
-  cost: number
-  currency: string
+  id?: string
+  name: string
+  experience: string
+  bestFor: string // New field
+  cost: string
   duration: string
-  activityLevel: "Low" | "Moderate" | "High"
-  locationType: "Indoor" | "Outdoor" | "Both"
-  specialFeature: string
-  details?: string
-  tripAdvisorRating?: number
-  reviewCount?: number
+  locationType: "indoor" | "outdoor" | "hybrid"
+  activityLevel: "low" | "moderate" | "high"
+  specialElement: string // New field
+  preparation: string // New field
   tripAdvisorUrl?: string
-  image?: string // Added image field for TripAdvisor photos
+  tripAdvisorId?: string
+  rating?: number
+  reviewCount?: number
+  image?: string
+  tags?: string[]
 }
 
 interface ActivityCardProps {
@@ -55,12 +55,14 @@ const tagColors: Record<string, string> = {
   Cultural: "bg-amber-500/20 text-amber-400 border-amber-500/30",
   Active: "bg-red-500/20 text-red-400 border-red-500/30",
   Social: "bg-pink-500/20 text-pink-400 border-pink-500/30",
+  Indoor: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+  Hybrid: "bg-purple-500/20 text-purple-400 border-purple-500/30",
 }
 
 const activityLevelConfig = {
-  Low: { icon: Heart, color: "text-emerald-400" },
-  Moderate: { icon: Zap, color: "text-yellow-400" },
-  High: { icon: Mountain, color: "text-red-400" },
+  low: { icon: Heart, color: "text-emerald-400", label: "Low" },
+  moderate: { icon: Zap, color: "text-yellow-400", label: "Moderate" },
+  high: { icon: Mountain, color: "text-red-400", label: "High" },
 }
 
 const renderStars = (rating: number) => {
@@ -95,8 +97,7 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
 
   if (!activity) return null
 
-  const activityName = activity?.name || activity?.title || "Activity"
-
+  const activityName = activity.name || "Activity"
   const ActivityLevelIcon = activity?.activityLevel ? activityLevelConfig[activity.activityLevel]?.icon : Heart
 
   const handleShortlist = () => {
@@ -104,7 +105,7 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
       setShowCheckmark(true)
       setTimeout(() => setShowCheckmark(false), 1000)
     }
-    onAddToShortlist?.(activity.id)
+    onAddToShortlist?.(activity.id || activityName)
   }
 
   return (
@@ -134,27 +135,29 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
           <Badge
             variant="outline"
             className={`${
-              activity?.locationType === "Outdoor"
+              activity?.locationType === "outdoor"
                 ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
-                : activity?.locationType === "Indoor"
+                : activity?.locationType === "indoor"
                   ? "bg-blue-500/20 text-blue-400 border-blue-500/30"
                   : "bg-purple-500/20 text-purple-400 border-purple-500/30"
             } flex items-center gap-1 shrink-0`}
-            aria-label={`${activity?.locationType || "Unknown"} activity`}
+            aria-label={`${activity?.locationType || "hybrid"} activity`}
           >
-            {activity?.locationType === "Outdoor" ? (
+            {activity?.locationType === "outdoor" ? (
               <Sun className="w-3 h-3" aria-hidden="true" />
             ) : (
               <Home className="w-3 h-3" aria-hidden="true" />
             )}
-            {activity?.locationType || "Both"}
+            {activity?.locationType
+              ? activity.locationType.charAt(0).toUpperCase() + activity.locationType.slice(1)
+              : "Hybrid"}
           </Badge>
         </div>
 
-        {/* Description */}
-        <p className="text-zinc-400 leading-relaxed mb-4">{activity?.description || ""}</p>
+        {/* Experience Description */}
+        <p className="text-zinc-400 leading-relaxed mb-4">{activity.experience}</p>
 
-        {activity?.tripAdvisorRating && activity.tripAdvisorRating > 0 && (
+        {activity?.rating && activity.rating > 0 && (
           <div className="mb-4 p-3 rounded-lg bg-zinc-800/30 border border-zinc-700/50">
             <div className="flex items-center gap-2 mb-2">
               <span className="text-lg" role="img" aria-label="TripAdvisor" aria-hidden="true">
@@ -165,11 +168,23 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
               </span>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              <div className="flex items-center gap-1">{renderStars(activity.tripAdvisorRating)}</div>
-              <span className="text-sm font-semibold text-white">{activity.tripAdvisorRating.toFixed(1)}</span>
+              <div className="flex items-center gap-1">{renderStars(activity.rating)}</div>
+              <span className="text-sm font-semibold text-white">{activity.rating.toFixed(1)}</span>
               {activity?.reviewCount && (
                 <span className="text-xs text-zinc-400">({activity.reviewCount.toLocaleString()} reviews)</span>
               )}
+            </div>
+          </div>
+        )}
+
+        {activity.bestFor && (
+          <div className="mb-4 p-3 rounded-lg bg-purple-500/10 border border-purple-500/20">
+            <div className="flex items-start gap-2">
+              <Users className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" aria-hidden="true" />
+              <div>
+                <p className="text-xs font-semibold text-purple-300 mb-1">Best for:</p>
+                <p className="text-sm text-zinc-300 leading-relaxed">{activity.bestFor}</p>
+              </div>
             </div>
           </div>
         )}
@@ -195,7 +210,7 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
           <div className="flex flex-col items-center text-center">
             <div className="flex items-center gap-1 text-primary mb-1">
               <Euro className="w-4 h-4" aria-hidden="true" />
-              <span className="font-bold text-lg">{activity?.cost ?? 0}</span>
+              <span className="font-bold text-lg">{activity.cost || "TBD"}</span>
             </div>
             <span className="text-xs text-zinc-500">per person</span>
           </div>
@@ -203,7 +218,7 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
           <div className="flex flex-col items-center text-center">
             <div className="flex items-center gap-1 text-primary mb-1">
               <Clock className="w-4 h-4" aria-hidden="true" />
-              <span className="font-bold text-lg">{activity?.duration || "TBD"}</span>
+              <span className="font-bold text-lg">{activity.duration || "TBD"}</span>
             </div>
             <span className="text-xs text-zinc-500">duration</span>
           </div>
@@ -213,52 +228,39 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
               className={`flex items-center gap-1 mb-1 ${activity?.activityLevel ? activityLevelConfig[activity.activityLevel]?.color : "text-zinc-400"}`}
             >
               {ActivityLevelIcon && <ActivityLevelIcon className="w-4 h-4" aria-hidden="true" />}
-              <span className="font-bold text-lg">{activity?.activityLevel || "Low"}</span>
+              <span className="font-bold text-lg">
+                {activity?.activityLevel ? activityLevelConfig[activity.activityLevel]?.label : "Low"}
+              </span>
             </div>
             <span className="text-xs text-zinc-500">intensity</span>
           </div>
         </div>
 
-        {/* Special Feature */}
-        {activity?.specialFeature && (
+        {activity.specialElement && (
           <div className="bg-gradient-to-r from-primary/10 to-emerald-400/10 border border-primary/20 rounded-xl p-4 mb-4">
             <div className="flex items-start gap-2">
               <Sparkles className="w-5 h-5 text-primary shrink-0 mt-0.5" aria-hidden="true" />
               <div>
                 <p className="text-sm font-medium text-primary mb-1">What makes it special</p>
-                <p className="text-sm text-zinc-300 leading-relaxed">{activity.specialFeature}</p>
+                <p className="text-sm text-zinc-300 leading-relaxed">{activity.specialElement}</p>
               </div>
             </div>
           </div>
         )}
 
-        {/* Expandable Details */}
-        {activity?.details && (
-          <div className="mb-4">
-            <button
-              onClick={() => setIsExpanded(!isExpanded)}
-              className="flex items-center gap-2 text-sm text-zinc-400 hover:text-primary transition-colors duration-200 w-full focus:outline-none focus:text-primary"
-              aria-expanded={isExpanded}
-              aria-controls={`details-${activity.id}`}
-            >
-              {isExpanded ? (
-                <ChevronUp className="w-4 h-4" aria-hidden="true" />
-              ) : (
-                <ChevronDown className="w-4 h-4" aria-hidden="true" />
-              )}
-              <span className="font-medium">Learn More</span>
-            </button>
-            {isExpanded && (
-              <div
-                id={`details-${activity.id}`}
-                className="mt-3 pl-6 text-sm text-zinc-400 leading-relaxed animate-in fade-in slide-in-from-top-2 duration-300"
-              >
-                {activity.details}
+        {activity.preparation && (
+          <div className="mb-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+            <div className="flex items-start gap-2">
+              <Lightbulb className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" aria-hidden="true" />
+              <div>
+                <p className="text-xs font-semibold text-amber-300 mb-1">Preparation needed:</p>
+                <p className="text-sm text-zinc-300 leading-relaxed">{activity.preparation}</p>
               </div>
-            )}
+            </div>
           </div>
         )}
 
+        {/* Action Buttons */}
         <div className="flex gap-2">
           <Button
             onClick={handleShortlist}
@@ -279,7 +281,7 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
                 <Check className="w-8 h-8 text-primary animate-in zoom-in duration-200" />
               </div>
             )}
-            <Activity className="w-4 h-4 mr-2" aria-hidden="true" />
+            <ActivityIcon className="w-4 h-4 mr-2" aria-hidden="true" />
             {isShortlisted ? "Added" : "Add to Shortlist"}
           </Button>
 

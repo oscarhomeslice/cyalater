@@ -28,22 +28,46 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Whoa! Too many requests. Wait 60 seconds and try again." }, { status: 429 })
     }
 
-    const { userInput } = await request.json()
+    const body = await request.json()
+    let userInput: string
 
-    if (!userInput || typeof userInput !== "string") {
-      return NextResponse.json({ error: "Please describe your group activity" }, { status: 400 })
+    if (typeof body.userInput === "string") {
+      // Old format: single text input
+      userInput = body.userInput
+    } else if (body.formData) {
+      // New format: structured form data
+      const { groupSize, budgetPerPerson, currency, locationMode, location, inspirationPrompt, vibe } = body.formData
+
+      // Build user input string from structured data
+      const parts: string[] = []
+
+      if (groupSize) parts.push(`Group of ${groupSize} people`)
+      if (budgetPerPerson && currency) {
+        const symbol = currency === "EUR" ? "€" : currency === "GBP" ? "£" : "$"
+        parts.push(`${symbol}${budgetPerPerson} per person`)
+      }
+      if (locationMode === "have-location" && location) {
+        parts.push(`in ${location}`)
+      } else if (inspirationPrompt) {
+        parts.push(inspirationPrompt)
+      }
+      if (vibe) parts.push(vibe)
+
+      userInput = parts.join(", ")
+    } else {
+      return NextResponse.json({ error: "Invalid request format" }, { status: 400 })
     }
 
-    if (userInput.trim().length < 20) {
-      return NextResponse.json({ error: "Please provide more details (minimum 20 characters)" }, { status: 400 })
+    if (!userInput || userInput.trim().length < 10) {
+      return NextResponse.json({ error: "Please provide more details about your group activity" }, { status: 400 })
     }
 
-    if (userInput.length > 300) {
-      return NextResponse.json({ error: "Description is too long (maximum 300 characters)" }, { status: 400 })
+    if (userInput.length > 500) {
+      return NextResponse.json({ error: "Description is too long (maximum 500 characters)" }, { status: 400 })
     }
 
     // Step 1: Use OpenAI to parse user intent
-    console.log("[v0] Parsing user input...")
+    console.log("[v0] Parsing user input:", userInput)
     let parsedQuery
     try {
       const result = await generateActivityQuery(userInput)

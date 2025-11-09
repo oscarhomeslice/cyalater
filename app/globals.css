@@ -172,6 +172,19 @@
   }
 }
 
+/* Adding smooth infinite progress animation for loading state */
+@keyframes progress-infinite {
+  0% {
+    transform: translateX(-100%);
+  }
+  50% {
+    transform: translateX(100%);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
 /* Add confetti animation for celebration effect */
 @keyframes confetti {
   0% {
@@ -195,6 +208,16 @@
   }
 }
 
+/* Adding shimmer effect for loading animation */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
 @layer utilities {
   .animate-confetti {
     animation: confetti 3s ease-in forwards;
@@ -202,5 +225,12 @@
   /* Adding utility class for glow effect */
   .animate-glow-pulse {
     animation: glow-pulse 2s ease-in-out infinite;
+  }
+  /* Adding utility classes for loading animations */
+  .animate-progress-infinite {
+    animation: progress-infinite 2s ease-in-out infinite;
+  }
+  .animate-shimmer {
+    animation: shimmer 2s linear infinite;
   }
 }

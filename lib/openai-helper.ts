@@ -9,9 +9,11 @@ interface ParsedQuery {
   location: string
   groupSize?: number
   budget?: number
+  currency?: string
   preferences?: string[]
   activityTypes?: string[]
   duration?: string
+  vibe?: string
 }
 
 interface ErrorResponse {
@@ -34,23 +36,32 @@ export async function generateActivityQuery(
       messages: [
         {
           role: "system",
-          content: `You are an expert at extracting structured information from natural language descriptions of group activities.
-Extract the following information from the user's input:
-- location: The city or destination (required)
-- groupSize: Number of people (optional)
-- budget: Budget per person in euros (optional)
-- preferences: Array of preferences like "outdoor", "indoor", "creative", "adventurous", etc.
-- activityTypes: Specific types of activities mentioned
-- duration: Preferred duration if mentioned
+          content: `You are an expert at extracting structured information from natural language requests about group activities.
 
-Return ONLY a JSON object with these fields. If a field is not mentioned, omit it or set to null.`,
+Your task: Analyze the user's input and extract:
+- location (city name, country, or "remote/virtual" or "not_specified")
+  * If input mentions "near [city]" extract that city
+  * If input is an inspiration prompt like "Creative offsite near Lisbon", extract "Lisbon"
+- groupSize (extract the number or range, e.g., "2-5", "10", "11-20")
+- budget (extract just the number, no currency symbol)
+- currency (EUR, USD, GBP - infer from context or symbols like €, $, £)
+- activityTypes (array of keywords like: adventure, creative, team-building, celebration, food, cultural, outdoor, indoor, sports, wellness, surf, mountain, coastal, nature, retreat, workshop)
+- vibe (casual, professional, adventurous, relaxed, creative, focused)
+- duration (half-day, full-day, multi-day, weekend, or "not_specified")
+- preferences (array of other relevant preferences)
+
+Special handling for inspiration prompts:
+- "Creative offsite near Lisbon with surf" → location: "Lisbon", activityTypes: ["creative", "team-building", "surf", "outdoor"]
+- "Nature retreat under €100pp near Berlin" → location: "Berlin", activityTypes: ["nature", "retreat", "outdoor"], budget: 100, currency: "EUR"
+- "Remote cabin team-building Alps" → location: "Alps", activityTypes: ["team-building", "nature", "mountain"]
+
+Return ONLY a JSON object with these exact fields.`,
         },
         {
           role: "user",
           content: userInput,
         },
       ],
-      temperature: 0.3,
       response_format: { type: "json_object" },
     })
 

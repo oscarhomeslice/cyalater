@@ -68,3 +68,35 @@ export interface EnrichedLocation {
   ranking: string | null
   locationId: string
 }
+
+export type LocationMode = "have-location" | "looking-for-ideas"
+export type Currency = "EUR" | "USD" | "GBP"
+
+export interface ActivitySearchForm {
+  groupSize: string
+  budgetPerPerson?: number
+  currency: Currency
+  locationMode: LocationMode
+  location: string
+  inspirationPrompt?: string
+  vibe: string
+}
+
+export interface FormValidation {
+  isValid: boolean
+  errors: {
+    groupSize?: string
+    location?: string
+    budget?: string
+  }
+}
+
+export interface InspirationPrompt {
+  id: string
+  title: string
+  description?: string
+  location: string
+  activityTypes: string[]
+  estimatedBudget?: string
+  vibe: string
+}
