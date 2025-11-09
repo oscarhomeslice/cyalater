@@ -12,8 +12,8 @@ import { AlertCircle, MapPin, Sparkles } from "lucide-react"
 
 export interface ActivitySearchFormData {
   groupSize: string
-  budgetAmount?: string
-  budgetCurrency?: string
+  budgetPerPerson?: string
+  currency?: string
   locationMode: "have-location" | "looking-for-ideas"
   location?: string
   inspirationPrompt?: string
@@ -37,14 +37,15 @@ export function ActivitySearchForm({ onSubmit, isLoading = false }: ActivitySear
 
     const submissionData: ActivitySearchFormData = {
       groupSize: formData.groupSize,
-      budgetAmount: formData.budgetAmount || undefined,
-      budgetCurrency: formData.budgetCurrency || "EUR",
+      budgetPerPerson: formData.budgetPerPerson || undefined,
+      currency: formData.currency || "EUR",
       locationMode: formData.locationMode,
       location: formData.locationMode === "have-location" ? formData.location : undefined,
       inspirationPrompt: formData.locationMode === "looking-for-ideas" ? formData.inspirationPrompt : undefined,
       vibe: formData.vibe || undefined,
     }
 
+    console.log("[v0] Submitting form data:", submissionData)
     onSubmit(submissionData)
   }
 
@@ -57,7 +58,7 @@ export function ActivitySearchForm({ onSubmit, isLoading = false }: ActivitySear
             Group Size <span className="text-red-400">*</span>
           </Label>
           <Select
-            value={formData.groupSize}
+            value={formData.groupSize || ""}
             onValueChange={(value) => updateField("groupSize", value)}
             disabled={isLoading}
           >
@@ -92,8 +93,8 @@ export function ActivitySearchForm({ onSubmit, isLoading = false }: ActivitySear
           </Label>
           <div className="flex gap-3">
             <Select
-              value={formData.budgetCurrency}
-              onValueChange={(value) => updateField("budgetCurrency", value)}
+              value={formData.currency || "EUR"}
+              onValueChange={(value) => updateField("currency", value)}
               disabled={isLoading}
             >
               <SelectTrigger className="w-24 bg-black/50 border-zinc-700 text-white hover:border-primary/50 focus:border-primary transition-all duration-300 h-12">
@@ -108,8 +109,8 @@ export function ActivitySearchForm({ onSubmit, isLoading = false }: ActivitySear
             <Input
               id="budget"
               type="number"
-              value={formData.budgetAmount}
-              onChange={(e) => updateField("budgetAmount", e.target.value)}
+              value={formData.budgetPerPerson || ""}
+              onChange={(e) => updateField("budgetPerPerson", e.target.value)}
               placeholder="e.g., 100"
               disabled={isLoading}
               className="flex-1 bg-black/50 border-zinc-700 text-white placeholder:text-zinc-500 hover:border-primary/50 focus:border-primary transition-all duration-300 h-12"
@@ -195,7 +196,7 @@ export function ActivitySearchForm({ onSubmit, isLoading = false }: ActivitySear
           </Label>
           <Input
             id="vibe"
-            value={formData.vibe}
+            value={formData.vibe || ""}
             onChange={(e) => updateField("vibe", e.target.value)}
             placeholder="e.g., team bonding, celebration, creative workshop"
             disabled={isLoading}

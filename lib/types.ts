@@ -74,7 +74,7 @@ export type Currency = "EUR" | "USD" | "GBP"
 
 export interface ActivitySearchForm {
   groupSize: string
-  budgetPerPerson?: number
+  budgetPerPerson?: string // Changed from number to string to match form input
   currency: Currency
   locationMode: LocationMode
   location: string

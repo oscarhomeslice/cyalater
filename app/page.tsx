@@ -220,11 +220,12 @@ export default function Page() {
   }
 
   const handleSearch = async (formData: ActivitySearchFormData) => {
+    console.log("[v0] handleSearch called with formData:", formData)
     setIsLoading(true)
     setError(null)
-    setShowResults(false) // Hide previous results immediately
-    setSearchResults(null) // Clear previous search results
-    setActivities([]) // Clear activities array
+    setShowResults(false)
+    setSearchResults(null)
+    setActivities([])
     setProTips([])
     setBackupOptions(null)
     setRefinementPrompts([])
@@ -233,35 +234,27 @@ export default function Page() {
     setFormErrors({})
     setShowTimeoutWarning(false)
 
-    const inputParts = []
-    inputParts.push(`Group of ${formData.groupSize}`)
-
-    if (formData.budgetAmount) {
-      const currencySymbol = formData.budgetCurrency === "EUR" ? "€" : formData.budgetCurrency === "USD" ? "$" : "£"
-      inputParts.push(`${currencySymbol}${formData.budgetAmount} per person budget`)
-    }
-
-    if (formData.locationMode === "have" && formData.location) {
-      inputParts.push(`in ${formData.location}`)
-    } else if (formData.locationMode === "looking" && formData.inspiration) {
-      inputParts.push(formData.inspiration)
-    }
-
-    if (formData.vibe) {
-      inputParts.push(`vibe: ${formData.vibe}`)
-    }
-
-    const constructedInput = inputParts.join(", ")
-
     requestAbortRef.current = new AbortController()
 
     try {
-      console.log("[v0] Starting API request with input:", constructedInput)
+      const requestBody = {
+        formData: {
+          groupSize: formData.groupSize,
+          budgetPerPerson: formData.budgetPerPerson,
+          currency: formData.currency || "EUR",
+          locationMode: formData.locationMode,
+          location: formData.location,
+          inspirationPrompt: formData.inspirationPrompt,
+          vibe: formData.vibe,
+        },
+      }
+
+      console.log("[v0] Starting API request with body:", requestBody)
 
       const response = await fetch("/api/generate-activities", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userInput: constructedInput }),
+        body: JSON.stringify(requestBody),
         signal: requestAbortRef.current.signal,
       })
 
