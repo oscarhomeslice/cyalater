@@ -31,7 +31,7 @@ export function useActivityForm() {
       )
       setCurrentInspirations(inspirations)
     }
-  }, [formData.locationMode, formData.budgetPerPerson, formData.vibe])
+  }, [formData.locationMode, formData.budgetPerPerson])
 
   const refreshInspirations = () => {
     const inspirations = getFilteredInspirations(
