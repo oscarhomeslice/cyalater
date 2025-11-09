@@ -42,9 +42,10 @@ export function ActivityResults({ results, onNewSearch, onAddToShortlist, shortl
         : "Both") as "Indoor" | "Outdoor" | "Both",
     specialFeature: activity.specialElement || activity.bestFor,
     details: activity.preparation,
-    tripAdvisorRating: activity.rating,
+    rating: activity.rating,
     reviewCount: activity.reviewCount,
-    tripAdvisorUrl: activity.tripAdvisorUrl,
+    amadeusUrl: activity.amadeusUrl, // Use amadeusUrl from Amadeus API
+    pictures: activity.pictures,
   }))
 
   return (
@@ -187,17 +188,15 @@ export function ActivityResults({ results, onNewSearch, onAddToShortlist, shortl
         <div className="flex items-center justify-center gap-2 text-sm text-zinc-500">
           <span>Activity data provided by</span>
           <a
-            href="https://www.tripadvisor.com"
+            href="https://developers.amadeus.com"
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-1.5 hover:opacity-80 transition-opacity"
           >
-            <span className="text-xl" role="img" aria-label="TripAdvisor">
-              🦉
+            <span className="text-xl" role="img" aria-label="Amadeus">
+              ✈️
             </span>
-            <span className="font-semibold" style={{ color: "#34E0A1" }}>
-              TripAdvisor
-            </span>
+            <span className="font-semibold text-blue-400">Amadeus</span>
           </a>
         </div>
       </div>
