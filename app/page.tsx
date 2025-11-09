@@ -605,19 +605,20 @@ export default function Page() {
   const validatedActivities = filteredActivities.filter((activity) => {
     // Check if activity has valid name or title
     const hasValidName = Boolean(activity?.name || activity?.title)
-    // Check if activity has valid Amadeus URL (optional - Amadeus doesn't always provide direct booking URLs)
-    const hasValidUrl = Boolean(activity?.amadeusUrl || activity?.tripAdvisorUrl)
+    // Check if activity has valid TripAdvisor URL (optional but warn if missing)
+    const hasValidUrl = Boolean(activity?.tripAdvisorUrl)
 
     // Log warning for incomplete entries
-    if (!hasValidName) {
-      console.warn("[v0] ⚠️ Missing name for activity:", {
+    if (!hasValidName || !hasValidUrl) {
+      console.warn("[v0] ⚠️ Missing name or URL for activity:", {
         id: activity?.id,
         name: activity?.name,
         title: activity?.title,
+        tripAdvisorUrl: activity?.tripAdvisorUrl,
       })
     }
 
-    // Only filter out if name is completely missing - URL is optional for Amadeus
+    // Only filter out if name is completely missing
     return hasValidName
   })
 

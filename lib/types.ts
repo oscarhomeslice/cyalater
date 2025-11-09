@@ -19,12 +19,10 @@ export interface Activity {
   activityLevel: "low" | "moderate" | "high"
   specialElement: string
   preparation: string
-  amadeusUrl?: string
-  amadeusId?: string
+  tripAdvisorUrl?: string
+  tripAdvisorId?: string
   rating?: number
   reviewCount?: number
-  image?: string
-  pictures?: string[]
   tags?: string[]
 }
 
@@ -64,7 +62,7 @@ export interface EnrichedLocation {
   name: string
   rating: number | null
   reviewCount: number
-  amadeusUrl: string
+  tripAdvisorUrl: string
   image: string | null
   category: string
   ranking: string | null
