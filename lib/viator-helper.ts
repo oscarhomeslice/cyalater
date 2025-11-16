@@ -97,7 +97,7 @@ export async function fetchDestinations(): Promise<Destination[]> {
   console.log("[Viator] Fetching fresh destinations from API")
 
   try {
-    const response = await fetch(`${VIATOR_API_BASE_URL}/taxonomy/destinations`, {
+    const response = await fetch(`${VIATOR_API_BASE_URL}/destinations`, {
       method: "GET",
       headers: getHeaders()
     })
@@ -111,20 +111,20 @@ export async function fetchDestinations(): Promise<Destination[]> {
         statusText: response.statusText,
         body: errorText
       })
-      // Return cached data even if expired, or empty array
-      return destinationsCache.length > 0 ? destinationsCache : []
+      // Return cached data even if expired, or fallback to common destinations
+      return destinationsCache.length > 0 ? destinationsCache : COMMON_DESTINATIONS
     }
 
     const data = await response.json()
-    destinationsCache = data.destinations || data || []
+    destinationsCache = data.destinations || []
     cacheTimestamp = now
 
     console.log(`[Viator] Fetched ${destinationsCache.length} destinations successfully`)
     return destinationsCache
   } catch (error) {
     console.error("[Viator] Error fetching destinations:", error)
-    // Return cached data even if expired, or empty array
-    return destinationsCache.length > 0 ? destinationsCache : []
+    // Return cached data even if expired, or fallback to common destinations
+    return destinationsCache.length > 0 ? destinationsCache : COMMON_DESTINATIONS
   }
 }
 
