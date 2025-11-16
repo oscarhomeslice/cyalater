@@ -1,6 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { generateActivityQuery, generateActivityRecommendations } from "@/lib/openai-helper"
-import { getNearbyAttractions } from "@/lib/tripadvisor-helper"
+import OpenAI from "openai"
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+})
 
 const rateLimit = new Map<string, number[]>()
 
@@ -29,163 +32,124 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    let userInput: string
+    
+    console.log("[v0] Received request body:", JSON.stringify(body, null, 2))
+    
+    const { groupSize, budgetPerPerson, currency = "EUR", locationMode, location, vibe } = body
 
-    if (typeof body.userInput === "string") {
-      // Old format: single text input
-      userInput = body.userInput
-    } else if (body.formData) {
-      // New format: structured form data
-      const { groupSize, budgetPerPerson, currency, locationMode, location, inspirationPrompt, vibe } = body.formData
+    console.log("[v0] Validation check - groupSize:", groupSize)
+    console.log("[v0] Validation check - budgetPerPerson:", budgetPerPerson)
+    console.log("[v0] Validation check - locationMode:", locationMode)
 
-      // Build user input string from structured data
-      const parts: string[] = []
-
-      if (groupSize) parts.push(`Group of ${groupSize} people`)
-      if (budgetPerPerson && currency) {
-        const symbol = currency === "EUR" ? "€" : currency === "GBP" ? "£" : "$"
-        parts.push(`${symbol}${budgetPerPerson} per person`)
-      }
-      if (locationMode === "have-location" && location) {
-        parts.push(`in ${location}`)
-      } else if (inspirationPrompt) {
-        parts.push(inspirationPrompt)
-      }
-      if (vibe) parts.push(vibe)
-
-      userInput = parts.join(", ")
-    } else {
-      return NextResponse.json({ error: "Invalid request format" }, { status: 400 })
+    // Validate required fields
+    if (!groupSize || !groupSize.trim()) {
+      console.log("[v0] Validation failed - Missing groupSize")
+      return NextResponse.json({ error: "Group size is required" }, { status: 400 })
     }
 
-    if (!userInput || userInput.trim().length < 10) {
-      return NextResponse.json({ error: "Please provide more details about your group activity" }, { status: 400 })
+    if (!budgetPerPerson || budgetPerPerson.trim() === "") {
+      console.log("[v0] Validation failed - Missing budgetPerPerson")
+      return NextResponse.json({ error: "Budget per person is required" }, { status: 400 })
     }
 
-    if (userInput.length > 500) {
-      return NextResponse.json({ error: "Description is too long (maximum 500 characters)" }, { status: 400 })
+    if (locationMode === "have-location" && (!location || !location.trim())) {
+      console.log("[v0] Validation failed - Location required but not provided")
+      return NextResponse.json({ error: "Location is required when 'I have a location in mind' is selected" }, { status: 400 })
     }
 
-    // Step 1: Use OpenAI to parse user intent
-    console.log("[v0] Parsing user input:", userInput)
-    let parsedQuery
-    try {
-      const result = await generateActivityQuery(userInput)
+    // Build user input string from structured data
+    const parts: string[] = []
+    parts.push(`Group of ${groupSize}`)
+    
+    const currencySymbol = currency === "EUR" ? "€" : currency === "GBP" ? "£" : "$"
+    parts.push(`${currencySymbol}${budgetPerPerson} per person budget`)
 
-      if (result && typeof result === "object" && "success" in result && result.success === false) {
-        return NextResponse.json(
-          {
-            error: result.error || "Failed to understand your request. Please try rephrasing.",
-          },
-          { status: 400 },
-        )
-      }
-
-      parsedQuery = result as any
-      console.log("[v0] Parsed query:", parsedQuery)
-    } catch (error: any) {
-      console.error("[v0] OpenAI parsing error:", error)
-      return NextResponse.json({ error: "AI service busy. Please try again in a moment." }, { status: 503 })
+    if (locationMode === "have-location" && location) {
+      parts.push(`in ${location}`)
+    } else if (locationMode === "surprise-me") {
+      parts.push(`any location worldwide`)
     }
 
-    // Step 2: Query TripAdvisor based on parsed intent
-    console.log("[v0] Searching TripAdvisor...")
-    let tripAdvisorResults
-    try {
-      const location = parsedQuery.location || "popular destinations"
-      tripAdvisorResults = await getNearbyAttractions(location, "attractions")
-
-      if (!tripAdvisorResults) {
-        console.warn("[v0] TripAdvisor returned undefined, using empty array")
-        tripAdvisorResults = []
-      }
-
-      console.log(`[v0] Found ${tripAdvisorResults.length} activities from TripAdvisor`)
-
-      if (tripAdvisorResults.length > 0) {
-        console.log("[v0] Sample enriched location:", {
-          name: tripAdvisorResults[0].name,
-          rating: tripAdvisorResults[0].rating,
-          reviewCount: tripAdvisorResults[0].reviewCount,
-          hasImage: !!tripAdvisorResults[0].image,
-          hasUrl: !!tripAdvisorResults[0].tripAdvisorUrl,
-        })
-      }
-
-      if (!tripAdvisorResults || tripAdvisorResults.length === 0) {
-        return NextResponse.json(
-          { error: "Couldn't find activities for this location. Try another city?" },
-          { status: 404 },
-        )
-      }
-    } catch (error: any) {
-      console.error("[v0] TripAdvisor error:", error)
-      tripAdvisorResults = []
-      return NextResponse.json(
-        { error: "Couldn't find activities for this location. Try another city?" },
-        { status: 404 },
-      )
+    if (vibe && vibe.trim()) {
+      parts.push(`vibe: ${vibe}`)
     }
 
-    // Verify TripAdvisor data exists and is valid
-    if (!tripAdvisorResults || tripAdvisorResults.length === 0) {
-      console.warn("[TripAdvisor] No results found. Passing empty list to OpenAI.")
+    const userInput = parts.join(", ")
+    console.log("[v0] Constructed user input for OpenAI:", userInput)
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      max_tokens: 2500,
+      temperature: 0.8,
+      messages: [
+        {
+          role: "system",
+          content: `You are a creative group activity planner. Generate 6-8 diverse, realistic activity ideas that match the group's needs.
+
+Guidelines:
+- Names should be clear and concise (e.g., "Pottery Workshop" not "Mystical Clay Journey")
+- Include variety: creative, outdoor, food, problem-solving, playful, calm activities
+- Must include: ONE introvert-friendly option, ONE surprising wildcard option
+- Cost should be realistic ballpark number per person (not necessarily equal to budget)
+- Activities should be doable in most cities unless specific location given
+
+Output ONLY valid JSON:
+{
+  "activities": [
+    {
+      "id": "unique-id",
+      "name": "Activity Name",
+      "experience": "2-3 concrete sentences describing the activity",
+      "bestFor": "Why this fits the group",
+      "cost": 50,
+      "duration": "2h",
+      "locationType": "indoor",
+      "activityLevel": "moderate",
+      "specialElement": "What makes it memorable",
+      "preparation": "What to know beforehand",
+      "tags": ["tag1", "tag2"]
     }
+  ],
+  "proTips": ["Tip 1", "Tip 2", "Tip 3"],
+  "refinementPrompts": ["More outdoors", "Lower budget", "More adventurous", "Calmer vibe"]
+}
 
-    // Ensure the variable is always initialized as an array
-    const safeTripAdvisorResults = Array.isArray(tripAdvisorResults) ? tripAdvisorResults : []
-    console.log(`[v0] Validated TripAdvisor results: ${safeTripAdvisorResults.length} activities`)
+No markdown, no explanations, just JSON.`
+        },
+        {
+          role: "user",
+          content: userInput,
+        },
+      ],
+      response_format: { type: "json_object" },
+    })
 
-    // Step 3: Use OpenAI to generate recommendations from TripAdvisor results
-    console.log("[v0] Generating personalized recommendations...")
-    let recommendations
-    try {
-      const result = await generateActivityRecommendations(userInput, safeTripAdvisorResults)
+    const recommendations = JSON.parse(completion.choices[0].message.content || "{}")
 
-      if (result && typeof result === "object" && "success" in result && result.success === false) {
-        return NextResponse.json(
-          {
-            error: "Failed to generate recommendations. Please try again.",
-            details: process.env.NODE_ENV === "development" ? result.error : undefined,
-          },
-          { status: 503 },
-        )
-      }
+    console.log("[v0] Generated recommendations:", {
+      activitiesCount: recommendations.activities?.length || 0,
+      proTipsCount: recommendations.proTips?.length || 0,
+      refinementPromptsCount: recommendations.refinementPrompts?.length || 0,
+    })
 
-      recommendations = result
-
-      if (recommendations?.activities?.length > 0) {
-        console.log("[v0] Sample activity response:", {
-          name: recommendations.activities[0].name,
-          hasRating: recommendations.activities[0].rating !== undefined,
-          hasReviewCount: recommendations.activities[0].reviewCount !== undefined,
-          hasImage: !!recommendations.activities[0].image,
-          hasUrl: !!recommendations.activities[0].tripAdvisorUrl,
-        })
-      }
-
-      if (!recommendations || !recommendations.activities || recommendations.activities.length === 0) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "No suitable activities found. Try adjusting your search criteria.",
-          },
-          { status: 200 },
-        )
-      }
-    } catch (error: any) {
-      console.error("[v0] OpenAI recommendation error:", error)
-      return NextResponse.json({ error: "AI service busy. Please try again in a moment." }, { status: 503 })
-    }
-
-    // Step 4: Return formatted response
     return NextResponse.json({
       success: true,
-      query: parsedQuery,
-      recommendations,
+      recommendations: {
+        activities: recommendations.activities || [],
+        proTips: recommendations.proTips || [],
+        refinementPrompts: recommendations.refinementPrompts || []
+      },
+      query: {
+        group_size: groupSize,
+        budget_per_person: budgetPerPerson,
+        currency,
+        location_mode: locationMode,
+        location: location || null,
+        vibe: vibe || null
+      }
     })
   } catch (error: any) {
-    console.error("[v0] API Error:", error)
+    console.error("[API Error]:", error)
 
     return NextResponse.json(
       {

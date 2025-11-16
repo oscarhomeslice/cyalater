@@ -69,17 +69,16 @@ export interface EnrichedLocation {
   locationId: string
 }
 
-export type LocationMode = "have-location" | "looking-for-ideas"
+export type LocationMode = "have-location" | "surprise-me" // Updated to match new form options
 export type Currency = "EUR" | "USD" | "GBP"
 
-export interface ActivitySearchForm {
-  groupSize: string
-  budgetPerPerson?: string // Changed from number to string to match form input
-  currency: Currency
-  locationMode: LocationMode
-  location: string
-  inspirationPrompt?: string
-  vibe: string
+export interface ActivitySearchFormData {
+  groupSize: string // Required, not optional
+  budgetPerPerson?: string // Optional but recommended
+  currency?: string // Optional, defaults to EUR
+  locationMode: "have-location" | "surprise-me" // Updated options
+  location?: string // Optional, depends on locationMode
+  vibe?: string // Optional
 }
 
 export interface FormValidation {

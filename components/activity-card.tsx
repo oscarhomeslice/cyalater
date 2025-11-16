@@ -3,40 +3,27 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import {
-  Clock,
-  Euro,
-  Sparkles,
-  ActivityIcon,
-  Home,
-  Sun,
-  Heart,
-  Zap,
-  Mountain,
-  Check,
-  ExternalLink,
-  Star,
-  Users,
-  Lightbulb,
-} from "lucide-react"
+import { Clock, Euro, ActivityIcon, Heart, Zap, Mountain, Check, ExternalLink, Star, Users, Lightbulb, Sparkles, MapPin, ChevronDown, ChevronUp } from 'lucide-react'
 
 export interface ActivityData {
   id?: string
   name: string
   experience: string
-  bestFor: string // New field
-  cost: string
+  description?: string
+  bestFor: string
+  cost: string | number
   duration: string
   locationType: "indoor" | "outdoor" | "hybrid"
   activityLevel: "low" | "moderate" | "high"
-  specialElement: string // New field
-  preparation: string // New field
+  specialElement: string
+  preparation: string
   tripAdvisorUrl?: string
   tripAdvisorId?: string
   rating?: number
   reviewCount?: number
   image?: string
   tags?: string[]
+  isInspiration?: boolean
 }
 
 interface ActivityCardProps {
@@ -92,13 +79,25 @@ const renderStars = (rating: number) => {
 }
 
 export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false }: ActivityCardProps) {
-  const [isExpanded, setIsExpanded] = useState(false)
   const [showCheckmark, setShowCheckmark] = useState(false)
+  const [expandedSections, setExpandedSections] = useState({
+    bestFor: false,
+    specialElement: false,
+    preparation: false
+  })
+
+  console.log("[v0] ActivityCard received activity:", activity)
 
   if (!activity) return null
 
   const activityName = activity.name || "Activity"
   const ActivityLevelIcon = activity?.activityLevel ? activityLevelConfig[activity.activityLevel]?.icon : Heart
+  
+  const costDisplay = typeof activity.cost === 'number' 
+    ? `${activity.cost}` 
+    : (typeof activity.cost === 'string' && activity.cost.includes('€')) 
+      ? activity.cost.replace('€', '') 
+      : activity.cost || "TBD"
 
   const handleShortlist = () => {
     if (!isShortlisted) {
@@ -108,11 +107,19 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
     onAddToShortlist?.(activity.id || activityName)
   }
 
+  const toggleSection = (section: 'bestFor' | 'specialElement' | 'preparation') => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }))
+  }
+
   return (
     <article
       className="group bg-zinc-900/50 backdrop-blur-sm border border-zinc-800 rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl hover:shadow-primary/10 hover:-translate-y-1 hover:border-zinc-700 transition-all duration-300 focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2 focus-within:ring-offset-black"
       aria-label={`${activityName} activity`}
     >
+      
       {activity?.image && (
         <div className="relative w-full h-48 overflow-hidden">
           <img
@@ -130,34 +137,22 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
 
       <div className="p-6">
         {/* Header */}
-        <div className="flex items-start justify-between gap-4 mb-4">
-          <h3 className="text-xl md:text-2xl font-bold text-white leading-tight flex-1">{activityName}</h3>
-          <Badge
-            variant="outline"
-            className={`${
-              activity?.locationType === "outdoor"
-                ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
-                : activity?.locationType === "indoor"
-                  ? "bg-blue-500/20 text-blue-400 border-blue-500/30"
-                  : "bg-purple-500/20 text-purple-400 border-purple-500/30"
-            } flex items-center gap-1 shrink-0`}
-            aria-label={`${activity?.locationType || "hybrid"} activity`}
-          >
-            {activity?.locationType === "outdoor" ? (
-              <Sun className="w-3 h-3" aria-hidden="true" />
-            ) : (
-              <Home className="w-3 h-3" aria-hidden="true" />
-            )}
-            {activity?.locationType
-              ? activity.locationType.charAt(0).toUpperCase() + activity.locationType.slice(1)
-              : "Hybrid"}
-          </Badge>
+        <div className="mb-4">
+          <h3 className="text-xl md:text-2xl font-bold text-white leading-tight mb-2">{activityName}</h3>
+          <div className="flex items-center gap-2 text-sm text-zinc-400">
+            <MapPin className="w-4 h-4" />
+            <span className="capitalize">{activity.locationType}</span>
+          </div>
         </div>
 
-        {/* Experience Description */}
-        <p className="text-zinc-400 leading-relaxed mb-4">{activity.experience}</p>
+        <div className="mb-4">
+          <p className="text-zinc-300 leading-relaxed">
+            {activity.experience || activity.description || "Experience description coming soon"}
+          </p>
+        </div>
 
-        {activity?.rating && activity.rating > 0 && (
+        {/* TripAdvisor Rating (only for non-inspiration) */}
+        {!activity.isInspiration && activity?.rating && activity.rating > 0 && (
           <div className="mb-4 p-3 rounded-lg bg-zinc-800/30 border border-zinc-700/50">
             <div className="flex items-center gap-2 mb-2">
               <span className="text-lg" role="img" aria-label="TripAdvisor" aria-hidden="true">
@@ -177,19 +172,6 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
           </div>
         )}
 
-        {activity.bestFor && (
-          <div className="mb-4 p-3 rounded-lg bg-purple-500/10 border border-purple-500/20">
-            <div className="flex items-start gap-2">
-              <Users className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" aria-hidden="true" />
-              <div>
-                <p className="text-xs font-semibold text-purple-300 mb-1">Best for:</p>
-                <p className="text-sm text-zinc-300 leading-relaxed">{activity.bestFor}</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Tags */}
         {activity?.tags && activity.tags.length > 0 && (
           <div className="flex flex-wrap gap-2 mb-4" role="list" aria-label="Activity tags">
             {activity.tags.map((tag) => (
@@ -205,12 +187,11 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
           </div>
         )}
 
-        {/* Info Grid */}
         <div className="grid grid-cols-3 gap-4 mb-4 py-4 border-y border-zinc-800">
           <div className="flex flex-col items-center text-center">
             <div className="flex items-center gap-1 text-primary mb-1">
               <Euro className="w-4 h-4" aria-hidden="true" />
-              <span className="font-bold text-lg">{activity.cost || "TBD"}</span>
+              <span className="font-bold text-lg">{costDisplay}</span>
             </div>
             <span className="text-xs text-zinc-500">per person</span>
           </div>
@@ -228,7 +209,7 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
               className={`flex items-center gap-1 mb-1 ${activity?.activityLevel ? activityLevelConfig[activity.activityLevel]?.color : "text-zinc-400"}`}
             >
               {ActivityLevelIcon && <ActivityLevelIcon className="w-4 h-4" aria-hidden="true" />}
-              <span className="font-bold text-lg">
+              <span className="font-bold text-lg capitalize">
                 {activity?.activityLevel ? activityLevelConfig[activity.activityLevel]?.label : "Low"}
               </span>
             </div>
@@ -236,31 +217,78 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
           </div>
         </div>
 
-        {activity.specialElement && (
-          <div className="bg-gradient-to-r from-primary/10 to-emerald-400/10 border border-primary/20 rounded-xl p-4 mb-4">
-            <div className="flex items-start gap-2">
-              <Sparkles className="w-5 h-5 text-primary shrink-0 mt-0.5" aria-hidden="true" />
-              <div>
-                <p className="text-sm font-medium text-primary mb-1">What makes it special</p>
-                <p className="text-sm text-zinc-300 leading-relaxed">{activity.specialElement}</p>
+        <div className="mb-3">
+          <button
+            onClick={() => toggleSection('bestFor')}
+            className="w-full p-3 rounded-lg bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/20 hover:border-purple-500/40 transition-all duration-200 text-left"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Users className="w-4 h-4 text-purple-400" aria-hidden="true" />
+                <span className="text-sm font-semibold text-purple-300">Perfect for</span>
               </div>
+              {expandedSections.bestFor ? (
+                <ChevronUp className="w-4 h-4 text-purple-400" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-purple-400" />
+              )}
             </div>
-          </div>
-        )}
+          </button>
+          {expandedSections.bestFor && (
+            <div className="mt-2 p-3 rounded-lg bg-purple-500/5 border border-purple-500/10 animate-in slide-in-from-top-2 duration-200">
+              <p className="text-sm text-zinc-200 leading-relaxed">{activity.bestFor}</p>
+            </div>
+          )}
+        </div>
 
-        {activity.preparation && (
-          <div className="mb-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
-            <div className="flex items-start gap-2">
-              <Lightbulb className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" aria-hidden="true" />
-              <div>
-                <p className="text-xs font-semibold text-amber-300 mb-1">Preparation needed:</p>
-                <p className="text-sm text-zinc-300 leading-relaxed">{activity.preparation}</p>
+        <div className="mb-3">
+          <button
+            onClick={() => toggleSection('specialElement')}
+            className="w-full p-3 rounded-lg bg-gradient-to-br from-primary/10 via-emerald-400/10 to-cyan-400/10 border border-primary/30 hover:border-primary/50 transition-all duration-200 text-left"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-primary" aria-hidden="true" />
+                <span className="text-sm font-semibold text-primary">What makes it special</span>
               </div>
+              {expandedSections.specialElement ? (
+                <ChevronUp className="w-4 h-4 text-primary" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-primary" />
+              )}
             </div>
-          </div>
-        )}
+          </button>
+          {expandedSections.specialElement && (
+            <div className="mt-2 p-3 rounded-lg bg-primary/5 border border-primary/10 animate-in slide-in-from-top-2 duration-200">
+              <p className="text-sm text-zinc-200 leading-relaxed">{activity.specialElement}</p>
+            </div>
+          )}
+        </div>
 
-        {/* Action Buttons */}
+        <div className="mb-4">
+          <button
+            onClick={() => toggleSection('preparation')}
+            className="w-full p-3 rounded-lg bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/20 hover:border-amber-500/40 transition-all duration-200 text-left"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Lightbulb className="w-4 h-4 text-amber-400" aria-hidden="true" />
+                <span className="text-sm font-semibold text-amber-300">Preparation needed</span>
+              </div>
+              {expandedSections.preparation ? (
+                <ChevronUp className="w-4 h-4 text-amber-400" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-amber-400" />
+              )}
+            </div>
+          </button>
+          {expandedSections.preparation && (
+            <div className="mt-2 p-3 rounded-lg bg-amber-500/5 border border-amber-500/10 animate-in slide-in-from-top-2 duration-200">
+              <p className="text-sm text-zinc-200 leading-relaxed">{activity.preparation}</p>
+            </div>
+          )}
+        </div>
+
         <div className="flex gap-2">
           <Button
             onClick={handleShortlist}
@@ -285,7 +313,7 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
             {isShortlisted ? "Added" : "Add to Shortlist"}
           </Button>
 
-          {activity?.tripAdvisorUrl && (
+          {!activity.isInspiration && activity?.tripAdvisorUrl && (
             <Button
               onClick={() => window.open(activity.tripAdvisorUrl, "_blank", "noopener,noreferrer")}
               variant="outline"
@@ -297,8 +325,7 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
           )}
         </div>
 
-        {/* TripAdvisor attribution footer */}
-        {activity?.tripAdvisorUrl && (
+        {!activity.isInspiration && activity?.tripAdvisorUrl && (
           <div className="mt-4 pt-4 border-t border-zinc-800/50 flex items-center justify-center gap-2">
             <span className="text-[11px] text-zinc-600">Powered by</span>
             <a
