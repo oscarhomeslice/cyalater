@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Clock, Euro, ActivityIcon, Heart, Zap, Mountain, Check, ExternalLink, Star, Users, Lightbulb, Sparkles, MapPin, ChevronDown, ChevronUp } from 'lucide-react'
+import { Clock, Euro, ActivityIcon, Heart, Zap, Mountain, Check, ExternalLink, Star, Users, Lightbulb, Sparkles, MapPin } from 'lucide-react'
 
 export interface ActivityData {
   id?: string
@@ -80,14 +80,7 @@ const renderStars = (rating: number) => {
 
 export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false }: ActivityCardProps) {
   const [showCheckmark, setShowCheckmark] = useState(false)
-  const [expandedSections, setExpandedSections] = useState({
-    bestFor: false,
-    specialElement: false,
-    preparation: false
-  })
-
-  console.log("[v0] ActivityCard received activity:", activity)
-
+  
   if (!activity) return null
 
   const activityName = activity.name || "Activity"
@@ -105,13 +98,6 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
       setTimeout(() => setShowCheckmark(false), 1000)
     }
     onAddToShortlist?.(activity.id || activityName)
-  }
-
-  const toggleSection = (section: 'bestFor' | 'specialElement' | 'preparation') => {
-    setExpandedSections(prev => ({
-      ...prev,
-      [section]: !prev[section]
-    }))
   }
 
   return (
@@ -218,75 +204,33 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
         </div>
 
         <div className="mb-3">
-          <button
-            onClick={() => toggleSection('bestFor')}
-            className="w-full p-3 rounded-lg bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/20 hover:border-purple-500/40 transition-all duration-200 text-left"
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Users className="w-4 h-4 text-purple-400" aria-hidden="true" />
-                <span className="text-sm font-semibold text-purple-300">Perfect for</span>
-              </div>
-              {expandedSections.bestFor ? (
-                <ChevronUp className="w-4 h-4 text-purple-400" />
-              ) : (
-                <ChevronDown className="w-4 h-4 text-purple-400" />
-              )}
+          <div className="p-3 rounded-lg bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/20">
+            <div className="flex items-center gap-2 mb-2">
+              <Users className="w-4 h-4 text-purple-400" aria-hidden="true" />
+              <span className="text-sm font-semibold text-purple-300">Perfect for</span>
             </div>
-          </button>
-          {expandedSections.bestFor && (
-            <div className="mt-2 p-3 rounded-lg bg-purple-500/5 border border-purple-500/10 animate-in slide-in-from-top-2 duration-200">
-              <p className="text-sm text-zinc-200 leading-relaxed">{activity.bestFor}</p>
-            </div>
-          )}
+            <p className="text-sm text-zinc-200 leading-relaxed">{activity.bestFor}</p>
+          </div>
         </div>
 
         <div className="mb-3">
-          <button
-            onClick={() => toggleSection('specialElement')}
-            className="w-full p-3 rounded-lg bg-gradient-to-br from-primary/10 via-emerald-400/10 to-cyan-400/10 border border-primary/30 hover:border-primary/50 transition-all duration-200 text-left"
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-primary" aria-hidden="true" />
-                <span className="text-sm font-semibold text-primary">What makes it special</span>
-              </div>
-              {expandedSections.specialElement ? (
-                <ChevronUp className="w-4 h-4 text-primary" />
-              ) : (
-                <ChevronDown className="w-4 h-4 text-primary" />
-              )}
+          <div className="p-3 rounded-lg bg-gradient-to-br from-primary/10 via-emerald-400/10 to-cyan-400/10 border border-primary/30">
+            <div className="flex items-center gap-2 mb-2">
+              <Sparkles className="w-4 h-4 text-primary" aria-hidden="true" />
+              <span className="text-sm font-semibold text-primary">What makes it special</span>
             </div>
-          </button>
-          {expandedSections.specialElement && (
-            <div className="mt-2 p-3 rounded-lg bg-primary/5 border border-primary/10 animate-in slide-in-from-top-2 duration-200">
-              <p className="text-sm text-zinc-200 leading-relaxed">{activity.specialElement}</p>
-            </div>
-          )}
+            <p className="text-sm text-zinc-200 leading-relaxed">{activity.specialElement}</p>
+          </div>
         </div>
 
         <div className="mb-4">
-          <button
-            onClick={() => toggleSection('preparation')}
-            className="w-full p-3 rounded-lg bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/20 hover:border-amber-500/40 transition-all duration-200 text-left"
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Lightbulb className="w-4 h-4 text-amber-400" aria-hidden="true" />
-                <span className="text-sm font-semibold text-amber-300">Preparation needed</span>
-              </div>
-              {expandedSections.preparation ? (
-                <ChevronUp className="w-4 h-4 text-amber-400" />
-              ) : (
-                <ChevronDown className="w-4 h-4 text-amber-400" />
-              )}
+          <div className="p-3 rounded-lg bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/20">
+            <div className="flex items-center gap-2 mb-2">
+              <Lightbulb className="w-4 h-4 text-amber-400" aria-hidden="true" />
+              <span className="text-sm font-semibold text-amber-300">Preparation needed</span>
             </div>
-          </button>
-          {expandedSections.preparation && (
-            <div className="mt-2 p-3 rounded-lg bg-amber-500/5 border border-amber-500/10 animate-in slide-in-from-top-2 duration-200">
-              <p className="text-sm text-zinc-200 leading-relaxed">{activity.preparation}</p>
-            </div>
-          )}
+            <p className="text-sm text-zinc-200 leading-relaxed">{activity.preparation}</p>
+          </div>
         </div>
 
         <div className="flex gap-2">
