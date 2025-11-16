@@ -101,6 +101,11 @@ export default function Page() {
   const requestTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const requestAbortRef = useRef<AbortController | null>(null)
 
+  const [isSearchingReal, setIsSearchingReal] = useState(false)
+  const [realActivitiesResults, setRealActivitiesResults] = useState<ApiResponse | null>(null)
+  const [showRealActivities, setShowRealActivities] = useState(false)
+  const [realActivitiesError, setRealActivitiesError] = useState<string | null>(null)
+  
   const [showRealActivitiesSearch, setShowRealActivitiesSearch] = useState(false)
   const [refinementPrompts, setRefinementPrompts] = useState<string[]>([])
 
@@ -198,8 +203,10 @@ export default function Page() {
     setError(null)
     setShowResults(false)
     setSearchResults(null)
+    setShowRealActivities(false)
+    setRealActivitiesResults(null)
+    setRealActivitiesError(null)
     setShowRealActivitiesSearch(false)
-    setError(null)
     window.scrollTo({ top: 0, behavior: "smooth" })
 
     requestAbortRef.current = new AbortController()
@@ -323,14 +330,75 @@ export default function Page() {
   const handleNewSearch = () => {
     setShowResults(false)
     setSearchResults(null)
+    setShowRealActivities(false)
+    setRealActivitiesResults(null)
+    setRealActivitiesError(null)
     setShowRealActivitiesSearch(false)
     setError(null)
     window.scrollTo({ top: 0, behavior: "smooth" })
   }
 
-  const handleFindRealActivities = () => {
-    setShowRealActivitiesSearch(true)
-    showToast("Searching for real bookable activities...", "info")
+  const handleFindRealActivities = async () => {
+    if (!searchResults?.query) {
+      showToast("Please search for inspiration first", "error")
+      return
+    }
+
+    setIsSearchingReal(true)
+    setRealActivitiesError(null)
+    
+    try {
+      console.log("[Page] Searching for real activities...")
+      
+      const requestBody = {
+        location: searchResults.query.location,
+        budgetPerPerson: searchResults.query.budget_per_person,
+        currency: searchResults.query.currency || "EUR",
+        groupSize: searchResults.query.group_size,
+        vibe: searchResults.query.vibe,
+        inspirationActivities: searchResults.recommendations.activities
+      }
+      
+      console.log("[Page] Real activities request:", requestBody)
+      
+      const response = await fetch("/api/search-real-activities", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(requestBody)
+      })
+      
+      console.log("[Page] Real activities response status:", response.status)
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to find real activities")
+      }
+      
+      const data = await response.json()
+      console.log("[Page] Real activities data:", data)
+      
+      setRealActivitiesResults(data)
+      setShowRealActivities(true)
+      
+      setTimeout(() => {
+        document.getElementById('real-activities')?.scrollIntoView({ 
+          behavior: 'smooth',
+          block: 'start'
+        })
+      }, 100)
+      
+      showToast(
+        `Found ${data.recommendations.activities.length} real activities!`, 
+        "success"
+      )
+      
+    } catch (error: any) {
+      console.error("[Page] Error finding real activities:", error)
+      setRealActivitiesError(error.message)
+      showToast(error.message || "Failed to find real activities", "error")
+    } finally {
+      setIsSearchingReal(false)
+    }
   }
 
   const handleAddToShortlist = (id: string) => {
@@ -469,32 +537,57 @@ export default function Page() {
               results={searchResults}
               onNewSearch={handleNewSearch}
               onFindRealActivities={handleFindRealActivities}
+              isSearchingReal={isSearchingReal}
+              hasLocation={!!searchResults.query?.location}
               onAddToShortlist={handleAddToShortlist}
               shortlistedIds={shortlistedIds}
             />
 
-            {showRealActivitiesSearch && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md animate-in fade-in duration-300">
-                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 max-w-md w-full mx-4">
-                  <div className="flex flex-col items-center gap-6 text-center">
-                    <div className="relative">
-                      <div className="w-16 h-16 rounded-full border-4 border-transparent border-t-primary border-r-primary/50 animate-spin" />
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <Sparkles className="w-6 h-6 text-primary animate-pulse" />
-                      </div>
-                    </div>
-                    <div>
-                      <h3 className="text-2xl font-bold mb-2">Searching for real bookable activities...</h3>
-                      <p className="text-zinc-400">This feature is coming soon!</p>
-                    </div>
-                    <Button
-                      onClick={() => setShowRealActivitiesSearch(false)}
-                      className="bg-zinc-800 hover:bg-zinc-700 text-white"
-                    >
-                      Close
-                    </Button>
+            {showRealActivities && realActivitiesResults && (
+              <div id="real-activities" className="mt-16 pt-16 border-t border-zinc-800">
+                <div className="text-center mb-12">
+                  <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 border border-primary/30 rounded-full mb-4">
+                    <span className="text-2xl">🎫</span>
+                    <span className="text-sm font-semibold text-primary">Real Bookable Activities</span>
                   </div>
+                  
+                  <h2 className="text-3xl md:text-4xl font-bold mb-3">
+                    {realActivitiesResults.query?.location 
+                      ? `Activities in ${realActivitiesResults.query.location}`
+                      : "Real Activities You Can Book"
+                    }
+                  </h2>
+                  
+                  <p className="text-zinc-400 max-w-2xl mx-auto">
+                    Based on your preferences • Powered by Viator
+                  </p>
                 </div>
+                
+                <ActivityResults
+                  results={realActivitiesResults}
+                  onNewSearch={() => {
+                    setShowRealActivities(false)
+                    setRealActivitiesResults(null)
+                    handleNewSearch()
+                  }}
+                  isSearchingReal={false}
+                  hasLocation={!!realActivitiesResults.query?.location}
+                  onAddToShortlist={handleAddToShortlist}
+                  shortlistedIds={shortlistedIds}
+                />
+              </div>
+            )}
+
+            {realActivitiesError && (
+              <div className="mt-8 p-6 bg-red-500/10 border border-red-500/30 rounded-xl">
+                <p className="text-red-400">{realActivitiesError}</p>
+                <Button
+                  onClick={() => setRealActivitiesError(null)}
+                  variant="outline"
+                  className="mt-4"
+                >
+                  Dismiss
+                </Button>
               </div>
             )}
           </>
