@@ -54,7 +54,16 @@ interface ApiResponse {
   success: boolean
   recommendations: {
     activities: ActivityData[]
+    proTips?: string[]
     refinementPrompts?: string[]
+  }
+  query?: {
+    group_size: string
+    budget_per_person?: string
+    currency?: string
+    location_mode: string
+    location?: string
+    vibe?: string
   }
   error?: string
 }
@@ -85,10 +94,7 @@ export default function Page() {
   const [userInput, setUserInput] = useState("")
   const [characterCount, setCharacterCount] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
-  const [activities, setActivities] = useState<ActivityData[]>([])
-  const [error, setError] = useState<{ type: ErrorType; message?: string } | null>(null)
-  const [messageIndex, setMessageIndex] = useState(0)
-  const [messageFade, setMessageFade] = useState(true)
+  const [searchResults, setSearchResults] = useState<ApiResponse | null>(null)
   const [showResults, setShowResults] = useState(false)
 
   const [showTimeoutWarning, setShowTimeoutWarning] = useState(false)
@@ -132,6 +138,9 @@ export default function Page() {
     }
   }, [isLoading])
 
+  const [messageIndex, setMessageIndex] = useState(0)
+  const [messageFade, setMessageFade] = useState(true)
+
   const getCurrentMessage = () => {
     return loadingMessages[messageIndex]
   }
@@ -172,8 +181,7 @@ export default function Page() {
     setIsLoading(true)
     setError(null)
     setShowResults(false)
-    setActivities([])
-    setRefinementPrompts([])
+    setSearchResults(null)
     setShowRealActivitiesSearch(false)
     setError(null)
     window.scrollTo({ top: 0, behavior: "smooth" })
@@ -216,11 +224,9 @@ export default function Page() {
       }
 
       const data: ApiResponse = await response.json()
-      console.log("[v0] API response data:", {
-        success: data.success,
-        activitiesCount: data.recommendations?.activities?.length || 0,
-        refinementPromptsCount: data.recommendations?.refinementPrompts?.length || 0,
-      })
+      console.log("[v0] Full API response:", data)
+      console.log("[v0] Recommendations object:", data.recommendations)
+      console.log("[v0] Activities array:", data.recommendations?.activities)
 
       if (!data.success) {
         throw {
@@ -229,7 +235,7 @@ export default function Page() {
         }
       }
 
-      if (!data.recommendations.activities || data.recommendations.activities.length === 0) {
+      if (!data.recommendations?.activities || data.recommendations.activities.length === 0) {
         console.warn("[v0] No activities returned from API")
         setError({
           type: "empty",
@@ -242,8 +248,7 @@ export default function Page() {
 
       console.log("[v0] Successfully received activities:", data.recommendations.activities.length)
 
-      setActivities(data.recommendations.activities || [])
-      setRefinementPrompts(data.recommendations.refinementPrompts || [])
+      setSearchResults(data)
       setShowResults(true)
 
       console.log("[v0] ✅ Data rendered successfully!")
@@ -301,8 +306,7 @@ export default function Page() {
 
   const handleNewSearch = () => {
     setShowResults(false)
-    setActivities([])
-    setRefinementPrompts([])
+    setSearchResults(null)
     setShowRealActivitiesSearch(false)
     setError(null)
     window.scrollTo({ top: 0, behavior: "smooth" })
@@ -312,6 +316,9 @@ export default function Page() {
     setShowRealActivitiesSearch(true)
     showToast("Searching for real bookable activities...", "info")
   }
+
+  const [error, setError] = useState<{ type: ErrorType; message?: string } | null>(null)
+  const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({})
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-black via-zinc-900 to-black text-white">
@@ -404,11 +411,10 @@ export default function Page() {
           </>
         )}
 
-        {showResults && !isLoading && (
+        {searchResults && !isLoading && (
           <>
             <ActivityResults
-              activities={activities}
-              refinementPrompts={refinementPrompts}
+              results={searchResults}
               onNewSearch={handleNewSearch}
               onFindRealActivities={handleFindRealActivities}
             />
