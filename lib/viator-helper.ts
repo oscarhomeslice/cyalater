@@ -199,45 +199,54 @@ export async function searchViatorProducts(params: SearchViatorParams): Promise<
     throw new Error("VIATOR_API_KEY environment variable is not set")
   }
 
-  let destinationId: number | null = null
-
-  // Convert destination name to ID if provided
-  if (params.destination) {
-    destinationId = await findDestinationId(params.destination)
-    
-    if (!destinationId) {
-      const suggestions = await getPopularDestinations(5)
-      throw new Error(
-        `Destination "${params.destination}" not found. Try one of these popular destinations: ${suggestions.join(", ")}`
-      )
-    }
+  if (!params.destination) {
+    throw new Error("Destination is required for Viator product search")
   }
 
+  // Convert destination name to ID
+  const destinationId = await findDestinationId(params.destination)
+  
+  if (!destinationId) {
+    const suggestions = await getPopularDestinations(5)
+    throw new Error(
+      `Destination "${params.destination}" not found. Try one of these popular destinations: ${suggestions.join(", ")}`
+    )
+  }
+
+  // Required fields: filtering (with required destination as string), currency
   const requestBody: any = {
     filtering: {
-      destination: destinationId ? destinationId.toString() : undefined,
-    },
-    pagination: {
-      start: 1,
-      count: params.count || 20
+      destination: destinationId.toString() // Must be string per API spec
     },
     currency: params.currency || "USD"
   }
 
-  // Only add price filters if both are provided
+  if (params.count) {
+    requestBody.pagination = {
+      start: 1,
+      count: params.count
+    }
+  }
+
   if (params.minPrice !== undefined && params.maxPrice !== undefined) {
     requestBody.filtering.lowestPrice = params.minPrice
     requestBody.filtering.highestPrice = params.maxPrice
   }
 
-  // Remove undefined values from the filtering object
-  Object.keys(requestBody.filtering).forEach(key => {
-    if (requestBody.filtering[key] === undefined) {
-      delete requestBody.filtering[key]
-    }
-  })
+  if (params.startDate && params.endDate) {
+    requestBody.filtering.startDate = params.startDate
+    requestBody.filtering.endDate = params.endDate
+  }
 
-  console.log("[Viator] Simplified request body:", JSON.stringify(requestBody, null, 2))
+  if (params.confirmationType) {
+    requestBody.filtering.confirmationType = params.confirmationType
+  }
+
+  if (params.tags && params.tags.length > 0) {
+    requestBody.filtering.tags = params.tags
+  }
+
+  console.log("[Viator] Request body:", JSON.stringify(requestBody, null, 2))
 
   try {
     const response = await fetch(`${VIATOR_API_BASE_URL}/products/search`, {
@@ -256,7 +265,9 @@ export async function searchViatorProducts(params: SearchViatorParams): Promise<
     }
 
     if (response.status === 401 || response.status === 403) {
-      console.error("[Viator] Authentication error:", responseText)
+      console.error("[Viator] Authentication error. API Key preview:", 
+        VIATOR_API_KEY ? `${VIATOR_API_KEY.slice(0, 4)}...${VIATOR_API_KEY.slice(-4)}` : 'NOT SET'
+      )
       throw new Error("Invalid or missing API key. Please check your Viator API configuration.")
     }
 
@@ -265,7 +276,7 @@ export async function searchViatorProducts(params: SearchViatorParams): Promise<
         status: response.status,
         statusText: response.statusText,
         body: responseText,
-        headers: Object.fromEntries(response.headers.entries())
+        requestBody: requestBody
       })
       
       let errorData: any = {}
@@ -276,7 +287,7 @@ export async function searchViatorProducts(params: SearchViatorParams): Promise<
         console.error("[Viator] Could not parse error response as JSON")
       }
       
-      const errorMessage = errorData.message || errorData.error || errorData.errorMessage || `API request failed with status ${response.status}: ${responseText}`
+      const errorMessage = errorData.message || errorData.error || errorData.errorMessage || `API request failed with status ${response.status}`
       throw new Error(errorMessage)
     }
 
@@ -291,7 +302,7 @@ export async function searchViatorProducts(params: SearchViatorParams): Promise<
     const products = data.products || []
     const totalCount = data.totalCount || 0
 
-    console.log(`[Viator] Found ${totalCount} products, returning ${products.length}`)
+    console.log(`[Viator] Found ${totalCount} total products, returning ${products.length} in this batch`)
 
     return {
       products,
@@ -299,10 +310,10 @@ export async function searchViatorProducts(params: SearchViatorParams): Promise<
     }
   } catch (error) {
     if (error instanceof Error) {
-      console.error("[Viator] Search error details:", {
+      console.error("[Viator] Search error:", {
         message: error.message,
-        stack: error.stack,
-        name: error.name
+        destination: params.destination,
+        destinationId: destinationId
       })
       throw error
     }
