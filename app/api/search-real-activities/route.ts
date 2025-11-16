@@ -105,10 +105,23 @@ function extractReadableTags(viatorTags: number[] | undefined): string[] {
 
 export async function POST(request: NextRequest) {
   try {
+    console.log("[Viator API] Environment check:", {
+      hasApiKey: !!process.env.VIATOR_API_KEY,
+      hasBaseUrl: !!process.env.VIATOR_API_BASE_URL,
+      apiKeyLength: process.env.VIATOR_API_KEY?.length || 0
+    })
+
     const body: RequestBody = await request.json()
     const { location, budgetPerPerson, currency, groupSize, vibe, inspirationActivities } = body
 
     console.log("[Viator API] Incoming request:", { location, budgetPerPerson, currency, groupSize, vibe })
+
+    if (!location) {
+      return NextResponse.json(
+        { success: false, error: "Location is required to search real activities" },
+        { status: 400 }
+      )
+    }
 
     // Calculate search date range
     const today = new Date()
@@ -120,9 +133,19 @@ export async function POST(request: NextRequest) {
     let maxPrice: number | undefined
     
     if (budgetPerPerson) {
-      minPrice = Math.floor(budgetPerPerson * 0.5)
-      maxPrice = Math.ceil(budgetPerPerson * 1.5)
+      const budget = typeof budgetPerPerson === 'string' ? parseFloat(budgetPerPerson) : budgetPerPerson
+      minPrice = Math.floor(budget * 0.5)
+      maxPrice = Math.ceil(budget * 1.5)
     }
+
+    console.log("[Viator API] Search parameters:", {
+      destination: location,
+      minPrice,
+      maxPrice,
+      currency,
+      startDate,
+      endDate
+    })
 
     // Call searchViatorProducts
     const viatorResults = await searchViatorProducts({
@@ -211,10 +234,22 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error: any) {
-    console.error("[Viator API] Error:", error)
+    console.error("[Viator API] Detailed error:", {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+      cause: error.cause
+    })
 
     // Handle specific error types
-    if (error.message?.includes("Destination not found")) {
+    if (error.message?.includes("VIATOR_API_KEY environment variable is not set")) {
+      return NextResponse.json(
+        { success: false, error: "Viator API is not configured. Please contact support." },
+        { status: 503 }
+      )
+    }
+
+    if (error.message?.includes("Destination not found") || error.message?.includes("not found")) {
       return NextResponse.json(
         { success: false, error: error.message },
         { status: 400 }
@@ -228,9 +263,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Generic error
+    // Generic error with more details
     return NextResponse.json(
-      { success: false, error: "Failed to search activities. Please try again." },
+      { 
+        success: false, 
+        error: "Failed to search activities. Please try again.",
+        details: error.message 
+      },
       { status: 500 }
     )
   }
