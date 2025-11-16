@@ -9,6 +9,20 @@ const CACHE_DURATION = 7 * 24 * 60 * 60 * 1000 // 7 days in milliseconds
 let destinationsCache: Destination[] = []
 let cacheTimestamp = 0
 
+// Common destinations as fallback when API is unavailable
+const COMMON_DESTINATIONS: Destination[] = [
+  { destinationId: 684, destinationName: "Malaga", destinationType: "CITY" },
+  { destinationId: 682, destinationName: "Málaga", destinationType: "CITY" },
+  { destinationId: 706, destinationName: "Barcelona", destinationType: "CITY" },
+  { destinationId: 674, destinationName: "Madrid", destinationType: "CITY" },
+  { destinationId: 186, destinationName: "Paris", destinationType: "CITY" },
+  { destinationId: 179, destinationName: "London", destinationType: "CITY" },
+  { destinationId: 684, destinationName: "New York", destinationType: "CITY" },
+  { destinationId: 77, destinationName: "Rome", destinationType: "CITY" },
+  { destinationId: 2, destinationName: "Amsterdam", destinationType: "CITY" },
+  { destinationId: 220, destinationName: "Lisbon", destinationType: "CITY" }
+]
+
 // Interfaces
 export interface Destination {
   destinationId: number
@@ -114,22 +128,37 @@ export async function fetchDestinations(): Promise<Destination[]> {
   }
 }
 
+function normalizeText(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize("NFD") // Decompose accents
+    .replace(/[\u0300-\u036f]/g, "") // Remove accent marks
+    .trim()
+}
+
 // Find destination ID by location name
 export async function findDestinationId(locationName: string): Promise<number | null> {
-  const destinations = await fetchDestinations()
-  const normalizedSearch = locationName.toLowerCase().trim()
+  let destinations = await fetchDestinations()
+  
+  if (destinations.length === 0) {
+    console.log("[Viator] Using common destinations fallback")
+    destinations = COMMON_DESTINATIONS
+  }
+  
+  const normalizedSearch = normalizeText(locationName)
 
-  console.log(`[Viator] Searching for destination: "${locationName}"`)
+  console.log(`[Viator] Searching for destination: "${locationName}" (normalized: "${normalizedSearch}")`)
+  console.log(`[Viator] Searching through ${destinations.length} destinations`)
 
-  // Try exact match first
   let match = destinations.find(
-    dest => dest.destinationName.toLowerCase() === normalizedSearch
+    dest => normalizeText(dest.destinationName) === normalizedSearch
   )
 
-  // If no exact match, try partial match
+  // If no exact match, try partial match with normalization
   if (!match) {
     match = destinations.find(
-      dest => dest.destinationName.toLowerCase().includes(normalizedSearch)
+      dest => normalizeText(dest.destinationName).includes(normalizedSearch) ||
+              normalizedSearch.includes(normalizeText(dest.destinationName))
     )
   }
 
@@ -139,12 +168,20 @@ export async function findDestinationId(locationName: string): Promise<number | 
   }
 
   console.warn(`[Viator] No destination found for: "${locationName}"`)
+  console.log(`[Viator] First 10 available destinations:`, 
+    destinations.slice(0, 10).map(d => d.destinationName).join(", ")
+  )
+  
   return null
 }
 
 // Get popular destinations for error messages
 export async function getPopularDestinations(limit: number = 10): Promise<string[]> {
-  const destinations = await fetchDestinations()
+  let destinations = await fetchDestinations()
+  
+  if (destinations.length === 0) {
+    destinations = COMMON_DESTINATIONS
+  }
   
   const popular = destinations
     .filter(dest => dest.destinationType === "CITY" || dest.destinationType === "COUNTRY")
