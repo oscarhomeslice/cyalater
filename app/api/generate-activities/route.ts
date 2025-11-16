@@ -113,21 +113,11 @@ Cost:
 - If it’s an instruction-based or booked experience, be reasonable.
 
 Pro Tips:
-- Provide 3 genuinely useful, high-quality tips for making group activities better — either before, during, or after the event.
-- Avoid generic advice. Focus on real value, e.g.:
-  • how to set the tone  
-  • how to reduce planning friction  
-  • how to make the experience more memorable  
-  • how to support mixed comfort levels  
+- If the user provided a specific location, give 3 simple, friendly travel/arrival tips specific to that location (e.g., timing, weather, transit quirks, what to pack, small local customs).
+- If no location is given, give 3 casual, realistic group-organization hacks — the kind friends actually use (e.g., “pick one simple meetup spot,” “bring a backup idea,” “decide food timing early”). Keep them human and informal, never corporate.
 
 Refinement Prompts:
-- Provide 4 short “directions” the user may want to explore.
-- They should be short phrases, not long instructions. Examples:
-  • “More outdoors”  
-  • “More adventurous”  
-  • “Free or low-budget ideas”  
-  • “Ideas for nerdy groups”  
-  • “Less physical activity”  
+Provide 4 short directional prompts (e.g., “More outdoors”, “Lower budget”, “More adventurous”, “Nerdier options”).
 
 Output rules for each activity:
 - name: clear, intuitive, not abstract, not location-specific.
