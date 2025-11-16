@@ -3,12 +3,13 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Clock, Euro, ActivityIcon, Heart, Zap, Mountain, Check, ExternalLink, Star, Users, Lightbulb, Sparkles, MapPin } from 'lucide-react'
+import { Clock, Euro, ActivityIcon, Heart, Zap, Mountain, Check, ExternalLink, Star, Users, Lightbulb, Sparkles, MapPin, ChevronDown, ChevronUp } from 'lucide-react'
 
 export interface ActivityData {
   id?: string
   name: string
   experience: string
+  description?: string
   bestFor: string
   cost: string | number
   duration: string
@@ -79,6 +80,13 @@ const renderStars = (rating: number) => {
 
 export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false }: ActivityCardProps) {
   const [showCheckmark, setShowCheckmark] = useState(false)
+  const [expandedSections, setExpandedSections] = useState({
+    bestFor: false,
+    specialElement: false,
+    preparation: false
+  })
+
+  console.log("[v0] ActivityCard received activity:", activity)
 
   if (!activity) return null
 
@@ -92,6 +100,13 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
       setTimeout(() => setShowCheckmark(false), 1000)
     }
     onAddToShortlist?.(activity.id || activityName)
+  }
+
+  const toggleSection = (section: 'bestFor' | 'specialElement' | 'preparation') => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }))
   }
 
   return (
@@ -126,7 +141,9 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
         </div>
 
         <div className="mb-4">
-          <p className="text-zinc-300 leading-relaxed">{activity.experience || "No description available"}</p>
+          <p className="text-zinc-300 leading-relaxed">
+            {activity.experience || activity.description || "Experience description coming soon"}
+          </p>
         </div>
 
         {/* TripAdvisor Rating (only for non-inspiration) */}
@@ -150,17 +167,6 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
           </div>
         )}
 
-        <div className="mb-4 p-4 rounded-lg bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/20">
-          <div className="flex items-start gap-3">
-            <Users className="w-5 h-5 text-purple-400 shrink-0 mt-0.5" aria-hidden="true" />
-            <div className="flex-1">
-              <p className="text-sm font-semibold text-purple-300 mb-1.5">Perfect for:</p>
-              <p className="text-sm text-zinc-200 leading-relaxed">{activity.bestFor || "Great for groups"}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Tags */}
         {activity?.tags && activity.tags.length > 0 && (
           <div className="flex flex-wrap gap-2 mb-4" role="list" aria-label="Activity tags">
             {activity.tags.map((tag) => (
@@ -176,7 +182,6 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
           </div>
         )}
 
-        {/* Info Grid */}
         <div className="grid grid-cols-3 gap-4 mb-4 py-4 border-y border-zinc-800">
           <div className="flex flex-col items-center text-center">
             <div className="flex items-center gap-1 text-primary mb-1">
@@ -207,27 +212,78 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-primary/10 via-emerald-400/10 to-cyan-400/10 border border-primary/30 rounded-xl p-4 mb-4">
-          <div className="flex items-start gap-3">
-            <Sparkles className="w-5 h-5 text-primary shrink-0 mt-0.5" aria-hidden="true" />
-            <div className="flex-1">
-              <p className="text-sm font-semibold text-primary mb-1.5">What makes it special</p>
+        <div className="mb-3">
+          <button
+            onClick={() => toggleSection('bestFor')}
+            className="w-full p-3 rounded-lg bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/20 hover:border-purple-500/40 transition-all duration-200 text-left"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Users className="w-4 h-4 text-purple-400" aria-hidden="true" />
+                <span className="text-sm font-semibold text-purple-300">Perfect for</span>
+              </div>
+              {expandedSections.bestFor ? (
+                <ChevronUp className="w-4 h-4 text-purple-400" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-purple-400" />
+              )}
+            </div>
+          </button>
+          {expandedSections.bestFor && (
+            <div className="mt-2 p-3 rounded-lg bg-purple-500/5 border border-purple-500/10 animate-in slide-in-from-top-2 duration-200">
+              <p className="text-sm text-zinc-200 leading-relaxed">{activity.bestFor || "Great for groups"}</p>
+            </div>
+          )}
+        </div>
+
+        <div className="mb-3">
+          <button
+            onClick={() => toggleSection('specialElement')}
+            className="w-full p-3 rounded-lg bg-gradient-to-br from-primary/10 via-emerald-400/10 to-cyan-400/10 border border-primary/30 hover:border-primary/50 transition-all duration-200 text-left"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-primary" aria-hidden="true" />
+                <span className="text-sm font-semibold text-primary">What makes it special</span>
+              </div>
+              {expandedSections.specialElement ? (
+                <ChevronUp className="w-4 h-4 text-primary" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-primary" />
+              )}
+            </div>
+          </button>
+          {expandedSections.specialElement && (
+            <div className="mt-2 p-3 rounded-lg bg-primary/5 border border-primary/10 animate-in slide-in-from-top-2 duration-200">
               <p className="text-sm text-zinc-200 leading-relaxed">{activity.specialElement || "Unique group experience"}</p>
             </div>
-          </div>
+          )}
         </div>
 
-        <div className="mb-4 p-4 rounded-lg bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/20">
-          <div className="flex items-start gap-3">
-            <Lightbulb className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" aria-hidden="true" />
-            <div className="flex-1">
-              <p className="text-sm font-semibold text-amber-300 mb-1.5">Preparation needed</p>
+        <div className="mb-4">
+          <button
+            onClick={() => toggleSection('preparation')}
+            className="w-full p-3 rounded-lg bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/20 hover:border-amber-500/40 transition-all duration-200 text-left"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Lightbulb className="w-4 h-4 text-amber-400" aria-hidden="true" />
+                <span className="text-sm font-semibold text-amber-300">Preparation needed</span>
+              </div>
+              {expandedSections.preparation ? (
+                <ChevronUp className="w-4 h-4 text-amber-400" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-amber-400" />
+              )}
+            </div>
+          </button>
+          {expandedSections.preparation && (
+            <div className="mt-2 p-3 rounded-lg bg-amber-500/5 border border-amber-500/10 animate-in slide-in-from-top-2 duration-200">
               <p className="text-sm text-zinc-200 leading-relaxed">{activity.preparation || "No special preparation required"}</p>
             </div>
-          </div>
+          )}
         </div>
 
-        {/* Action Buttons */}
         <div className="flex gap-2">
           <Button
             onClick={handleShortlist}
