@@ -54,29 +54,19 @@ export function ActivityResults({ results, onNewSearch, onAddToShortlist, shortl
   const transformedActivities: ActivityData[] = activities.map((activity, index) => ({
     id: activity.id || `activity-${index}`,
     name: activity.name,
-    title: activity.name,
-    description: activity.experience,
+    experience: activity.experience,
+    bestFor: activity.bestFor,
+    specialElement: activity.specialElement,
+    preparation: activity.preparation,
     tags: activity.tags || [],
-    cost: Number.parseFloat(activity.cost) || 0,
-    currency: query.currency || "EUR",
+    cost: activity.cost,
     duration: activity.duration,
-    activityLevel: (activity.activityLevel?.toLowerCase() === "low"
-      ? "Low"
-      : activity.activityLevel?.toLowerCase() === "moderate"
-        ? "Moderate"
-        : "High") as "Low" | "Moderate" | "High",
-    locationType: (activity.locationType === "indoor"
-      ? "Indoor"
-      : activity.locationType === "outdoor"
-        ? "Outdoor"
-        : "Both") as "Indoor" | "Outdoor" | "Both",
-    specialFeature: activity.specialElement || activity.bestFor,
-    details: activity.preparation,
-    tripAdvisorRating: undefined,
-    reviewCount: undefined,
-    tripAdvisorUrl: undefined,
+    activityLevel: activity.activityLevel,
+    locationType: activity.locationType,
     isInspiration: true,
   }))
+
+  console.log("[Results] Transformed activities with all fields:", transformedActivities)
 
   return (
     <div className="space-y-8 pb-16">
