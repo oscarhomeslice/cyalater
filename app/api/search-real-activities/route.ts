@@ -107,6 +107,31 @@ export async function POST(request: NextRequest) {
   let body: RequestBody | null = null
   
   try {
+    if (!process.env.VIATOR_API_KEY) {
+      console.error("[Viator API] CRITICAL: VIATOR_API_KEY environment variable is not set")
+      console.error("[Viator API] Available env keys:", Object.keys(process.env).filter(k => k.includes('VIATOR')))
+      
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: "Viator API is not configured",
+          errorType: "CONFIGURATION_ERROR",
+          debugInfo: {
+            message: "The VIATOR_API_KEY environment variable is not set in your Vercel project.",
+            instructions: [
+              "1. Go to the 'Vars' section in the left sidebar",
+              "2. Add VIATOR_API_KEY with your Viator API key",
+              "3. Redeploy your application"
+            ],
+            hasApiKey: false,
+            nodeEnv: process.env.NODE_ENV,
+            timestamp: new Date().toISOString()
+          }
+        },
+        { status: 503 }
+      )
+    }
+
     const viatorEnvVars = Object.keys(process.env).filter(k => k.includes('VIATOR'))
     console.log("[Viator API] Available VIATOR env vars:", viatorEnvVars)
     console.log("[Viator API] Environment check:", {
@@ -116,7 +141,8 @@ export async function POST(request: NextRequest) {
       apiKeyPreview: process.env.VIATOR_API_KEY 
         ? `${process.env.VIATOR_API_KEY.slice(0, 4)}...${process.env.VIATOR_API_KEY.slice(-4)}`
         : 'NOT SET',
-      baseUrl: process.env.VIATOR_API_BASE_URL || 'using default'
+      baseUrl: process.env.VIATOR_API_BASE_URL || 'using default',
+      nodeEnv: process.env.NODE_ENV
     })
 
     try {

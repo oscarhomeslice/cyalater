@@ -380,6 +380,22 @@ export default function Page() {
       console.log("[Page] Real activities response data:", data)
       
       if (!response.ok) {
+        if (data.errorType === "CONFIGURATION_ERROR") {
+          const errorMessage = [
+            data.error,
+            "",
+            data.debugInfo?.message,
+            "",
+            "Steps to fix:",
+            ...(data.debugInfo?.instructions || [])
+          ].join("\n")
+          
+          console.error("[Page] Configuration error:", errorMessage)
+          setRealActivitiesError(errorMessage)
+          showToast("Viator API not configured - check error details", "error")
+          return
+        }
+        
         const errorDetails = []
         if (data.errorType) errorDetails.push(`Error Type: ${data.errorType}`)
         if (data.debugInfo) {
