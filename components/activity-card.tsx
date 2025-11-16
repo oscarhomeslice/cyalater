@@ -3,22 +3,7 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import {
-  Clock,
-  Euro,
-  Sparkles,
-  ActivityIcon,
-  Home,
-  Sun,
-  Heart,
-  Zap,
-  Mountain,
-  Check,
-  ExternalLink,
-  Star,
-  Users,
-  Lightbulb,
-} from "lucide-react"
+import { Clock, Euro, Sparkles, ActivityIcon, Home, Sun, Heart, Zap, Mountain, Check, ExternalLink, Star, Users, Lightbulb } from 'lucide-react'
 
 export interface ActivityData {
   id?: string
@@ -37,6 +22,7 @@ export interface ActivityData {
   reviewCount?: number
   image?: string
   tags?: string[]
+  isInspiration?: boolean // New field
 }
 
 interface ActivityCardProps {
@@ -113,6 +99,18 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
       className="group bg-zinc-900/50 backdrop-blur-sm border border-zinc-800 rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl hover:shadow-primary/10 hover:-translate-y-1 hover:border-zinc-700 transition-all duration-300 focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2 focus-within:ring-offset-black"
       aria-label={`${activityName} activity`}
     >
+      {activity.isInspiration && (
+        <div className="absolute top-3 right-3 z-10">
+          <Badge
+            variant="outline"
+            className="bg-purple-500/20 text-purple-300 border-purple-500/30 backdrop-blur-sm text-xs"
+          >
+            <Sparkles className="w-3 h-3 mr-1" />
+            Inspiration
+          </Badge>
+        </div>
+      )}
+
       {activity?.image && (
         <div className="relative w-full h-48 overflow-hidden">
           <img
@@ -157,7 +155,7 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
         {/* Experience Description */}
         <p className="text-zinc-400 leading-relaxed mb-4">{activity.experience}</p>
 
-        {activity?.rating && activity.rating > 0 && (
+        {!activity.isInspiration && activity?.rating && activity.rating > 0 && (
           <div className="mb-4 p-3 rounded-lg bg-zinc-800/30 border border-zinc-700/50">
             <div className="flex items-center gap-2 mb-2">
               <span className="text-lg" role="img" aria-label="TripAdvisor" aria-hidden="true">
@@ -285,7 +283,7 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
             {isShortlisted ? "Added" : "Add to Shortlist"}
           </Button>
 
-          {activity?.tripAdvisorUrl && (
+          {!activity.isInspiration && activity?.tripAdvisorUrl && (
             <Button
               onClick={() => window.open(activity.tripAdvisorUrl, "_blank", "noopener,noreferrer")}
               variant="outline"
@@ -297,8 +295,7 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
           )}
         </div>
 
-        {/* TripAdvisor attribution footer */}
-        {activity?.tripAdvisorUrl && (
+        {!activity.isInspiration && activity?.tripAdvisorUrl && (
           <div className="mt-4 pt-4 border-t border-zinc-800/50 flex items-center justify-center gap-2">
             <span className="text-[11px] text-zinc-600">Powered by</span>
             <a

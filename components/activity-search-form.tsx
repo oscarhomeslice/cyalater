@@ -1,22 +1,20 @@
 "use client"
 
 import type React from "react"
-import { InspirationSelector } from "@/components/inspiration-selector"
 import { useActivityForm } from "@/lib/hooks/useActivityForm"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { AlertCircle, MapPin, Sparkles } from "lucide-react"
+import { AlertCircle, MapPin, Sparkles } from 'lucide-react'
 
 export interface ActivitySearchFormData {
   groupSize: string
   budgetPerPerson?: string
   currency?: string
-  locationMode: "have-location" | "looking-for-ideas"
+  locationMode: "have-location" | "surprise-me"
   location?: string
-  inspirationPrompt?: string
   vibe?: string
 }
 
@@ -39,9 +37,8 @@ export function ActivitySearchForm({ onSubmit, isLoading = false }: ActivitySear
       groupSize: formData.groupSize,
       budgetPerPerson: formData.budgetPerPerson || undefined,
       currency: formData.currency || "EUR",
-      locationMode: formData.locationMode,
+      locationMode: formData.locationMode as "have-location" | "surprise-me",
       location: formData.locationMode === "have-location" ? formData.location : undefined,
-      inspirationPrompt: formData.locationMode === "looking-for-ideas" ? formData.inspirationPrompt : undefined,
       vibe: formData.vibe || undefined,
     }
 
@@ -89,7 +86,7 @@ export function ActivitySearchForm({ onSubmit, isLoading = false }: ActivitySear
         {/* Budget */}
         <div className="space-y-3">
           <Label htmlFor="budget" className="text-sm font-medium text-zinc-300">
-            Budget per Person <span className="text-zinc-500 text-xs">(optional)</span>
+            Budget per Person <span className="text-red-400">*</span>
           </Label>
           <div className="flex gap-3">
             <Select
@@ -113,9 +110,18 @@ export function ActivitySearchForm({ onSubmit, isLoading = false }: ActivitySear
               onChange={(e) => updateField("budgetPerPerson", e.target.value)}
               placeholder="e.g., 100"
               disabled={isLoading}
-              className="flex-1 bg-black/50 border-zinc-700 text-white placeholder:text-zinc-500 hover:border-primary/50 focus:border-primary transition-all duration-300 h-12"
+              className={`flex-1 bg-black/50 border-zinc-700 text-white placeholder:text-zinc-500 hover:border-primary/50 focus:border-primary transition-all duration-300 h-12 ${
+                errors.budgetPerPerson ? "border-red-500 focus:border-red-500" : ""
+              }`}
+              aria-invalid={!!errors.budgetPerPerson}
             />
           </div>
+          {errors.budgetPerPerson && (
+            <p className="text-sm text-red-400 flex items-center gap-1 animate-in fade-in slide-in-from-top-1">
+              <AlertCircle className="w-3 h-3" />
+              {errors.budgetPerPerson}
+            </p>
+          )}
         </div>
 
         {/* Location Mode */}
@@ -123,7 +129,7 @@ export function ActivitySearchForm({ onSubmit, isLoading = false }: ActivitySear
           <Label className="text-sm font-medium text-zinc-300">Location</Label>
           <RadioGroup
             value={formData.locationMode}
-            onValueChange={(value) => updateField("locationMode", value as "have-location" | "looking-for-ideas")}
+            onValueChange={(value) => updateField("locationMode", value as "have-location" | "surprise-me")}
             disabled={isLoading}
             className="grid grid-cols-2 gap-4"
           >
@@ -137,23 +143,23 @@ export function ActivitySearchForm({ onSubmit, isLoading = false }: ActivitySear
             >
               <RadioGroupItem value="have-location" id="location-have" className="sr-only" />
               <MapPin className="w-4 h-4" />
-              <span className="font-medium">We have a location</span>
+              <span className="font-medium">I have a location in mind</span>
             </Label>
             <Label
-              htmlFor="location-looking"
+              htmlFor="location-surprise"
               className={`flex items-center justify-center space-x-2 rounded-xl border-2 p-4 cursor-pointer transition-all duration-300 ${
-                formData.locationMode === "looking-for-ideas"
+                formData.locationMode === "surprise-me"
                   ? "border-primary bg-primary/10 text-primary"
                   : "border-zinc-700 bg-black/30 text-zinc-400 hover:border-zinc-600"
               } ${isLoading ? "opacity-50 cursor-not-allowed" : ""}`}
             >
-              <RadioGroupItem value="looking-for-ideas" id="location-looking" className="sr-only" />
+              <RadioGroupItem value="surprise-me" id="location-surprise" className="sr-only" />
               <Sparkles className="w-4 h-4" />
-              <span className="font-medium">We're looking for ideas</span>
+              <span className="font-medium">Surprise me</span>
             </Label>
           </RadioGroup>
 
-          {/* Location Input */}
+          {/* Location Input - only shows when "have location" is selected */}
           {formData.locationMode === "have-location" && (
             <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
               <Input
@@ -175,18 +181,6 @@ export function ActivitySearchForm({ onSubmit, isLoading = false }: ActivitySear
               )}
             </div>
           )}
-
-          {/* Inspiration Options */}
-          {formData.locationMode === "looking-for-ideas" && (
-            <InspirationSelector
-              inspirations={currentInspirations}
-              selectedTitle={formData.inspirationPrompt}
-              onSelect={(prompt) => updateField("inspirationPrompt", prompt.title)}
-              onCustomInput={(value) => updateField("inspirationPrompt", value)}
-              customValue={formData.inspirationPrompt}
-              disabled={isLoading}
-            />
-          )}
         </div>
 
         {/* Vibe */}
@@ -198,7 +192,7 @@ export function ActivitySearchForm({ onSubmit, isLoading = false }: ActivitySear
             id="vibe"
             value={formData.vibe || ""}
             onChange={(e) => updateField("vibe", e.target.value)}
-            placeholder="e.g., team bonding, celebration, creative workshop"
+            placeholder="e.g., adventurous, relaxing, team bonding"
             disabled={isLoading}
             className="w-full bg-black/50 border-zinc-700 text-white placeholder:text-zinc-500 hover:border-primary/50 focus:border-primary transition-all duration-300 h-12"
           />
@@ -207,15 +201,22 @@ export function ActivitySearchForm({ onSubmit, isLoading = false }: ActivitySear
         {/* Submit Button */}
         <Button
           type="submit"
-          disabled={!formData.groupSize || isLoading}
+          disabled={!formData.groupSize || !formData.budgetPerPerson || isLoading}
           className={`w-full h-14 text-lg font-semibold bg-gradient-to-r from-primary via-emerald-400 to-primary bg-[length:200%_100%] transition-all duration-500 text-black shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 ${
-            formData.groupSize && !isLoading
+            formData.groupSize && formData.budgetPerPerson && !isLoading
               ? "hover:bg-[position:100%_0] shadow-primary/20 hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98] focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-black animate-glow-pulse"
               : "shadow-primary/10"
           }`}
-          aria-label="Generate activity ideas"
+          aria-label="Get activity inspiration"
         >
-          {isLoading ? "Generating..." : "Generate Ideas"}
+          {isLoading ? (
+            <>Inspiring...</>
+          ) : (
+            <>
+              <Sparkles className="w-5 h-5 mr-2" />
+              Inspire Me
+            </>
+          )}
         </Button>
       </form>
     </div>

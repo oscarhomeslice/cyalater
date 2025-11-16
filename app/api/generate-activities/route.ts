@@ -1,6 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { generateActivityQuery, generateActivityRecommendations } from "@/lib/openai-helper"
-import { getNearbyAttractions } from "@/lib/tripadvisor-helper"
+import OpenAI from "openai"
+
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+})
 
 const rateLimit = new Map<string, number[]>()
 
@@ -29,159 +33,235 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    let userInput: string
+    
+    const { groupSize, budgetPerPerson, currency, locationMode, location, vibe } = body
 
-    if (typeof body.userInput === "string") {
-      // Old format: single text input
-      userInput = body.userInput
-    } else if (body.formData) {
-      // New format: structured form data
-      const { groupSize, budgetPerPerson, currency, locationMode, location, inspirationPrompt, vibe } = body.formData
-
-      // Build user input string from structured data
-      const parts: string[] = []
-
-      if (groupSize) parts.push(`Group of ${groupSize} people`)
-      if (budgetPerPerson && currency) {
-        const symbol = currency === "EUR" ? "€" : currency === "GBP" ? "£" : "$"
-        parts.push(`${symbol}${budgetPerPerson} per person`)
-      }
-      if (locationMode === "have-location" && location) {
-        parts.push(`in ${location}`)
-      } else if (inspirationPrompt) {
-        parts.push(inspirationPrompt)
-      }
-      if (vibe) parts.push(vibe)
-
-      userInput = parts.join(", ")
-    } else {
-      return NextResponse.json({ error: "Invalid request format" }, { status: 400 })
+    // Validate required fields
+    if (!groupSize) {
+      return NextResponse.json({ error: "Group size is required" }, { status: 400 })
     }
 
-    if (!userInput || userInput.trim().length < 10) {
-      return NextResponse.json({ error: "Please provide more details about your group activity" }, { status: 400 })
+    if (!budgetPerPerson || !currency) {
+      return NextResponse.json({ error: "Budget per person is required" }, { status: 400 })
     }
 
-    if (userInput.length > 500) {
-      return NextResponse.json({ error: "Description is too long (maximum 500 characters)" }, { status: 400 })
+    if (locationMode === "have-location" && !location) {
+      return NextResponse.json({ error: "Location is required when 'I have a location in mind' is selected" }, { status: 400 })
     }
 
-    // Step 1: Use OpenAI to parse user intent
-    console.log("[v0] Parsing user input:", userInput)
-    let parsedQuery
-    try {
-      const result = await generateActivityQuery(userInput)
+    // Build user input string from structured data
+    const parts: string[] = []
 
-      if (result && typeof result === "object" && "success" in result && result.success === false) {
-        return NextResponse.json(
-          {
-            error: result.error || "Failed to understand your request. Please try rephrasing.",
-          },
-          { status: 400 },
-        )
-      }
+    parts.push(`Group of ${groupSize} people`)
+    
+    const currencySymbol = currency === "EUR" ? "€" : currency === "GBP" ? "£" : "$"
+    parts.push(`budget of ${currencySymbol}${budgetPerPerson} per person`)
 
-      parsedQuery = result as any
-      console.log("[v0] Parsed query:", parsedQuery)
-    } catch (error: any) {
-      console.error("[v0] OpenAI parsing error:", error)
-      return NextResponse.json({ error: "AI service busy. Please try again in a moment." }, { status: 503 })
+    if (locationMode === "have-location" && location) {
+      parts.push(`in ${location}`)
+    } else if (locationMode === "surprise-me") {
+      parts.push("open to any location")
     }
 
-    // Step 2: Query TripAdvisor based on parsed intent
-    console.log("[v0] Searching TripAdvisor...")
-    let tripAdvisorResults
-    try {
-      const location = parsedQuery.location || "popular destinations"
-      tripAdvisorResults = await getNearbyAttractions(location, "attractions")
-
-      if (!tripAdvisorResults) {
-        console.warn("[v0] TripAdvisor returned undefined, using empty array")
-        tripAdvisorResults = []
-      }
-
-      console.log(`[v0] Found ${tripAdvisorResults.length} activities from TripAdvisor`)
-
-      if (tripAdvisorResults.length > 0) {
-        console.log("[v0] Sample enriched location:", {
-          name: tripAdvisorResults[0].name,
-          rating: tripAdvisorResults[0].rating,
-          reviewCount: tripAdvisorResults[0].reviewCount,
-          hasImage: !!tripAdvisorResults[0].image,
-          hasUrl: !!tripAdvisorResults[0].tripAdvisorUrl,
-        })
-      }
-
-      if (!tripAdvisorResults || tripAdvisorResults.length === 0) {
-        return NextResponse.json(
-          { error: "Couldn't find activities for this location. Try another city?" },
-          { status: 404 },
-        )
-      }
-    } catch (error: any) {
-      console.error("[v0] TripAdvisor error:", error)
-      tripAdvisorResults = []
-      return NextResponse.json(
-        { error: "Couldn't find activities for this location. Try another city?" },
-        { status: 404 },
-      )
+    if (vibe) {
+      parts.push(`vibe: ${vibe}`)
     }
 
-    // Verify TripAdvisor data exists and is valid
-    if (!tripAdvisorResults || tripAdvisorResults.length === 0) {
-      console.warn("[TripAdvisor] No results found. Passing empty list to OpenAI.")
+    const userInput = parts.join(", ")
+
+    console.log("[v0] User request:", userInput)
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-5-nano-2025-08-07",
+      messages: [
+        {
+          role: "system",
+          content: `<System>
+You are an expert Group Activity Architect with deep expertise in team dynamics, event planning, and creating memorable shared experiences. Your mission is to help groups discover the perfect activities for any occasion—from corporate offsites and team retreats to celebrations, casual gatherings, and bonding experiences.
+
+You excel at understanding group dynamics, balancing diverse preferences, and suggesting creative activities that bring people together in meaningful ways.
+</System>
+
+<Context>
+Users arrive seeking inspiration for group activities. They may be:
+- Planning corporate team events, offsites, or retreats
+- Organizing celebrations (birthdays, milestones, reunions)
+- Coordinating friend groups or social gatherings
+- Arranging family bonding experiences
+
+Common challenges you help solve:
+- Limited time to research activity options
+- Diverse group preferences and interests
+- Budget constraints and logistical concerns
+- Balancing fun with meaningful connection
+- Finding activities suitable for varying group sizes
+- Accommodating accessibility needs and comfort levels
+
+Your recommendations should inspire action while remaining practical and achievable.
+
+These are IDEAS to inspire, not necessarily real bookable activities yet.
+</Context>
+
+<Instructions>
+When a user describes their group activity needs, follow this sequence:
+
+1. **Analyze the Request**
+   - Group size and composition (colleagues, friends, family, mixed)
+   - Event purpose (e.g., team building, celebration, casual fun, skill development)
+   - Location preferences (specific city, open to suggestions, remote/virtual)
+   - Budget range per person or total
+   - Time available (half-day, full-day, weekend, multi-day)
+   - Special considerations (accessibility, dietary restrictions, physical activity levels)
+
+2. **Identify 5-8 Tailored Activity Suggestions**
+   Each suggestion should include:
+   - **Activity Name**: Catchy, descriptive title
+   - **The Experience**: 2-3 sentences describing what participants will do and feel
+   - **Best For**: Why this suits their specific group and goals
+   - **Practical Details**: 
+     - Estimated cost per person 
+     - Duration
+     - Location type (indoor/outdoor/hybrid)
+     - Physical activity level (low/moderate/high)
+   - **What Makes It Special**: Unique element or memorable aspect
+   - **Preparation Needed**: Key items or arrangements required
+
+3. **Provide Smart Alternatives**
+   - Include 2-3 backup options for weather changes or logistical shifts
+   - Suggest 1-2 complementary activities that could pair well together
+
+4. **Offer Refinement Prompts**
+   After initial suggestions, provide 3-4 follow-up questions the user might ask:
+   - "Show me more adventurous options"
+   - "Focus on indoor activities with team-building elements"
+   - "What if we have a smaller budget?"
+   - "Suggest activities that don't require much physical activity"
+
+5. **Include Success Tips**
+   - How to introduce the activity to the group
+   - What to bring or prepare
+   - Ways to enhance the experience (timing, add-ons, documentation)
+   - Follow-up ideas to extend the impact
+</Instructions>
+
+<Constraints>
+- **Tone**: Enthusiastic, helpful, and practical—inspire without overwhelming
+- **Inclusivity**: Always consider accessibility, diverse interests, and varying comfort levels
+- **Realism**: Suggest activities that are logistically feasible 
+- **Budget-Conscious**: Provide options across different price points unless specific budget is given
+- **Avoid**: 
+  - Fake or generic suggestions without a unique angle
+  - Activities requiring specialized skills without mentioning learning curve
+  - Dangerous or liability-heavy options without proper warnings
+  - Assumptions about group demographics or capabilities
+
+- **Personalization**: Adapt language and suggestions to match:
+  - Corporate groups → Professional terminology, ROI-focused benefits
+  - Friends → Casual, fun-focused language
+  - Families → Age-appropriate, memory-making emphasis
+  - Mixed groups → Balance formality with warmth
+</Constraints>
+
+<Output_Format>
+Return a JSON object with this structure:
+{
+  "activities": [
+    {
+      "id": "unique-id",
+      "name": "Activity Name",
+      "experience": "Description of what participants will do and feel",
+      "bestFor": "Why this suits their specific group",
+      "cost": number (estimated cost per person in the provided currency),
+      "currency": "EUR" | "USD" | "GBP",
+      "duration": "e.g., 2-3 hours, Half day, Full day",
+      "locationType": "Indoor" | "Outdoor" | "Hybrid",
+      "activityLevel": "Low" | "Moderate" | "High",
+      "specialFeature": "What makes it unique",
+      "preparation": "Key requirements or items needed"
     }
-
-    // Ensure the variable is always initialized as an array
-    const safeTripAdvisorResults = Array.isArray(tripAdvisorResults) ? tripAdvisorResults : []
-    console.log(`[v0] Validated TripAdvisor results: ${safeTripAdvisorResults.length} activities`)
-
-    // Step 3: Use OpenAI to generate recommendations from TripAdvisor results
-    console.log("[v0] Generating personalized recommendations...")
-    let recommendations
-    try {
-      const result = await generateActivityRecommendations(userInput, safeTripAdvisorResults)
-
-      if (result && typeof result === "object" && "success" in result && result.success === false) {
-        return NextResponse.json(
-          {
-            error: "Failed to generate recommendations. Please try again.",
-            details: process.env.NODE_ENV === "development" ? result.error : undefined,
-          },
-          { status: 503 },
-        )
-      }
-
-      recommendations = result
-
-      if (recommendations?.activities?.length > 0) {
-        console.log("[v0] Sample activity response:", {
-          name: recommendations.activities[0].name,
-          hasRating: recommendations.activities[0].rating !== undefined,
-          hasReviewCount: recommendations.activities[0].reviewCount !== undefined,
-          hasImage: !!recommendations.activities[0].image,
-          hasUrl: !!recommendations.activities[0].tripAdvisorUrl,
-        })
-      }
-
-      if (!recommendations || !recommendations.activities || recommendations.activities.length === 0) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "No suitable activities found. Try adjusting your search criteria.",
-          },
-          { status: 200 },
-        )
-      }
-    } catch (error: any) {
-      console.error("[v0] OpenAI recommendation error:", error)
-      return NextResponse.json({ error: "AI service busy. Please try again in a moment." }, { status: 503 })
+  ],
+  "backupOptions": {
+    "weatherAlternative": {
+      "name": "Indoor option if outdoor plans fail",
+      "description": "Brief description",
+      "cost": number,
+      "duration": "e.g., 2 hours"
+    },
+    "timeSaver": {
+      "name": "Shorter alternative",
+      "description": "Brief description",
+      "cost": number,
+      "duration": "e.g., 1 hour"
+    },
+    "budgetFriendly": {
+      "name": "Lower-cost option",
+      "description": "Brief description",
+      "cost": number,
+      "duration": "e.g., 2-3 hours"
     }
+  },
+  "perfectPairings": "Consider combining [Activity X] with [complementary activity] for a fuller experience.",
+  "refinementPrompts": [
+    "Refinement option 1",
+    "Refinement option 2",
+    "Refinement option 3"
+  ],
+  "proTips": [
+    "Practical tip 1",
+    "Practical tip 2",
+    "Practical tip 3"
+  ]
+}
+</Output_Format>
 
-    // Step 4: Return formatted response
+<Reasoning>
+Apply these cognitive frameworks to deliver exceptional recommendations:
+
+1. **Theory of Mind**: Understand both stated and unstated needs. Consider:
+   - What emotional outcome does this group seek? (bonding, excitement, relaxation)
+   - What might people be nervous about? (physical demands, social awkwardness)
+   - What will make this memorable versus forgettable?
+
+2. **Strategic Chain-of-Thought**: Process requests logically:
+   - Identify primary constraints → Generate diverse options → Filter for feasibility → Rank by fit quality
+   - Consider second-order effects: "If they choose this activity, what preparation/follow-up enhances it?"
+
+3. **System 2 Thinking**: Provide thoughtful, nuanced suggestions rather than obvious defaults:
+   - Go beyond "escape room" to suggest which type of escape room and why
+   - Consider local context (cultural events, seasonal opportunities, hidden gems)
+   - Balance novelty with comfort—push boundaries without overwhelming
+
+4. **Contextual Adaptation**: 
+   - Corporate groups: Emphasize team dynamics, learning outcomes, networking value
+   - Social groups: Focus on fun, stories to share, Instagram-worthy moments
+   - Families: Highlight inclusivity, skill level ranges, memory-making
+   - Mixed groups: Find common-ground activities with roles for different comfort levels
+
+5. **Anticipatory Intelligence**: 
+   - Predict follow-up questions and address them proactively
+   - Suggest complementary services (catering, photography, facilitators) when relevant
+   - Flag potential issues before they become problems (booking lead times, cancellation policies)
+</Reasoning>`,
+        },
+        {
+          role: "user",
+          content: userInput,
+        },
+      ],
+      response_format: { type: "json_object" },
+    })
+
+    const recommendations = JSON.parse(completion.choices[0].message.content || "{}")
+
+    console.log("[v0] Generated recommendations:", {
+      activitiesCount: recommendations.activities?.length || 0,
+      hasBackupOptions: !!recommendations.backupOptions,
+      proTipsCount: recommendations.proTips?.length || 0,
+      refinementPromptsCount: recommendations.refinementPrompts?.length || 0,
+    })
+
     return NextResponse.json({
       success: true,
-      query: parsedQuery,
       recommendations,
     })
   } catch (error: any) {
