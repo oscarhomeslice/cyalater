@@ -9,20 +9,20 @@ export interface ActivityData {
   id?: string
   name: string
   experience: string
-  bestFor: string // New field
+  bestFor: string
   cost: string
   duration: string
   locationType: "indoor" | "outdoor" | "hybrid"
   activityLevel: "low" | "moderate" | "high"
-  specialElement: string // New field
-  preparation: string // New field
+  specialElement: string
+  preparation: string
   tripAdvisorUrl?: string
   tripAdvisorId?: string
   rating?: number
   reviewCount?: number
   image?: string
   tags?: string[]
-  isInspiration?: boolean // New field
+  isInspiration?: boolean
 }
 
 interface ActivityCardProps {
@@ -78,7 +78,6 @@ const renderStars = (rating: number) => {
 }
 
 export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false }: ActivityCardProps) {
-  const [isExpanded, setIsExpanded] = useState(false)
   const [showCheckmark, setShowCheckmark] = useState(false)
 
   if (!activity) return null
@@ -99,17 +98,41 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
       className="group bg-zinc-900/50 backdrop-blur-sm border border-zinc-800 rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl hover:shadow-primary/10 hover:-translate-y-1 hover:border-zinc-700 transition-all duration-300 focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2 focus-within:ring-offset-black"
       aria-label={`${activityName} activity`}
     >
-      {activity.isInspiration && (
-        <div className="absolute top-3 right-3 z-10">
+      {/* Badge positioning container - both badges in absolute positioning */}
+      <div className="absolute top-3 left-3 right-3 z-10 flex items-start justify-between gap-2">
+        {/* Location type badge - left side */}
+        <Badge
+          variant="outline"
+          className={`${
+            activity?.locationType === "outdoor"
+              ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+              : activity?.locationType === "indoor"
+                ? "bg-blue-500/20 text-blue-400 border-blue-500/30"
+                : "bg-purple-500/20 text-purple-400 border-purple-500/30"
+          } flex items-center gap-1 backdrop-blur-sm`}
+          aria-label={`${activity?.locationType || "hybrid"} activity`}
+        >
+          {activity?.locationType === "outdoor" ? (
+            <Sun className="w-3 h-3" aria-hidden="true" />
+          ) : (
+            <Home className="w-3 h-3" aria-hidden="true" />
+          )}
+          {activity?.locationType
+            ? activity.locationType.charAt(0).toUpperCase() + activity.locationType.slice(1)
+            : "Hybrid"}
+        </Badge>
+
+        {/* Inspiration badge - right side */}
+        {activity.isInspiration && (
           <Badge
             variant="outline"
-            className="bg-purple-500/20 text-purple-300 border-purple-500/30 backdrop-blur-sm text-xs"
+            className="bg-purple-500/20 text-purple-300 border-purple-500/30 backdrop-blur-sm"
           >
             <Sparkles className="w-3 h-3 mr-1" />
             Inspiration
           </Badge>
-        </div>
-      )}
+        )}
+      </div>
 
       {activity?.image && (
         <div className="relative w-full h-48 overflow-hidden">
@@ -128,32 +151,14 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
 
       <div className="p-6">
         {/* Header */}
-        <div className="flex items-start justify-between gap-4 mb-4">
-          <h3 className="text-xl md:text-2xl font-bold text-white leading-tight flex-1">{activityName}</h3>
-          <Badge
-            variant="outline"
-            className={`${
-              activity?.locationType === "outdoor"
-                ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
-                : activity?.locationType === "indoor"
-                  ? "bg-blue-500/20 text-blue-400 border-blue-500/30"
-                  : "bg-purple-500/20 text-purple-400 border-purple-500/30"
-            } flex items-center gap-1 shrink-0`}
-            aria-label={`${activity?.locationType || "hybrid"} activity`}
-          >
-            {activity?.locationType === "outdoor" ? (
-              <Sun className="w-3 h-3" aria-hidden="true" />
-            ) : (
-              <Home className="w-3 h-3" aria-hidden="true" />
-            )}
-            {activity?.locationType
-              ? activity.locationType.charAt(0).toUpperCase() + activity.locationType.slice(1)
-              : "Hybrid"}
-          </Badge>
+        <div className="mb-4">
+          <h3 className="text-xl md:text-2xl font-bold text-white leading-tight">{activityName}</h3>
         </div>
 
         {/* Experience Description */}
-        <p className="text-zinc-400 leading-relaxed mb-4">{activity.experience}</p>
+        <div className="mb-4">
+          <p className="text-zinc-300 leading-relaxed">{activity.experience}</p>
+        </div>
 
         {!activity.isInspiration && activity?.rating && activity.rating > 0 && (
           <div className="mb-4 p-3 rounded-lg bg-zinc-800/30 border border-zinc-700/50">
@@ -175,13 +180,14 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
           </div>
         )}
 
+        {/* Best For Section */}
         {activity.bestFor && (
-          <div className="mb-4 p-3 rounded-lg bg-purple-500/10 border border-purple-500/20">
-            <div className="flex items-start gap-2">
-              <Users className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" aria-hidden="true" />
-              <div>
-                <p className="text-xs font-semibold text-purple-300 mb-1">Best for:</p>
-                <p className="text-sm text-zinc-300 leading-relaxed">{activity.bestFor}</p>
+          <div className="mb-4 p-4 rounded-lg bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/20">
+            <div className="flex items-start gap-3">
+              <Users className="w-5 h-5 text-purple-400 shrink-0 mt-0.5" aria-hidden="true" />
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-purple-300 mb-1.5">Perfect for:</p>
+                <p className="text-sm text-zinc-200 leading-relaxed">{activity.bestFor}</p>
               </div>
             </div>
           </div>
@@ -226,7 +232,7 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
               className={`flex items-center gap-1 mb-1 ${activity?.activityLevel ? activityLevelConfig[activity.activityLevel]?.color : "text-zinc-400"}`}
             >
               {ActivityLevelIcon && <ActivityLevelIcon className="w-4 h-4" aria-hidden="true" />}
-              <span className="font-bold text-lg">
+              <span className="font-bold text-lg capitalize">
                 {activity?.activityLevel ? activityLevelConfig[activity.activityLevel]?.label : "Low"}
               </span>
             </div>
@@ -234,25 +240,27 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
           </div>
         </div>
 
+        {/* Special Element */}
         {activity.specialElement && (
-          <div className="bg-gradient-to-r from-primary/10 to-emerald-400/10 border border-primary/20 rounded-xl p-4 mb-4">
-            <div className="flex items-start gap-2">
+          <div className="bg-gradient-to-br from-primary/10 via-emerald-400/10 to-cyan-400/10 border border-primary/30 rounded-xl p-4 mb-4">
+            <div className="flex items-start gap-3">
               <Sparkles className="w-5 h-5 text-primary shrink-0 mt-0.5" aria-hidden="true" />
-              <div>
-                <p className="text-sm font-medium text-primary mb-1">What makes it special</p>
-                <p className="text-sm text-zinc-300 leading-relaxed">{activity.specialElement}</p>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-primary mb-1.5">What makes it special</p>
+                <p className="text-sm text-zinc-200 leading-relaxed">{activity.specialElement}</p>
               </div>
             </div>
           </div>
         )}
 
+        {/* Preparation */}
         {activity.preparation && (
-          <div className="mb-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
-            <div className="flex items-start gap-2">
-              <Lightbulb className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" aria-hidden="true" />
-              <div>
-                <p className="text-xs font-semibold text-amber-300 mb-1">Preparation needed:</p>
-                <p className="text-sm text-zinc-300 leading-relaxed">{activity.preparation}</p>
+          <div className="mb-4 p-4 rounded-lg bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/20">
+            <div className="flex items-start gap-3">
+              <Lightbulb className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" aria-hidden="true" />
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-amber-300 mb-1.5">Preparation needed</p>
+                <p className="text-sm text-zinc-200 leading-relaxed">{activity.preparation}</p>
               </div>
             </div>
           </div>
