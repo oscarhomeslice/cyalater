@@ -108,10 +108,15 @@ export async function POST(request: NextRequest) {
     console.log("[Viator API] Environment check:", {
       hasApiKey: !!process.env.VIATOR_API_KEY,
       hasBaseUrl: !!process.env.VIATOR_API_BASE_URL,
-      apiKeyLength: process.env.VIATOR_API_KEY?.length || 0
+      apiKeyLength: process.env.VIATOR_API_KEY?.length || 0,
+      apiKeyPreview: process.env.VIATOR_API_KEY 
+        ? `${process.env.VIATOR_API_KEY.slice(0, 4)}...${process.env.VIATOR_API_KEY.slice(-4)}`
+        : 'NOT SET'
     })
 
     const body: RequestBody = await request.json()
+    console.log("[Viator API] Request body:", JSON.stringify(body, null, 2))
+
     const { location, budgetPerPerson, currency, groupSize, vibe, inspirationActivities } = body
 
     console.log("[Viator API] Incoming request:", { location, budgetPerPerson, currency, groupSize, vibe })
@@ -120,6 +125,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { success: false, error: "Location is required to search real activities" },
         { status: 400 }
+      )
+    }
+
+    if (!process.env.VIATOR_API_KEY) {
+      console.error("[Viator API] VIATOR_API_KEY is not set!")
+      return NextResponse.json(
+        { success: false, error: "Viator API is not configured. Please add VIATOR_API_KEY to your environment variables." },
+        { status: 503 }
       )
     }
 
@@ -172,7 +185,7 @@ export async function POST(request: NextRequest) {
         {
           success: false,
           message,
-          suggestions: popularDestinations.map(d => d.destinationName)
+          suggestions: popularDestinations
         },
         { status: 404 }
       )
@@ -241,8 +254,7 @@ export async function POST(request: NextRequest) {
       cause: error.cause
     })
 
-    // Handle specific error types
-    if (error.message?.includes("VIATOR_API_KEY environment variable is not set")) {
+    if (error.message?.includes("VIATOR_API_KEY") || error.message?.includes("API key")) {
       return NextResponse.json(
         { success: false, error: "Viator API is not configured. Please contact support." },
         { status: 503 }
@@ -263,12 +275,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Generic error with more details
+    // Generic error with more details for debugging
     return NextResponse.json(
       { 
         success: false, 
         error: "Failed to search activities. Please try again.",
-        details: error.message 
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
       },
       { status: 500 }
     )

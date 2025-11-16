@@ -83,19 +83,26 @@ export async function fetchDestinations(): Promise<Destination[]> {
   console.log("[Viator] Fetching fresh destinations from API")
 
   try {
-    const response = await fetch(`${VIATOR_API_BASE_URL}/destinations`, {
+    const response = await fetch(`${VIATOR_API_BASE_URL}/taxonomy/destinations`, {
       method: "GET",
       headers: getHeaders()
     })
 
+    console.log(`[Viator] Destinations API response status: ${response.status}`)
+
     if (!response.ok) {
-      console.warn(`[Viator] Destinations fetch failed with status ${response.status}`)
+      const errorText = await response.text()
+      console.warn(`[Viator] Destinations fetch failed:`, {
+        status: response.status,
+        statusText: response.statusText,
+        body: errorText
+      })
       // Return cached data even if expired, or empty array
       return destinationsCache.length > 0 ? destinationsCache : []
     }
 
     const data = await response.json()
-    destinationsCache = data.destinations || []
+    destinationsCache = data.destinations || data || []
     cacheTimestamp = now
 
     console.log(`[Viator] Fetched ${destinationsCache.length} destinations successfully`)
@@ -151,6 +158,10 @@ export async function getPopularDestinations(limit: number = 10): Promise<string
 export async function searchViatorProducts(params: SearchViatorParams): Promise<SearchResult> {
   console.log("[Viator] Searching products with params:", params)
 
+  if (!VIATOR_API_KEY) {
+    throw new Error("VIATOR_API_KEY environment variable is not set")
+  }
+
   let destinationId: number | null = null
 
   // Convert destination name to ID if provided
@@ -204,6 +215,8 @@ export async function searchViatorProducts(params: SearchViatorParams): Promise<
     requestBody.filtering.confirmationType = params.confirmationType
   }
 
+  console.log("[Viator] Request body:", JSON.stringify(requestBody, null, 2))
+
   try {
     const response = await fetch(`${VIATOR_API_BASE_URL}/products/search`, {
       method: "POST",
@@ -217,13 +230,28 @@ export async function searchViatorProducts(params: SearchViatorParams): Promise<
       throw new Error("Rate limit exceeded. Please try again in a moment.")
     }
 
-    if (response.status === 401) {
-      throw new Error("Invalid API key")
+    if (response.status === 401 || response.status === 403) {
+      const errorText = await response.text()
+      console.error("[Viator] Authentication error:", errorText)
+      throw new Error("Invalid or missing API key. Please check your Viator API configuration.")
     }
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
-      const errorMessage = errorData.message || `API request failed with status ${response.status}`
+      const errorText = await response.text()
+      console.error("[Viator] API error response:", {
+        status: response.status,
+        statusText: response.statusText,
+        body: errorText
+      })
+      
+      let errorData: any = {}
+      try {
+        errorData = JSON.parse(errorText)
+      } catch {
+        // Not JSON
+      }
+      
+      const errorMessage = errorData.message || errorData.error || `API request failed with status ${response.status}`
       throw new Error(errorMessage)
     }
 
