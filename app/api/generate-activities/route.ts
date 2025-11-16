@@ -1,7 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import OpenAI from "openai"
 
-
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 })
@@ -34,18 +33,30 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
     
+    console.log("[v0] Received request body:", JSON.stringify(body, null, 2))
+    
     const { groupSize, budgetPerPerson, currency, locationMode, location, vibe } = body
+
+    console.log("[v0] Validation check - groupSize:", groupSize)
+    console.log("[v0] Validation check - budgetPerPerson:", budgetPerPerson)
+    console.log("[v0] Validation check - currency:", currency)
+    console.log("[v0] Validation check - locationMode:", locationMode)
+    console.log("[v0] Validation check - location:", location)
+    console.log("[v0] Validation check - vibe:", vibe)
 
     // Validate required fields
     if (!groupSize) {
+      console.log("[v0] Validation failed - Missing groupSize")
       return NextResponse.json({ error: "Group size is required" }, { status: 400 })
     }
 
     if (!budgetPerPerson || !currency) {
+      console.log("[v0] Validation failed - Missing budgetPerPerson or currency")
       return NextResponse.json({ error: "Budget per person is required" }, { status: 400 })
     }
 
     if (locationMode === "have-location" && !location) {
+      console.log("[v0] Validation failed - Location required but not provided")
       return NextResponse.json({ error: "Location is required when 'I have a location in mind' is selected" }, { status: 400 })
     }
 
@@ -69,7 +80,7 @@ export async function POST(request: NextRequest) {
 
     const userInput = parts.join(", ")
 
-    console.log("[v0] User request:", userInput)
+    console.log("[v0] Constructed user input for OpenAI:", userInput)
 
     const completion = await openai.chat.completions.create({
       model: "gpt-5-nano-2025-08-07",
