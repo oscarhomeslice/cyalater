@@ -356,17 +356,22 @@ export default function Page() {
     
     try {
       console.log("[Page] Searching for real activities in:", locationToSearch)
+      console.log("[Page] Search results query:", searchResults.query)
+      
+      const budgetPerPerson = searchResults.query.budget_per_person || "50"
+      const currency = searchResults.query.currency || "EUR"
+      const groupSize = searchResults.query.group_size || "2-5 people"
       
       const requestBody = {
         location: locationToSearch,
-        budgetPerPerson: searchResults.query.budget_per_person,
-        currency: searchResults.query.currency || "EUR",
-        groupSize: searchResults.query.group_size,
+        budgetPerPerson: budgetPerPerson,
+        currency: currency,
+        groupSize: groupSize,
         vibe: searchResults.query.vibe,
         inspirationActivities: searchResults.recommendations.activities
       }
       
-      console.log("[Page] Real activities request:", requestBody)
+      console.log("[Page] Real activities request with extracted values:", requestBody)
       
       const response = await fetch("/api/search-real-activities", {
         method: "POST",
@@ -399,11 +404,11 @@ export default function Page() {
         const errorDetails = []
         if (data.errorType) errorDetails.push(`Error Type: ${data.errorType}`)
         if (data.debugInfo) {
-          errorDetails.push(`API Key: ${data.debugInfo.hasApiKey ? 'Present' : 'Missing'}`)
+          if (data.debugInfo.hasApiKey !== undefined) errorDetails.push(`API Key: ${data.debugInfo.hasApiKey ? 'Present' : 'Missing'}`)
           if (data.debugInfo.apiKeyLength) errorDetails.push(`Key Length: ${data.debugInfo.apiKeyLength}`)
-          errorDetails.push(`Location: ${data.debugInfo.requestedLocation}`)
-          errorDetails.push(`Budget: ${data.debugInfo.requestedBudget}`)
-          errorDetails.push(`Currency: ${data.debugInfo.requestedCurrency}`)
+          errorDetails.push(`Location: ${data.debugInfo.requestedLocation || locationToSearch}`)
+          errorDetails.push(`Budget: ${data.debugInfo.requestedBudget || budgetPerPerson}`)
+          errorDetails.push(`Currency: ${data.debugInfo.requestedCurrency || currency}`)
         }
         
         const fullErrorMessage = [
