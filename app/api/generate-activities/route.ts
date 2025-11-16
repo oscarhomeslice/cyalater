@@ -273,7 +273,15 @@ Apply these cognitive frameworks to deliver exceptional recommendations:
 
     return NextResponse.json({
       success: true,
-      recommendations,
+      recommendations: recommendations,
+      query: {
+        group_size: groupSize,
+        budget_per_person: budgetPerPerson,
+        currency,
+        location_mode: locationMode,
+        location,
+        vibe
+      }
     })
   } catch (error: any) {
     console.error("[v0] API Error:", error)
