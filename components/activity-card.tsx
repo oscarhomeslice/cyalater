@@ -3,14 +3,14 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Clock, Euro, Sparkles, ActivityIcon, Home, Sun, Heart, Zap, Mountain, Check, ExternalLink, Star, Users, Lightbulb } from 'lucide-react'
+import { Clock, Euro, ActivityIcon, Heart, Zap, Mountain, Check, ExternalLink, Star, Users, Lightbulb, Sparkles } from 'lucide-react'
 
 export interface ActivityData {
   id?: string
   name: string
   experience: string
   bestFor: string
-  cost: string
+  cost: string | number
   duration: string
   locationType: "indoor" | "outdoor" | "hybrid"
   activityLevel: "low" | "moderate" | "high"
@@ -84,6 +84,7 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
 
   const activityName = activity.name || "Activity"
   const ActivityLevelIcon = activity?.activityLevel ? activityLevelConfig[activity.activityLevel]?.icon : Heart
+  const costDisplay = typeof activity.cost === 'number' ? `€${activity.cost}` : activity.cost || "TBD"
 
   const handleShortlist = () => {
     if (!isShortlisted) {
@@ -98,42 +99,7 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
       className="group bg-zinc-900/50 backdrop-blur-sm border border-zinc-800 rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl hover:shadow-primary/10 hover:-translate-y-1 hover:border-zinc-700 transition-all duration-300 focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2 focus-within:ring-offset-black"
       aria-label={`${activityName} activity`}
     >
-      {/* Badge positioning container - both badges in absolute positioning */}
-      <div className="absolute top-3 left-3 right-3 z-10 flex items-start justify-between gap-2">
-        {/* Location type badge - left side */}
-        <Badge
-          variant="outline"
-          className={`${
-            activity?.locationType === "outdoor"
-              ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
-              : activity?.locationType === "indoor"
-                ? "bg-blue-500/20 text-blue-400 border-blue-500/30"
-                : "bg-purple-500/20 text-purple-400 border-purple-500/30"
-          } flex items-center gap-1 backdrop-blur-sm`}
-          aria-label={`${activity?.locationType || "hybrid"} activity`}
-        >
-          {activity?.locationType === "outdoor" ? (
-            <Sun className="w-3 h-3" aria-hidden="true" />
-          ) : (
-            <Home className="w-3 h-3" aria-hidden="true" />
-          )}
-          {activity?.locationType
-            ? activity.locationType.charAt(0).toUpperCase() + activity.locationType.slice(1)
-            : "Hybrid"}
-        </Badge>
-
-        {/* Inspiration badge - right side */}
-        {activity.isInspiration && (
-          <Badge
-            variant="outline"
-            className="bg-purple-500/20 text-purple-300 border-purple-500/30 backdrop-blur-sm"
-          >
-            <Sparkles className="w-3 h-3 mr-1" />
-            Inspiration
-          </Badge>
-        )}
-      </div>
-
+      
       {activity?.image && (
         <div className="relative w-full h-48 overflow-hidden">
           <img
@@ -155,11 +121,15 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
           <h3 className="text-xl md:text-2xl font-bold text-white leading-tight">{activityName}</h3>
         </div>
 
+        
         {/* Experience Description */}
-        <div className="mb-4">
-          <p className="text-zinc-300 leading-relaxed">{activity.experience}</p>
-        </div>
+        {activity.experience && (
+          <div className="mb-4">
+            <p className="text-zinc-300 leading-relaxed">{activity.experience}</p>
+          </div>
+        )}
 
+        {/* TripAdvisor Rating (only for non-inspiration) */}
         {!activity.isInspiration && activity?.rating && activity.rating > 0 && (
           <div className="mb-4 p-3 rounded-lg bg-zinc-800/30 border border-zinc-700/50">
             <div className="flex items-center gap-2 mb-2">
@@ -214,7 +184,7 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
           <div className="flex flex-col items-center text-center">
             <div className="flex items-center gap-1 text-primary mb-1">
               <Euro className="w-4 h-4" aria-hidden="true" />
-              <span className="font-bold text-lg">{activity.cost || "TBD"}</span>
+              <span className="font-bold text-lg">{costDisplay}</span>
             </div>
             <span className="text-xs text-zinc-500">per person</span>
           </div>

@@ -104,6 +104,14 @@ export default function Page() {
   const [showRealActivitiesSearch, setShowRealActivitiesSearch] = useState(false)
   const [refinementPrompts, setRefinementPrompts] = useState<string[]>([])
 
+  const [shortlistedIds, setShortlistedIds] = useState<string[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = sessionStorage.getItem('shortlistedIds')
+      return saved ? JSON.parse(saved) : []
+    }
+    return []
+  })
+
   useEffect(() => {
     if (!isLoading) return
 
@@ -137,6 +145,12 @@ export default function Page() {
       }
     }
   }, [isLoading])
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('shortlistedIds', JSON.stringify(shortlistedIds))
+    }
+  }, [shortlistedIds])
 
   const [messageIndex, setMessageIndex] = useState(0)
   const [messageFade, setMessageFade] = useState(true)
@@ -317,6 +331,15 @@ export default function Page() {
     showToast("Searching for real bookable activities...", "info")
   }
 
+  const handleAddToShortlist = (id: string) => {
+    setShortlistedIds((prev) => {
+      if (prev.includes(id)) {
+        return prev.filter((item) => item !== id)
+      }
+      return [...prev, id]
+    })
+  }
+
   const [error, setError] = useState<{ type: ErrorType; message?: string } | null>(null)
   const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({})
 
@@ -417,6 +440,8 @@ export default function Page() {
               results={searchResults}
               onNewSearch={handleNewSearch}
               onFindRealActivities={handleFindRealActivities}
+              onAddToShortlist={handleAddToShortlist}
+              shortlistedIds={shortlistedIds}
             />
 
             {showRealActivitiesSearch && (
