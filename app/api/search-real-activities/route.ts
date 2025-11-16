@@ -111,7 +111,8 @@ export async function POST(request: NextRequest) {
       apiKeyLength: process.env.VIATOR_API_KEY?.length || 0,
       apiKeyPreview: process.env.VIATOR_API_KEY 
         ? `${process.env.VIATOR_API_KEY.slice(0, 4)}...${process.env.VIATOR_API_KEY.slice(-4)}`
-        : 'NOT SET'
+        : 'NOT SET',
+      baseUrl: process.env.VIATOR_API_BASE_URL || 'using default'
     })
 
     const body: RequestBody = await request.json()
@@ -136,41 +137,23 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Calculate search date range
-    const today = new Date()
-    const startDate = today.toISOString().split('T')[0]
-    const endDate = new Date(today.getTime() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-
-    // Calculate price range from budgetPerPerson
-    let minPrice: number | undefined
-    let maxPrice: number | undefined
-    
-    if (budgetPerPerson) {
-      const budget = typeof budgetPerPerson === 'string' ? parseFloat(budgetPerPerson) : budgetPerPerson
-      minPrice = Math.floor(budget * 0.5)
-      maxPrice = Math.ceil(budget * 1.5)
+    const searchParams: any = {
+      destination: location,
+      currency: currency || "USD",
+      count: 20
     }
 
-    console.log("[Viator API] Search parameters:", {
-      destination: location,
-      minPrice,
-      maxPrice,
-      currency,
-      startDate,
-      endDate
-    })
+    // Only add price filters if budget is provided and valid
+    if (budgetPerPerson && !isNaN(Number(budgetPerPerson))) {
+      const budget = typeof budgetPerPerson === 'string' ? parseFloat(budgetPerPerson) : budgetPerPerson
+      searchParams.minPrice = Math.floor(budget * 0.3) // More flexible range
+      searchParams.maxPrice = Math.ceil(budget * 2) // More flexible range
+    }
+
+    console.log("[Viator API] Simplified search parameters:", searchParams)
 
     // Call searchViatorProducts
-    const viatorResults = await searchViatorProducts({
-      destination: location,
-      minPrice,
-      maxPrice,
-      currency,
-      startDate,
-      endDate,
-      count: 12,
-      confirmationType: "INSTANT"
-    })
+    const viatorResults = await searchViatorProducts(searchParams)
 
     console.log("[Viator API] Search results count:", viatorResults.products.length)
 
@@ -178,7 +161,7 @@ export async function POST(request: NextRequest) {
     if (viatorResults.products.length === 0) {
       const popularDestinations = await getPopularDestinations(5)
       const message = location
-        ? `No activities found in ${location}. Try adjusting your budget or dates.`
+        ? `No activities found in ${location}. Try adjusting your search criteria.`
         : "No activities found. Try being more specific with your location."
       
       return NextResponse.json(

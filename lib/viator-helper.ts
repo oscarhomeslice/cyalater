@@ -213,46 +213,31 @@ export async function searchViatorProducts(params: SearchViatorParams): Promise<
     }
   }
 
-  // Build request body
   const requestBody: any = {
     filtering: {
-      includeAutomaticTranslations: true
-    },
-    sorting: {
-      sort: "TRAVELER_RATING",
-      order: "DESCENDING"
+      destination: destinationId ? destinationId.toString() : undefined,
     },
     pagination: {
       start: 1,
-      count: params.count || 10
+      count: params.count || 20
     },
-    currency: params.currency
+    currency: params.currency || "USD"
   }
 
-  // Add optional filters
-  if (destinationId) {
-    requestBody.filtering.destination = destinationId.toString()
-  }
-  if (params.minPrice !== undefined) {
+  // Only add price filters if both are provided
+  if (params.minPrice !== undefined && params.maxPrice !== undefined) {
     requestBody.filtering.lowestPrice = params.minPrice
-  }
-  if (params.maxPrice !== undefined) {
     requestBody.filtering.highestPrice = params.maxPrice
   }
-  if (params.startDate) {
-    requestBody.filtering.startDate = params.startDate
-  }
-  if (params.endDate) {
-    requestBody.filtering.endDate = params.endDate
-  }
-  if (params.tags && params.tags.length > 0) {
-    requestBody.filtering.tags = params.tags
-  }
-  if (params.confirmationType) {
-    requestBody.filtering.confirmationType = params.confirmationType
-  }
 
-  console.log("[Viator] Request body:", JSON.stringify(requestBody, null, 2))
+  // Remove undefined values from the filtering object
+  Object.keys(requestBody.filtering).forEach(key => {
+    if (requestBody.filtering[key] === undefined) {
+      delete requestBody.filtering[key]
+    }
+  })
+
+  console.log("[Viator] Simplified request body:", JSON.stringify(requestBody, null, 2))
 
   try {
     const response = await fetch(`${VIATOR_API_BASE_URL}/products/search`, {
@@ -262,37 +247,47 @@ export async function searchViatorProducts(params: SearchViatorParams): Promise<
     })
 
     console.log(`[Viator] Search response status: ${response.status}`)
+    
+    const responseText = await response.text()
+    console.log(`[Viator] Response body preview:`, responseText.substring(0, 500))
 
     if (response.status === 429) {
       throw new Error("Rate limit exceeded. Please try again in a moment.")
     }
 
     if (response.status === 401 || response.status === 403) {
-      const errorText = await response.text()
-      console.error("[Viator] Authentication error:", errorText)
+      console.error("[Viator] Authentication error:", responseText)
       throw new Error("Invalid or missing API key. Please check your Viator API configuration.")
     }
 
     if (!response.ok) {
-      const errorText = await response.text()
       console.error("[Viator] API error response:", {
         status: response.status,
         statusText: response.statusText,
-        body: errorText
+        body: responseText,
+        headers: Object.fromEntries(response.headers.entries())
       })
       
       let errorData: any = {}
       try {
-        errorData = JSON.parse(errorText)
+        errorData = JSON.parse(responseText)
+        console.error("[Viator] Parsed error data:", errorData)
       } catch {
-        // Not JSON
+        console.error("[Viator] Could not parse error response as JSON")
       }
       
-      const errorMessage = errorData.message || errorData.error || `API request failed with status ${response.status}`
+      const errorMessage = errorData.message || errorData.error || errorData.errorMessage || `API request failed with status ${response.status}: ${responseText}`
       throw new Error(errorMessage)
     }
 
-    const data = await response.json()
+    let data: any = {}
+    try {
+      data = JSON.parse(responseText)
+    } catch (parseError) {
+      console.error("[Viator] Failed to parse successful response:", parseError)
+      throw new Error("Invalid JSON response from Viator API")
+    }
+
     const products = data.products || []
     const totalCount = data.totalCount || 0
 
@@ -304,7 +299,11 @@ export async function searchViatorProducts(params: SearchViatorParams): Promise<
     }
   } catch (error) {
     if (error instanceof Error) {
-      console.error("[Viator] Search error:", error.message)
+      console.error("[Viator] Search error details:", {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      })
       throw error
     }
     console.error("[Viator] Unexpected search error:", error)
