@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Clock, Euro, ActivityIcon, Heart, Zap, Mountain, Check, ExternalLink, Star, Users, Lightbulb, Sparkles } from 'lucide-react'
+import { Clock, Euro, ActivityIcon, Heart, Zap, Mountain, Check, ExternalLink, Star, Users, Lightbulb, Sparkles, MapPin } from 'lucide-react'
 
 export interface ActivityData {
   id?: string
@@ -118,16 +118,16 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
       <div className="p-6">
         {/* Header */}
         <div className="mb-4">
-          <h3 className="text-xl md:text-2xl font-bold text-white leading-tight">{activityName}</h3>
+          <h3 className="text-xl md:text-2xl font-bold text-white leading-tight mb-2">{activityName}</h3>
+          <div className="flex items-center gap-2 text-sm text-zinc-400">
+            <MapPin className="w-4 h-4" />
+            <span className="capitalize">{activity.locationType}</span>
+          </div>
         </div>
 
-        
-        {/* Experience Description */}
-        {activity.experience && (
-          <div className="mb-4">
-            <p className="text-zinc-300 leading-relaxed">{activity.experience}</p>
-          </div>
-        )}
+        <div className="mb-4">
+          <p className="text-zinc-300 leading-relaxed">{activity.experience || "No description available"}</p>
+        </div>
 
         {/* TripAdvisor Rating (only for non-inspiration) */}
         {!activity.isInspiration && activity?.rating && activity.rating > 0 && (
@@ -150,18 +150,15 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
           </div>
         )}
 
-        {/* Best For Section */}
-        {activity.bestFor && (
-          <div className="mb-4 p-4 rounded-lg bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/20">
-            <div className="flex items-start gap-3">
-              <Users className="w-5 h-5 text-purple-400 shrink-0 mt-0.5" aria-hidden="true" />
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-purple-300 mb-1.5">Perfect for:</p>
-                <p className="text-sm text-zinc-200 leading-relaxed">{activity.bestFor}</p>
-              </div>
+        <div className="mb-4 p-4 rounded-lg bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/20">
+          <div className="flex items-start gap-3">
+            <Users className="w-5 h-5 text-purple-400 shrink-0 mt-0.5" aria-hidden="true" />
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-purple-300 mb-1.5">Perfect for:</p>
+              <p className="text-sm text-zinc-200 leading-relaxed">{activity.bestFor || "Great for groups"}</p>
             </div>
           </div>
-        )}
+        </div>
 
         {/* Tags */}
         {activity?.tags && activity.tags.length > 0 && (
@@ -210,31 +207,25 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
           </div>
         </div>
 
-        {/* Special Element */}
-        {activity.specialElement && (
-          <div className="bg-gradient-to-br from-primary/10 via-emerald-400/10 to-cyan-400/10 border border-primary/30 rounded-xl p-4 mb-4">
-            <div className="flex items-start gap-3">
-              <Sparkles className="w-5 h-5 text-primary shrink-0 mt-0.5" aria-hidden="true" />
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-primary mb-1.5">What makes it special</p>
-                <p className="text-sm text-zinc-200 leading-relaxed">{activity.specialElement}</p>
-              </div>
+        <div className="bg-gradient-to-br from-primary/10 via-emerald-400/10 to-cyan-400/10 border border-primary/30 rounded-xl p-4 mb-4">
+          <div className="flex items-start gap-3">
+            <Sparkles className="w-5 h-5 text-primary shrink-0 mt-0.5" aria-hidden="true" />
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-primary mb-1.5">What makes it special</p>
+              <p className="text-sm text-zinc-200 leading-relaxed">{activity.specialElement || "Unique group experience"}</p>
             </div>
           </div>
-        )}
+        </div>
 
-        {/* Preparation */}
-        {activity.preparation && (
-          <div className="mb-4 p-4 rounded-lg bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/20">
-            <div className="flex items-start gap-3">
-              <Lightbulb className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" aria-hidden="true" />
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-amber-300 mb-1.5">Preparation needed</p>
-                <p className="text-sm text-zinc-200 leading-relaxed">{activity.preparation}</p>
-              </div>
+        <div className="mb-4 p-4 rounded-lg bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/20">
+          <div className="flex items-start gap-3">
+            <Lightbulb className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" aria-hidden="true" />
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-amber-300 mb-1.5">Preparation needed</p>
+              <p className="text-sm text-zinc-200 leading-relaxed">{activity.preparation || "No special preparation required"}</p>
             </div>
           </div>
-        )}
+        </div>
 
         {/* Action Buttons */}
         <div className="flex gap-2">

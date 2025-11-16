@@ -1,16 +1,16 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect, useRef } from "react"
 import type { ActivityData } from "@/components/activity-card"
 import { Badge } from "@/components/ui/badge"
 import { ErrorAlert, type ErrorType } from "@/components/error-alert"
-import { Zap, Sparkles } from 'lucide-react'
+import { Zap, Sparkles, ListChecks } from 'lucide-react'
 import { ToastContainer, showToast } from "@/components/toast"
 import { ActivitySearchForm, type ActivitySearchFormData } from "@/components/activity-search-form"
 import { ActivityResults } from "@/components/activity-results"
 import { Button } from "@/components/ui/button"
+import { ShortlistViewer } from "@/components/shortlist-viewer"
 
 const loadingMessages = [
   "Generating inspired ideas...",
@@ -111,6 +111,8 @@ export default function Page() {
     }
     return []
   })
+
+  const [showShortlistViewer, setShowShortlistViewer] = useState(false)
 
   useEffect(() => {
     if (!isLoading) return
@@ -340,6 +342,13 @@ export default function Page() {
     })
   }
 
+  const getShortlistedActivities = (): ActivityData[] => {
+    if (!searchResults?.recommendations?.activities) return []
+    return searchResults.recommendations.activities.filter(
+      (activity) => shortlistedIds.includes(activity.id || activity.name)
+    )
+  }
+
   const [error, setError] = useState<{ type: ErrorType; message?: string } | null>(null)
   const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({})
 
@@ -354,6 +363,26 @@ export default function Page() {
             Using simulated data
           </Badge>
         </div>
+      )}
+
+      {searchResults && !isLoading && shortlistedIds.length > 0 && (
+        <div className="fixed top-4 left-4 z-40">
+          <Button
+            onClick={() => setShowShortlistViewer(true)}
+            className="bg-primary hover:bg-primary/90 text-white shadow-lg flex items-center gap-2"
+          >
+            <ListChecks className="w-4 h-4" />
+            View Shortlist ({shortlistedIds.length})
+          </Button>
+        </div>
+      )}
+
+      {showShortlistViewer && (
+        <ShortlistViewer
+          activities={getShortlistedActivities()}
+          onClose={() => setShowShortlistViewer(false)}
+          onRemoveFromShortlist={handleAddToShortlist}
+        />
       )}
 
       {isLoading && (
