@@ -4,20 +4,33 @@ import { useState } from "react"
 import { ActivityCard, type ActivityData } from "./activity-card"
 import { Button } from "./ui/button"
 import { Badge } from "./ui/badge"
-import { ChevronDown, ChevronUp, Sparkles, Lightbulb, Search } from 'lucide-react'
+import { Input } from "./ui/input"
+import { ChevronDown, ChevronUp, Sparkles, Lightbulb, Search, Loader2, MapPin } from 'lucide-react'
 import type { ActivityRecommendation, ParsedQuery } from "@/lib/types"
 
 interface ActivityResultsProps {
   results: {
     recommendations: ActivityRecommendation
     query: ParsedQuery
+    isRealActivities?: boolean
   }
   onNewSearch: () => void
   onAddToShortlist?: (id: string) => void
   shortlistedIds?: string[]
+  onFindRealActivities?: (location?: string) => void
+  isSearchingReal?: boolean
+  hasLocation?: boolean
 }
 
-export function ActivityResults({ results, onNewSearch, onAddToShortlist, shortlistedIds = [] }: ActivityResultsProps) {
+export function ActivityResults({ 
+  results, 
+  onNewSearch, 
+  onAddToShortlist, 
+  shortlistedIds = [],
+  onFindRealActivities,
+  isSearchingReal = false,
+  hasLocation = false
+}: ActivityResultsProps) {
   console.log("[Results] Received results:", results)
   console.log("[Results] Has recommendations:", !!results?.recommendations)
   
@@ -50,6 +63,8 @@ export function ActivityResults({ results, onNewSearch, onAddToShortlist, shortl
   }
   
   const [showProTips, setShowProTips] = useState(false)
+  const [locationInput, setLocationInput] = useState("")
+  const [locationError, setLocationError] = useState("")
 
   const transformedActivities: ActivityData[] = activities.map((activity, index) => ({
     id: activity.id || `activity-${index}`,
@@ -112,31 +127,79 @@ export function ActivityResults({ results, onNewSearch, onAddToShortlist, shortl
         </div>
       </div>
 
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/20 via-purple-500/10 to-emerald-500/10 border border-primary/30 p-8 md:p-12">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(124,58,237,0.1),transparent_50%)]" />
-        <div className="relative z-10 text-center space-y-6">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/20 border border-primary/30 mb-2">
-            <Search className="w-8 h-8 text-primary" />
+      {onFindRealActivities && !results.isRealActivities && (
+        <div className="relative mt-12 md:mt-16">
+          <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-emerald-400/20 blur-3xl -z-10" />
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary/10 to-emerald-400/10 border-2 border-primary/30 p-8 md:p-12 animate-in fade-in slide-in-from-bottom duration-500">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(124,58,237,0.15),transparent_60%)]" />
+            <div className="relative text-center">
+              <div className="w-16 h-16 mx-auto mb-4 bg-primary/20 rounded-full flex items-center justify-center border border-primary/30">
+                <Sparkles className="w-8 h-8 text-primary" />
+              </div>
+              <h3 className="text-2xl md:text-3xl font-bold mb-3 text-white">
+                Ready to Book Real Activities?
+              </h3>
+              <p className="text-zinc-400 mb-6 max-w-md mx-auto text-base md:text-lg leading-relaxed">
+                {hasLocation && query?.location
+                  ? `Find actual bookable experiences in ${query.location}`
+                  : "Search for real activities you can book right now"
+                }
+              </p>
+              
+              {!hasLocation && (
+                <div className="max-w-md mx-auto mb-6">
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" />
+                    <Input
+                      type="text"
+                      placeholder="Enter a location (e.g., Madrid, Barcelona, Lisbon)"
+                      value={locationInput}
+                      onChange={(e) => {
+                        setLocationInput(e.target.value)
+                        setLocationError("")
+                      }}
+                      className="pl-10 bg-zinc-900/50 border-zinc-700 focus:border-primary text-white placeholder:text-zinc-500"
+                      disabled={isSearchingReal}
+                    />
+                  </div>
+                  {locationError && (
+                    <p className="text-red-400 text-sm mt-2">{locationError}</p>
+                  )}
+                </div>
+              )}
+              
+              <Button
+                onClick={() => {
+                  if (!hasLocation && !locationInput.trim()) {
+                    setLocationError("Please enter a location to find real activities")
+                    return
+                  }
+                  onFindRealActivities?.(hasLocation ? query?.location : locationInput.trim())
+                }}
+                disabled={isSearchingReal}
+                aria-label="Search for real bookable activities"
+                className="bg-gradient-to-r from-primary to-emerald-400 hover:from-primary/90 hover:to-emerald-400/90 text-black font-semibold text-lg px-8 py-6 h-auto transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 shadow-lg shadow-primary/25"
+              >
+                {isSearchingReal ? (
+                  <>
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    Searching Viator...
+                  </>
+                ) : (
+                  <>
+                    <Search className="w-5 h-5 mr-2" />
+                    Find Real Activities
+                  </>
+                )}
+              </Button>
+              <div className="mt-4 flex items-center justify-center gap-2 text-sm text-zinc-500">
+                <span>Powered by</span>
+                <span className="font-semibold text-primary">Viator</span>
+              </div>
+            </div>
           </div>
-          <div className="space-y-3">
-            <h3 className="text-2xl md:text-3xl font-bold text-white">Ready to Book Real Activities?</h3>
-            <p className="text-zinc-300 text-lg max-w-2xl mx-auto leading-relaxed">
-              Search for actual bookable experiences based on these ideas
-            </p>
-          </div>
-          <Button
-            size="lg"
-            className="bg-gradient-to-r from-primary to-emerald-500 hover:from-primary/90 hover:to-emerald-500/90 text-white font-semibold px-8 py-6 text-lg shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all duration-300"
-            onClick={() => {
-              console.log("[v0] Find Real Activities clicked")
-              // TODO: Implement navigation to real activity search
-            }}
-          >
-            <Search className="w-5 h-5 mr-2" />
-            Find Real Activities
-          </Button>
         </div>
-      </div>
+      )}
 
       {proTips && proTips.length > 0 && (
         <div className="border border-zinc-800 rounded-xl p-6 bg-zinc-900/50">
