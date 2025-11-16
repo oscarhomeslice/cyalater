@@ -67,7 +67,8 @@ export interface SearchResult {
 // Helper function to get API headers
 function getHeaders(includeContentType = false): HeadersInit {
   if (!VIATOR_API_KEY) {
-    throw new Error("VIATOR_API_KEY environment variable is not set")
+    console.error("[Viator] VIATOR_API_KEY is not set. Available env vars:", Object.keys(process.env).filter(k => k.includes('VIATOR')))
+    throw new Error("Viator API is not configured. Please add VIATOR_API_KEY environment variable.")
   }
 
   const headers: HeadersInit = {

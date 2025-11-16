@@ -105,6 +105,8 @@ function extractReadableTags(viatorTags: number[] | undefined): string[] {
 
 export async function POST(request: NextRequest) {
   try {
+    const viatorEnvVars = Object.keys(process.env).filter(k => k.includes('VIATOR'))
+    console.log("[Viator API] Available VIATOR env vars:", viatorEnvVars)
     console.log("[Viator API] Environment check:", {
       hasApiKey: !!process.env.VIATOR_API_KEY,
       hasBaseUrl: !!process.env.VIATOR_API_BASE_URL,
