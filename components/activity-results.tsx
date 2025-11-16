@@ -4,7 +4,8 @@ import { useState } from "react"
 import { ActivityCard, type ActivityData } from "./activity-card"
 import { Button } from "./ui/button"
 import { Badge } from "./ui/badge"
-import { ChevronDown, ChevronUp, Sparkles, Lightbulb, Search, Loader2 } from 'lucide-react'
+import { Input } from "./ui/input"
+import { ChevronDown, ChevronUp, Sparkles, Lightbulb, Search, Loader2, MapPin } from 'lucide-react'
 import type { ActivityRecommendation, ParsedQuery } from "@/lib/types"
 
 interface ActivityResultsProps {
@@ -16,7 +17,7 @@ interface ActivityResultsProps {
   onNewSearch: () => void
   onAddToShortlist?: (id: string) => void
   shortlistedIds?: string[]
-  onFindRealActivities?: () => void
+  onFindRealActivities?: (location?: string) => void
   isSearchingReal?: boolean
   hasLocation?: boolean
 }
@@ -62,6 +63,8 @@ export function ActivityResults({
   }
   
   const [showProTips, setShowProTips] = useState(false)
+  const [locationInput, setLocationInput] = useState("")
+  const [locationError, setLocationError] = useState("")
 
   const transformedActivities: ActivityData[] = activities.map((activity, index) => ({
     id: activity.id || `activity-${index}`,
@@ -142,8 +145,37 @@ export function ActivityResults({
                   : "Search for real activities you can book right now"
                 }
               </p>
+              
+              {!hasLocation && (
+                <div className="max-w-md mx-auto mb-6">
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" />
+                    <Input
+                      type="text"
+                      placeholder="Enter a location (e.g., Madrid, Barcelona, Lisbon)"
+                      value={locationInput}
+                      onChange={(e) => {
+                        setLocationInput(e.target.value)
+                        setLocationError("")
+                      }}
+                      className="pl-10 bg-zinc-900/50 border-zinc-700 focus:border-primary text-white placeholder:text-zinc-500"
+                      disabled={isSearchingReal}
+                    />
+                  </div>
+                  {locationError && (
+                    <p className="text-red-400 text-sm mt-2">{locationError}</p>
+                  )}
+                </div>
+              )}
+              
               <Button
-                onClick={onFindRealActivities}
+                onClick={() => {
+                  if (!hasLocation && !locationInput.trim()) {
+                    setLocationError("Please enter a location to find real activities")
+                    return
+                  }
+                  onFindRealActivities?.(hasLocation ? query?.location : locationInput.trim())
+                }}
                 disabled={isSearchingReal}
                 aria-label="Search for real bookable activities"
                 className="bg-gradient-to-r from-primary to-emerald-400 hover:from-primary/90 hover:to-emerald-400/90 text-black font-semibold text-lg px-8 py-6 h-auto transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 shadow-lg shadow-primary/25"

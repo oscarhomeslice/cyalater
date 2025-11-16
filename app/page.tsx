@@ -338,9 +338,16 @@ export default function Page() {
     window.scrollTo({ top: 0, behavior: "smooth" })
   }
 
-  const handleFindRealActivities = async () => {
+  const handleFindRealActivities = async (providedLocation?: string) => {
     if (!searchResults?.query) {
       showToast("Please search for inspiration first", "error")
+      return
+    }
+
+    const locationToSearch = providedLocation || searchResults.query.location
+    
+    if (!locationToSearch) {
+      showToast("Please provide a location to find real activities", "error")
       return
     }
 
@@ -348,10 +355,10 @@ export default function Page() {
     setRealActivitiesError(null)
     
     try {
-      console.log("[Page] Searching for real activities...")
+      console.log("[Page] Searching for real activities in:", locationToSearch)
       
       const requestBody = {
-        location: searchResults.query.location,
+        location: locationToSearch,
         budgetPerPerson: searchResults.query.budget_per_person,
         currency: searchResults.query.currency || "EUR",
         groupSize: searchResults.query.group_size,
