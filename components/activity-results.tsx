@@ -18,10 +18,40 @@ interface ActivityResultsProps {
 }
 
 export function ActivityResults({ results, onNewSearch, onAddToShortlist, shortlistedIds = [] }: ActivityResultsProps) {
-  const [showProTips, setShowProTips] = useState(false)
-  const { recommendations, query } = results
+  console.log("[Results] Received results:", results)
+  console.log("[Results] Has recommendations:", !!results?.recommendations)
+  
+  if (!results || !results.recommendations) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-zinc-400">No results to display</p>
+        <Button onClick={onNewSearch} className="mt-4" variant="outline">
+          Try again
+        </Button>
+      </div>
+    )
+  }
 
-  const transformedActivities: ActivityData[] = recommendations.activities.map((activity, index) => ({
+  const { recommendations, query } = results
+  const { activities = [], proTips = [], refinementPrompts = [] } = recommendations
+
+  console.log("[Results] Activities count:", activities?.length || 0)
+  console.log("[Results] First activity:", activities?.[0])
+
+  if (!activities || activities.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-zinc-400">No activities were generated. Please try again.</p>
+        <Button onClick={onNewSearch} className="mt-4" variant="outline">
+          New Search
+        </Button>
+      </div>
+    )
+  }
+  
+  const [showProTips, setShowProTips] = useState(false)
+
+  const transformedActivities: ActivityData[] = activities.map((activity, index) => ({
     id: activity.id || `activity-${index}`,
     name: activity.name,
     title: activity.name,
@@ -45,7 +75,6 @@ export function ActivityResults({ results, onNewSearch, onAddToShortlist, shortl
     tripAdvisorRating: undefined,
     reviewCount: undefined,
     tripAdvisorUrl: undefined,
-    // Mark as inspiration
     isInspiration: true,
   }))
 
@@ -119,7 +148,7 @@ export function ActivityResults({ results, onNewSearch, onAddToShortlist, shortl
         </div>
       </div>
 
-      {recommendations.proTips && recommendations.proTips.length > 0 && (
+      {proTips && proTips.length > 0 && (
         <div className="border border-zinc-800 rounded-xl p-6 bg-zinc-900/50">
           <button
             onClick={() => setShowProTips(!showProTips)}
@@ -129,7 +158,7 @@ export function ActivityResults({ results, onNewSearch, onAddToShortlist, shortl
               <Lightbulb className="w-5 h-5 text-yellow-400" />
               <h3 className="text-xl font-bold">Pro Tips</h3>
               <Badge variant="outline" className="bg-yellow-500/10 border-yellow-500/30 text-yellow-400">
-                {recommendations.proTips.length}
+                {proTips.length}
               </Badge>
             </div>
             {showProTips ? (
@@ -141,7 +170,7 @@ export function ActivityResults({ results, onNewSearch, onAddToShortlist, shortl
 
           {showProTips && (
             <ul className="mt-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
-              {recommendations.proTips.map((tip, index) => (
+              {proTips.map((tip, index) => (
                 <li key={index} className="flex items-start gap-3 text-zinc-300">
                   <span className="text-xl shrink-0" role="img" aria-label="lightbulb">
                     💡
@@ -154,11 +183,11 @@ export function ActivityResults({ results, onNewSearch, onAddToShortlist, shortl
         </div>
       )}
 
-      {recommendations.refinementPrompts && recommendations.refinementPrompts.length > 0 && (
+      {refinementPrompts && refinementPrompts.length > 0 && (
         <div>
           <h3 className="text-lg font-semibold mb-3 text-zinc-400">Get Different Ideas:</h3>
           <div className="flex flex-wrap gap-2">
-            {recommendations.refinementPrompts.map((prompt, index) => (
+            {refinementPrompts.map((prompt, index) => (
               <Button
                 key={index}
                 variant="outline"
