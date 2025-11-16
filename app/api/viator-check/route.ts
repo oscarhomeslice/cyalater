@@ -4,6 +4,9 @@ export async function GET() {
   const envVars = Object.keys(process.env)
   const viatorVars = envVars.filter(k => k.toLowerCase().includes('viator'))
   
+  const rawBaseUrl = process.env.VIATOR_API_BASE_URL || 'https://api.viator.com/partner'
+  const correctedBaseUrl = rawBaseUrl.replace(/\/partner$/, '') + "/partner"
+  
   const diagnostics = {
     viatorEnvVarsFound: viatorVars,
     hasViatorApiKey: !!process.env.VIATOR_API_KEY,
@@ -12,7 +15,10 @@ export async function GET() {
     apiKeyPreview: process.env.VIATOR_API_KEY 
       ? `${process.env.VIATOR_API_KEY.substring(0, 4)}...${process.env.VIATOR_API_KEY.substring(process.env.VIATOR_API_KEY.length - 4)}`
       : 'NOT SET',
-    baseUrl: process.env.VIATOR_API_BASE_URL || 'using default: https://api.viator.com/partner',
+    baseUrlRaw: rawBaseUrl,
+    baseUrlCorrected: correctedBaseUrl,
+    destinationsEndpoint: `${correctedBaseUrl}/destinations`,
+    productsSearchEndpoint: `${correctedBaseUrl}/products/search`,
     allEnvVarsCount: envVars.length,
     nodeEnv: process.env.NODE_ENV
   }

@@ -1,7 +1,7 @@
 // Viator API Helper
 // Handles all Viator API interactions including destination lookup and product search
 
-const VIATOR_API_BASE_URL = process.env.VIATOR_API_BASE_URL || "https://api.viator.com/partner"
+const VIATOR_API_BASE_URL = process.env.VIATOR_API_BASE_URL?.replace(/\/partner$/, '') + "/partner" || "https://api.viator.com/partner"
 const VIATOR_API_KEY = process.env.VIATOR_API_KEY
 
 // Cache configuration
