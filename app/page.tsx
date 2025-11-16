@@ -182,18 +182,15 @@ export default function Page() {
 
     try {
       const requestBody = {
-        formData: {
-          groupSize: formData.groupSize,
-          budgetPerPerson: formData.budgetPerPerson,
-          currency: formData.currency || "EUR",
-          locationMode: formData.locationMode,
-          location: formData.location,
-          inspirationPrompt: formData.inspirationPrompt,
-          vibe: formData.vibe,
-        },
+        groupSize: formData.groupSize,
+        budgetPerPerson: formData.budgetPerPerson,
+        currency: formData.currency || "EUR",
+        locationMode: formData.locationMode,
+        location: formData.location,
+        vibe: formData.vibe,
       }
 
-      console.log("[v0] Starting API request with body:", requestBody)
+      console.log("[v0] Sending to API:", requestBody)
 
       const response = await fetch("/api/generate-activities", {
         method: "POST",
