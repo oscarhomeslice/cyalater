@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
     console.log("[v0] Constructed user input for OpenAI:", userInput)
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-5-nano-2025-08-07",
       messages: [
         {
           role: "system",
