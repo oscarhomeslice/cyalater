@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Clock, Euro, ActivityIcon, Heart, Zap, Mountain, Check, ExternalLink, Star, Users, Lightbulb, Sparkles, MapPin, ChevronDown, ChevronUp } from 'lucide-react'
+import { Clock, Euro, ActivityIcon, Heart, Zap, Mountain, Check, ExternalLink, Star, Users, Lightbulb, Sparkles, MapPin, ChevronDown, ChevronUp, Info } from 'lucide-react'
 
 export interface ActivityData {
   id?: string
@@ -19,6 +19,7 @@ export interface ActivityData {
   preparation: string
   tripAdvisorUrl?: string
   tripAdvisorId?: string
+  viatorUrl?: string // Added viatorUrl for bookable activities
   rating?: number
   reviewCount?: number
   image?: string
@@ -30,6 +31,7 @@ interface ActivityCardProps {
   activity: ActivityData
   onAddToShortlist?: (id: string) => void
   isShortlisted?: boolean
+  isBookable?: boolean // Added isBookable prop to distinguish real vs AI activities
 }
 
 const tagColors: Record<string, string> = {
@@ -78,7 +80,7 @@ const renderStars = (rating: number) => {
   return stars
 }
 
-export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false }: ActivityCardProps) {
+export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false, isBookable = false }: ActivityCardProps) {
   const [showCheckmark, setShowCheckmark] = useState(false)
   const [expandedSections, setExpandedSections] = useState({
     bestFor: false,
@@ -114,9 +116,15 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
     }))
   }
 
+  const hasRating = activity?.rating && activity.rating > 0
+
   return (
     <article
-      className="group bg-zinc-900/50 backdrop-blur-sm border border-zinc-800 rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl hover:shadow-primary/10 hover:-translate-y-1 hover:border-zinc-700 transition-all duration-300 focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2 focus-within:ring-offset-black"
+      className={`group bg-zinc-900/50 backdrop-blur-sm border rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2 focus-within:ring-offset-black ${
+        isBookable
+          ? "border-emerald-500/30 hover:border-emerald-500/50 hover:shadow-emerald-500/10"
+          : "border-zinc-800 hover:border-zinc-700 hover:shadow-primary/10 hover:-translate-y-1"
+      }`}
       aria-label={`${activityName} activity`}
     >
       
@@ -132,6 +140,16 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
             }}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-zinc-900 to-transparent" />
+          
+          <div className="absolute top-4 right-4">
+            <Badge className={
+              isBookable 
+                ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30 backdrop-blur-sm"
+                : "bg-purple-500/20 text-purple-400 border-purple-500/30 backdrop-blur-sm"
+            }>
+              {isBookable ? "🎫 Bookable" : "✨ Inspiration"}
+            </Badge>
+          </div>
         </div>
       )}
 
@@ -151,22 +169,19 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
           </p>
         </div>
 
-        {/* TripAdvisor Rating (only for non-inspiration) */}
-        {!activity.isInspiration && activity?.rating && activity.rating > 0 && (
-          <div className="mb-4 p-3 rounded-lg bg-zinc-800/30 border border-zinc-700/50">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-lg" role="img" aria-label="TripAdvisor" aria-hidden="true">
-                🦉
-              </span>
-              <span className="text-xs font-semibold" style={{ color: "#34E0A1" }}>
-                TripAdvisor
-              </span>
-            </div>
+        {hasRating && (
+          <div className={`mb-4 p-3 rounded-lg ${
+            isBookable 
+              ? "bg-emerald-500/10 border border-emerald-500/20"
+              : "bg-purple-500/10 border border-purple-500/20"
+          }`}>
             <div className="flex items-center gap-2 flex-wrap">
               <div className="flex items-center gap-1">{renderStars(activity.rating)}</div>
-              <span className="text-sm font-semibold text-white">{activity.rating.toFixed(1)}</span>
+              <span className="font-semibold">{activity.rating.toFixed(1)}</span>
               {activity?.reviewCount && (
-                <span className="text-xs text-zinc-400">({activity.reviewCount.toLocaleString()} reviews)</span>
+                <span className="text-sm text-zinc-400">
+                  ({activity.reviewCount.toLocaleString()} reviews)
+                </span>
               )}
             </div>
           </div>
@@ -217,6 +232,20 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
           </div>
         </div>
 
+        {isBookable && activity.preparation && (
+          <div className="mb-4 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+            <div className="flex items-start gap-2">
+              <Info className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-xs font-semibold text-blue-300 mb-1">
+                  Booking Info:
+                </p>
+                <p className="text-sm text-zinc-300">{activity.preparation}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="mb-3">
           <button
             onClick={() => toggleSection('bestFor')}
@@ -265,35 +294,59 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
           )}
         </div>
 
-        <div className="mb-4">
-          <button
-            onClick={() => toggleSection('preparation')}
-            className="w-full p-3 rounded-lg bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/20 hover:border-amber-500/40 transition-all duration-200 text-left"
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Lightbulb className="w-4 h-4 text-amber-400" aria-hidden="true" />
-                <span className="text-sm font-semibold text-amber-300">Preparation needed</span>
+        {!isBookable && (
+          <div className="mb-4">
+            <button
+              onClick={() => toggleSection('preparation')}
+              className="w-full p-3 rounded-lg bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/20 hover:border-amber-500/40 transition-all duration-200 text-left"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Lightbulb className="w-4 h-4 text-amber-400" aria-hidden="true" />
+                  <span className="text-sm font-semibold text-amber-300">Preparation needed</span>
+                </div>
+                {expandedSections.preparation ? (
+                  <ChevronUp className="w-4 h-4 text-amber-400" />
+                ) : (
+                  <ChevronDown className="w-4 h-4 text-amber-400" />
+                )}
               </div>
-              {expandedSections.preparation ? (
-                <ChevronUp className="w-4 h-4 text-amber-400" />
-              ) : (
-                <ChevronDown className="w-4 h-4 text-amber-400" />
-              )}
-            </div>
-          </button>
-          {expandedSections.preparation && (
-            <div className="mt-2 p-3 rounded-lg bg-amber-500/5 border border-amber-500/10 animate-in slide-in-from-top-2 duration-200">
-              <p className="text-sm text-zinc-200 leading-relaxed">{activity.preparation}</p>
-            </div>
-          )}
-        </div>
+            </button>
+            {expandedSections.preparation && (
+              <div className="mt-2 p-3 rounded-lg bg-amber-500/5 border border-amber-500/10 animate-in slide-in-from-top-2 duration-200">
+                <p className="text-sm text-zinc-200 leading-relaxed">{activity.preparation}</p>
+              </div>
+            )}
+          </div>
+        )}
 
-        <div className="flex gap-2">
+        {isBookable ? (
+          // Bookable activities: Show "Book on Viator" button with attribution
+          <div className="space-y-3">
+            <a
+              href={activity.viatorUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block w-full"
+            >
+              <Button className="w-full h-12 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-semibold transition-all duration-300 hover:scale-105 shadow-lg shadow-emerald-500/20">
+                <ExternalLink className="w-4 h-4 mr-2" aria-hidden="true" />
+                Book on Viator
+              </Button>
+            </a>
+            
+            {/* Viator Attribution */}
+            <div className="flex items-center justify-center gap-2 text-xs text-zinc-500 pt-2 border-t border-zinc-800">
+              <span>Powered by</span>
+              <span className="font-semibold text-emerald-400">Viator</span>
+            </div>
+          </div>
+        ) : (
+          // Inspiration activities: Show "Add to Shortlist" button
           <Button
             onClick={handleShortlist}
             variant="outline"
-            className={`flex-1 relative overflow-hidden ${
+            className={`w-full relative overflow-hidden ${
               isShortlisted
                 ? "bg-primary/20 border-primary text-primary hover:bg-primary/30"
                 : "bg-zinc-800/50 border-zinc-700 text-white hover:bg-zinc-800 hover:border-primary/50"
@@ -309,40 +362,9 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
                 <Check className="w-8 h-8 text-primary animate-in zoom-in duration-200" />
               </div>
             )}
-            <ActivityIcon className="w-4 h-4 mr-2" aria-hidden="true" />
-            {isShortlisted ? "Added" : "Add to Shortlist"}
+            <Heart className="w-4 h-4 mr-2" aria-hidden="true" />
+            {isShortlisted ? "Added to Shortlist" : "Add to Shortlist"}
           </Button>
-
-          {!activity.isInspiration && activity?.tripAdvisorUrl && (
-            <Button
-              onClick={() => window.open(activity.tripAdvisorUrl, "_blank", "noopener,noreferrer")}
-              variant="outline"
-              className="bg-zinc-800/50 border-zinc-700 text-white hover:bg-[#00AA6C]/20 hover:border-[#00AA6C] dark:hover:bg-[#84E9BD]/20 dark:hover:border-[#84E9BD] transition-all duration-200 focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-zinc-900"
-              aria-label={`View ${activityName} on TripAdvisor`}
-            >
-              <ExternalLink className="w-4 h-4" aria-hidden="true" />
-            </Button>
-          )}
-        </div>
-
-        {!activity.isInspiration && activity?.tripAdvisorUrl && (
-          <div className="mt-4 pt-4 border-t border-zinc-800/50 flex items-center justify-center gap-2">
-            <span className="text-[11px] text-zinc-600">Powered by</span>
-            <a
-              href="https://www.tripadvisor.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 hover:opacity-80 transition-opacity"
-              aria-label="TripAdvisor"
-            >
-              <span className="text-lg" role="img" aria-hidden="true">
-                🦉
-              </span>
-              <span className="text-[11px] font-semibold" style={{ color: "#34E0A1" }}>
-                TripAdvisor
-              </span>
-            </a>
-          </div>
         )}
       </div>
     </article>

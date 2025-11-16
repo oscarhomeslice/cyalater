@@ -21,6 +21,7 @@ export interface Activity {
   preparation: string
   tripAdvisorUrl?: string
   tripAdvisorId?: string
+  viatorUrl?: string // Added viatorUrl for bookable activities
   rating?: number
   reviewCount?: number
   tags?: string[]
