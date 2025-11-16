@@ -92,7 +92,12 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
 
   const activityName = activity.name || "Activity"
   const ActivityLevelIcon = activity?.activityLevel ? activityLevelConfig[activity.activityLevel]?.icon : Heart
-  const costDisplay = typeof activity.cost === 'number' ? `€${activity.cost}` : activity.cost || "TBD"
+  
+  const costDisplay = typeof activity.cost === 'number' 
+    ? `${activity.cost}` 
+    : (typeof activity.cost === 'string' && activity.cost.includes('€')) 
+      ? activity.cost.replace('€', '') 
+      : activity.cost || "TBD"
 
   const handleShortlist = () => {
     if (!isShortlisted) {
@@ -231,7 +236,7 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
           </button>
           {expandedSections.bestFor && (
             <div className="mt-2 p-3 rounded-lg bg-purple-500/5 border border-purple-500/10 animate-in slide-in-from-top-2 duration-200">
-              <p className="text-sm text-zinc-200 leading-relaxed">{activity.bestFor || "Great for groups"}</p>
+              <p className="text-sm text-zinc-200 leading-relaxed">{activity.bestFor}</p>
             </div>
           )}
         </div>
@@ -255,7 +260,7 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
           </button>
           {expandedSections.specialElement && (
             <div className="mt-2 p-3 rounded-lg bg-primary/5 border border-primary/10 animate-in slide-in-from-top-2 duration-200">
-              <p className="text-sm text-zinc-200 leading-relaxed">{activity.specialElement || "Unique group experience"}</p>
+              <p className="text-sm text-zinc-200 leading-relaxed">{activity.specialElement}</p>
             </div>
           )}
         </div>
@@ -279,7 +284,7 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
           </button>
           {expandedSections.preparation && (
             <div className="mt-2 p-3 rounded-lg bg-amber-500/5 border border-amber-500/10 animate-in slide-in-from-top-2 duration-200">
-              <p className="text-sm text-zinc-200 leading-relaxed">{activity.preparation || "No special preparation required"}</p>
+              <p className="text-sm text-zinc-200 leading-relaxed">{activity.preparation}</p>
             </div>
           )}
         </div>
