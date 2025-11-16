@@ -125,7 +125,11 @@ export async function POST(request: NextRequest) {
     } catch (parseError: any) {
       console.error("[Viator API] Failed to parse request body:", parseError.message)
       return NextResponse.json(
-        { success: false, error: "Invalid request body" },
+        { 
+          success: false, 
+          error: "Invalid request body",
+          errorDetails: parseError.message 
+        },
         { status: 400 }
       )
     }
@@ -271,40 +275,42 @@ export async function POST(request: NextRequest) {
     console.error("[Viator API] Request body was:", body ? JSON.stringify(body) : "null")
     console.error("[Viator API] ========================")
 
+    const errorResponse = {
+      success: false,
+      error: error.message || "Failed to search activities. Please try again.",
+      errorType: error.constructor.name,
+      debugInfo: {
+        hasApiKey: !!process.env.VIATOR_API_KEY,
+        apiKeyLength: process.env.VIATOR_API_KEY?.length || 0,
+        requestedLocation: body?.location || 'unknown',
+        requestedBudget: body?.budgetPerPerson || 'not provided',
+        requestedCurrency: body?.currency || 'not provided',
+        timestamp: new Date().toISOString()
+      }
+    }
+
     if (error.message?.includes("VIATOR_API_KEY") || error.message?.includes("API key")) {
       return NextResponse.json(
-        { success: false, error: "Viator API is not configured. Please contact support." },
+        { ...errorResponse, error: "Viator API is not configured. Please add VIATOR_API_KEY environment variable." },
         { status: 503 }
       )
     }
 
     if (error.message?.includes("Destination not found") || error.message?.includes("not found")) {
       return NextResponse.json(
-        { success: false, error: error.message },
+        { ...errorResponse, error: error.message },
         { status: 400 }
       )
     }
 
     if (error.message?.includes("Rate limit exceeded")) {
       return NextResponse.json(
-        { success: false, error: "Too many requests. Please try again later." },
+        { ...errorResponse, error: "Too many requests. Please try again later." },
         { status: 429 }
       )
     }
 
-    // Generic error with more details for debugging
-    return NextResponse.json(
-      { 
-        success: false, 
-        error: "Failed to search activities. Please try again.",
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined,
-        debugInfo: {
-          errorType: error.constructor.name,
-          hasApiKey: !!process.env.VIATOR_API_KEY,
-          requestedLocation: body?.location || 'unknown'
-        }
-      },
-      { status: 500 }
-    )
+    // Return detailed error response
+    return NextResponse.json(errorResponse, { status: 500 })
   }
 }

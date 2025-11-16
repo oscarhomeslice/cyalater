@@ -376,13 +376,30 @@ export default function Page() {
       
       console.log("[Page] Real activities response status:", response.status)
       
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || "Failed to find real activities")
-      }
-      
       const data = await response.json()
-      console.log("[Page] Real activities data:", data)
+      console.log("[Page] Real activities response data:", data)
+      
+      if (!response.ok) {
+        const errorDetails = []
+        if (data.errorType) errorDetails.push(`Error Type: ${data.errorType}`)
+        if (data.debugInfo) {
+          errorDetails.push(`API Key: ${data.debugInfo.hasApiKey ? 'Present' : 'Missing'}`)
+          if (data.debugInfo.apiKeyLength) errorDetails.push(`Key Length: ${data.debugInfo.apiKeyLength}`)
+          errorDetails.push(`Location: ${data.debugInfo.requestedLocation}`)
+          errorDetails.push(`Budget: ${data.debugInfo.requestedBudget}`)
+          errorDetails.push(`Currency: ${data.debugInfo.requestedCurrency}`)
+        }
+        
+        const fullErrorMessage = [
+          data.error || "Failed to find real activities",
+          "",
+          "Debug Information:",
+          ...errorDetails
+        ].join("\n")
+        
+        console.error("[Page] Detailed error:", fullErrorMessage)
+        throw new Error(fullErrorMessage)
+      }
       
       setRealActivitiesResults(data)
       setShowRealActivities(true)
@@ -402,7 +419,7 @@ export default function Page() {
     } catch (error: any) {
       console.error("[Page] Error finding real activities:", error)
       setRealActivitiesError(error.message)
-      showToast(error.message || "Failed to find real activities", "error")
+      showToast("Failed to find real activities - check console for details", "error")
     } finally {
       setIsSearchingReal(false)
     }
@@ -587,7 +604,10 @@ export default function Page() {
 
             {realActivitiesError && (
               <div className="mt-8 p-6 bg-red-500/10 border border-red-500/30 rounded-xl">
-                <p className="text-red-400">{realActivitiesError}</p>
+                <h3 className="font-semibold text-red-400 mb-2">Error Finding Real Activities</h3>
+                <pre className="text-sm text-red-300 whitespace-pre-wrap font-mono">
+                  {realActivitiesError}
+                </pre>
                 <Button
                   onClick={() => setRealActivitiesError(null)}
                   variant="outline"
