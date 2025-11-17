@@ -384,7 +384,32 @@ export default function Page() {
       const data = await response.json()
       console.log("[Page] Real activities response data:", data)
       
+      if (data.isEmpty) {
+        setShowRealActivities(true)
+        setRealActivitiesResults(data)
+        showToast("No exact matches - showing suggestions", "info")
+        
+        setTimeout(() => {
+          document.getElementById('real-activities')?.scrollIntoView({ 
+            behavior: 'smooth',
+            block: 'start'
+          })
+        }, 100)
+        return
+      }
+      
       if (!response.ok) {
+        if (response.status === 404 && data.step === "EMPTY_RESULTS") {
+          const message = data.error || `No activities found in ${locationToSearch}`
+          const suggestionsText = data.suggestions?.length > 0
+            ? `\n\nTry these destinations: ${data.suggestions.join(", ")}`
+            : ""
+          
+          setRealActivitiesError(message + suggestionsText)
+          showToast("No activities found - try a different location", "info")
+          return
+        }
+        
         if (data.errorType === "CONFIGURATION_ERROR") {
           const errorMessage = [
             data.error,

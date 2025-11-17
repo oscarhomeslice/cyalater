@@ -217,16 +217,34 @@ export async function POST(request: NextRequest) {
     console.log("[Viator API] STEP 6: Checking results...");
     if (!viatorResults.products || viatorResults.products.length === 0) {
       console.log("[Viator API] STEP 6: ✗ No products found");
-      return NextResponse.json(
-        {
-          success: false,
-          error: location 
-            ? `No activities found in ${location}. Try adjusting your search criteria.`
-            : "No activities found. Try being more specific.",
-          step: "EMPTY_RESULTS"
+      
+      const popularDestinations = await getPopularDestinations(5)
+      const budgetHint = minPrice && maxPrice
+        ? ` Most ${location} activities cost ${currency}${Math.round(maxPrice * 2)}+. Try increasing your budget.`
+        : ""
+      
+      return NextResponse.json({
+        success: true,  // Changed from false to handle gracefully
+        recommendations: {
+          activities: [],
+          proTips: [
+            `No activities found matching your criteria in ${location}.`,
+            `Try: Increase budget, adjust dates, or browse similar destinations.${budgetHint}`,
+            `Popular alternatives: ${popularDestinations.slice(0, 3).join(", ")}`
+          ],
+          refinementPrompts: popularDestinations.map(d => `Explore ${d}`)
         },
-        { status: 404 }
-      );
+        query: {
+          location: location || "Worldwide",
+          budget_per_person: budgetPerPerson,
+          currency: currency,
+          group_size: groupSize,
+          vibe: vibe
+        },
+        isEmpty: true,  // Flag to indicate no results
+        suggestions: popularDestinations,
+        isRealActivities: true
+      })
     }
     console.log("[Viator API] STEP 6: ✓ Results found:", viatorResults.products.length);
 
