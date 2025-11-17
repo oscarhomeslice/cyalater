@@ -104,6 +104,58 @@ function extractReadableTags(viatorTags: number[] | undefined): string[] {
 }
 
 export async function POST(request: NextRequest) {
+  console.log("====== VIATOR API REQUEST DEBUG ======")
+  
+  let body: RequestBody | null = null
+  
+  try {
+    body = await request.json()
+    
+    console.log("1. RAW REQUEST BODY:", JSON.stringify(body, null, 2))
+    console.log("2. ENVIRONMENT VARIABLES:")
+    console.log("   - API Key Present:", !!process.env.VIATOR_API_KEY)
+    console.log("   - API Key Value:", process.env.VIATOR_API_KEY)
+    console.log("   - Base URL:", process.env.VIATOR_API_BASE_URL || "https://api.viator.com/partner")
+    console.log("3. EXTRACTED PARAMETERS:")
+    console.log("   - location:", body.location)
+    console.log("   - budgetPerPerson:", body.budgetPerPerson)
+    console.log("   - currency:", body.currency)
+    console.log("   - groupSize:", body.groupSize)
+    console.log("   - vibe:", body.vibe)
+    
+    // Calculate what will be sent to Viator
+    const today = new Date()
+    const startDate = today.toISOString().split('T')[0]
+    const endDate = new Date(today.getTime() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    const minPrice = body.budgetPerPerson ? Math.floor(body.budgetPerPerson * 0.5) : undefined
+    const maxPrice = body.budgetPerPerson ? Math.ceil(body.budgetPerPerson * 1.5) : undefined
+    
+    console.log("4. CALCULATED SEARCH PARAMS:")
+    console.log("   - startDate:", startDate)
+    console.log("   - endDate:", endDate)
+    console.log("   - minPrice:", minPrice)
+    console.log("   - maxPrice:", maxPrice)
+    
+    const viatorSearchParams = {
+      destination: body.location || undefined,
+      minPrice: minPrice,
+      maxPrice: maxPrice,
+      currency: body.currency,
+      startDate: startDate,
+      endDate: endDate,
+      count: 50,
+      sort: "DEFAULT"
+    }
+    
+    console.log("5. VIATOR SEARCH PARAMS TO BE SENT:")
+    console.log(JSON.stringify(viatorSearchParams, null, 2))
+    console.log("======================================")
+  } catch (error) {
+    console.error("ERROR PARSING REQUEST BODY:", error)
+    throw error
+  }
+  // End of debug block
+
   console.log("[Viator API Route] ========== NEW REQUEST ==========")
   console.log("[Viator API Route] Timestamp:", new Date().toISOString())
   
@@ -111,8 +163,6 @@ export async function POST(request: NextRequest) {
   console.log("  - VIATOR_API_KEY present:", !!process.env.VIATOR_API_KEY)
   console.log("  - VIATOR_API_KEY length:", process.env.VIATOR_API_KEY?.length)
   console.log("  - VIATOR_API_BASE_URL:", process.env.VIATOR_API_BASE_URL)
-  
-  let body: RequestBody | null = null
   
   console.log("[Viator API] ===== NEW REQUEST STARTED =====")
   

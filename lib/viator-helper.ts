@@ -298,6 +298,12 @@ export async function getPopularDestinations(limit: number = 10): Promise<string
 
 // Search Viator products
 export async function searchViatorProducts(params: SearchViatorParams): Promise<SearchResult> {
+  console.log("====== VIATOR HELPER searchViatorProducts ======")
+  console.log("Received params:", JSON.stringify(params, null, 2))
+  console.log("VIATOR_BASE_URL:", VIATOR_BASE_URL)
+  console.log("Will build endpoint:", `${VIATOR_BASE_URL}/products/search`)
+  console.log("===============================================")
+  
   console.log("[Viator] ========== SEARCH PRODUCTS START ==========")
   console.log("[Viator] Input parameters:", JSON.stringify(params, null, 2))
   
@@ -373,6 +379,16 @@ export async function searchViatorProducts(params: SearchViatorParams): Promise<
   console.log("[Viator] Constructed request body:", JSON.stringify(requestBody, null, 2))
   console.log("[Viator] Full endpoint:", endpoint)
 
+  console.log("====== FINAL VIATOR API CALL ======")
+  console.log("Endpoint:", endpoint)
+  console.log("Method: POST")
+  console.log("Headers:", JSON.stringify({
+    ...REQUIRED_HEADERS,
+    "Content-Type": "application/json;version=2.0"
+  }, null, 2))
+  console.log("Request Body:", JSON.stringify(requestBody, null, 2))
+  console.log("===================================")
+
   try {
     // Log the request
     logApiRequest(endpoint, "POST", {
@@ -395,6 +411,15 @@ export async function searchViatorProducts(params: SearchViatorParams): Promise<
     console.log(`[Viator] Search response text (first 1000 chars):`, responseText.substring(0, 1000))
 
     if (!response.ok) {
+      const errorText = responseText
+      
+      console.log("====== VIATOR API ERROR ======")
+      console.log("Status:", response.status)
+      console.log("Status Text:", response.statusText)
+      console.log("Response Headers:", JSON.stringify(Object.fromEntries(response.headers.entries()), null, 2))
+      console.log("Response Body:", errorText)
+      console.log("==============================")
+      
       console.error(`[Viator] Search API error: ${response.status}`)
       logApiResponse(endpoint, response.status, response.headers, responseText)
       
