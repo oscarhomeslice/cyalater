@@ -118,10 +118,34 @@ export async function fetchDestinations(): Promise<Destination[]> {
     }
 
     const data = await response.json()
-    destinationsCache = data.destinations || []
+    
+    console.log(`[Viator] Raw API response structure:`, {
+      hasDestinations: !!data.destinations,
+      isArray: Array.isArray(data.destinations),
+      count: data.destinations?.length,
+      firstDestination: data.destinations?.[0],
+      totalCount: data.totalCount
+    })
+    
+    const rawDestinations = data.destinations || []
+    const validDestinations = rawDestinations.filter((d: any) => {
+      const isValid = d && 
+                      typeof d.destinationId === 'number' && 
+                      d.destinationName && 
+                      typeof d.destinationName === 'string' &&
+                      d.destinationName.trim() !== ''
+      
+      if (!isValid) {
+        console.warn("[Viator] Invalid destination object:", d)
+      }
+      
+      return isValid
+    })
+    
+    destinationsCache = validDestinations
     cacheTimestamp = now
 
-    console.log(`[Viator] Fetched ${destinationsCache.length} destinations successfully`)
+    console.log(`[Viator] Cached ${destinationsCache.length} valid destinations (filtered from ${rawDestinations.length} total)`)
     return destinationsCache
   } catch (error) {
     console.error("[Viator] Error fetching destinations:", error)
@@ -140,6 +164,11 @@ function normalizeText(text: string): string {
 
 // Find destination ID by location name
 export async function findDestinationId(locationName: string): Promise<number | null> {
+  if (!locationName || locationName.trim() === '') {
+    console.warn("[Viator] Empty location name provided")
+    return null
+  }
+
   let destinations = await fetchDestinations()
   
   if (destinations.length === 0) {
@@ -152,16 +181,38 @@ export async function findDestinationId(locationName: string): Promise<number | 
   console.log(`[Viator] Searching for destination: "${locationName}" (normalized: "${normalizedSearch}")`)
   console.log(`[Viator] Searching through ${destinations.length} destinations`)
 
-  let match = destinations.find(
-    dest => normalizeText(dest.destinationName) === normalizedSearch
-  )
+  // First try exact match with null safety
+  let match = destinations.find((d: any) => {
+    const name = d?.destinationName
+    if (!name || typeof name !== 'string') return false
+    return normalizeText(name) === normalizedSearch
+  })
 
-  // If no exact match, try partial match with normalization
+  // If no exact match, try partial match with null safety
   if (!match) {
-    match = destinations.find(
-      dest => normalizeText(dest.destinationName).includes(normalizedSearch) ||
-              normalizedSearch.includes(normalizeText(dest.destinationName))
-    )
+    match = destinations.find((d: any) => {
+      const name = d?.destinationName
+      if (!name || typeof name !== 'string') return false
+      
+      const normalized = normalizeText(name)
+      return normalized.includes(normalizedSearch) || normalizedSearch.includes(normalized)
+    })
+  }
+  
+  if (!match) {
+    match = destinations.find((d: any) => {
+      const name = d?.destinationName
+      if (!name || typeof name !== 'string') return false
+      
+      const nameWords = normalizeText(name).split(/\s+/)
+      const searchWords = normalizedSearch.split(/\s+/)
+      
+      return searchWords.some(searchWord => 
+        nameWords.some(nameWord => 
+          nameWord.includes(searchWord) || searchWord.includes(nameWord)
+        )
+      )
+    })
   }
 
   if (match) {
@@ -170,9 +221,11 @@ export async function findDestinationId(locationName: string): Promise<number | 
   }
 
   console.warn(`[Viator] No destination found for: "${locationName}"`)
-  console.log(`[Viator] First 10 available destinations:`, 
-    destinations.slice(0, 10).map(d => d.destinationName).join(", ")
-  )
+  const sampleDestinations = destinations
+    .slice(0, 10)
+    .map(d => d?.destinationName)
+    .filter(Boolean)
+  console.log(`[Viator] Sample available destinations:`, sampleDestinations.join(", "))
   
   return null
 }
@@ -185,12 +238,22 @@ export async function getPopularDestinations(limit: number = 10): Promise<string
     destinations = COMMON_DESTINATIONS
   }
   
-  const popular = destinations
-    .filter(dest => dest.destinationType === "CITY" || dest.destinationType === "COUNTRY")
-    .slice(0, limit)
-    .map(dest => dest.destinationName)
+  const validDestinations = destinations.filter((d: any) => 
+    d?.destinationName && 
+    typeof d.destinationName === 'string' &&
+    d.destinationName.trim() !== ''
+  )
+  
+  // Prefer cities, then countries
+  const cities = validDestinations.filter((d: any) => d.destinationType === "CITY")
+  const countries = validDestinations.filter((d: any) => d.destinationType === "COUNTRY")
+  
+  const popular = [
+    ...cities.slice(0, Math.min(limit, cities.length)),
+    ...countries.slice(0, Math.max(0, limit - cities.length))
+  ].slice(0, limit)
 
-  return popular
+  return popular.map((d: any) => d.destinationName)
 }
 
 // Search Viator products

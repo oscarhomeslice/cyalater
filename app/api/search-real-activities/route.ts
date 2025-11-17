@@ -297,9 +297,9 @@ export async function POST(request: NextRequest) {
     console.error("[Viator API] Request body:", body ? JSON.stringify(body, null, 2) : "null")
     console.error("[Viator API] ====================")
 
-    return NextResponse.json({
+    const errorResponse = {
       success: false,
-      error: error.message || "Failed to search activities",
+      error: error.message || "Failed to search activities. Please try again.",
       errorType: error.constructor.name,
       step: "UNKNOWN",
       debugInfo: {
@@ -310,6 +310,12 @@ export async function POST(request: NextRequest) {
         currency: body?.currency,
         timestamp: new Date().toISOString()
       }
-    }, { status: 500 })
+    }
+    
+    if (error.message?.includes("not found") || error.message?.includes("Try")) {
+      return NextResponse.json(errorResponse, { status: 400 })
+    }
+    
+    return NextResponse.json(errorResponse, { status: 500 })
   }
 }
