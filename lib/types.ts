@@ -80,6 +80,8 @@ export interface ActivitySearchFormData {
   locationMode: "have-location" | "surprise-me" // Updated options
   location?: string // Optional, depends on locationMode
   vibe?: string // Optional
+  category?: string // Optional activity category filter
+  freeCancellation?: boolean // Optional free cancellation filter
 }
 
 export interface FormValidation {

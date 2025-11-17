@@ -1,13 +1,15 @@
 "use client"
 
 import type React from "react"
+import { useState } from "react"
 import { useActivityForm } from "@/lib/hooks/useActivityForm"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { AlertCircle, MapPin, Sparkles } from 'lucide-react'
+import { Switch } from "@/components/ui/switch"
+import { AlertCircle, MapPin, Sparkles, Check } from 'lucide-react'
 
 export interface ActivitySearchFormData {
   groupSize: string
@@ -16,6 +18,8 @@ export interface ActivitySearchFormData {
   locationMode: "have-location" | "surprise-me"
   location?: string
   vibe?: string
+  category?: string
+  freeCancellation: boolean
 }
 
 interface ActivitySearchFormProps {
@@ -25,6 +29,9 @@ interface ActivitySearchFormProps {
 
 export function ActivitySearchForm({ onSubmit, isLoading = false }: ActivitySearchFormProps) {
   const { formData, errors, currentInspirations, updateField, validate, refreshInspirations, reset } = useActivityForm()
+  
+  const [selectedCategory, setSelectedCategory] = useState<string>("all")
+  const [freeCancellation, setFreeCancellation] = useState(false)
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -40,6 +47,8 @@ export function ActivitySearchForm({ onSubmit, isLoading = false }: ActivitySear
       locationMode: formData.locationMode as "have-location" | "surprise-me",
       location: formData.locationMode === "have-location" ? formData.location : undefined,
       vibe: formData.vibe || undefined,
+      category: selectedCategory !== "all" ? selectedCategory : undefined,
+      freeCancellation: freeCancellation
     }
 
     console.log("[v0] Submitting form data:", submissionData)
@@ -195,6 +204,55 @@ export function ActivitySearchForm({ onSubmit, isLoading = false }: ActivitySear
             placeholder="e.g., adventurous, relaxing, team bonding"
             disabled={isLoading}
             className="w-full bg-black/50 border-zinc-700 text-white placeholder:text-zinc-500 hover:border-primary/50 focus:border-primary transition-all duration-300 h-12"
+          />
+        </div>
+
+        {/* Activity Category selector */}
+        <div className="space-y-3">
+          <Label htmlFor="category" className="text-sm font-medium text-zinc-300">
+            Activity Type <span className="text-zinc-500 text-xs">(optional)</span>
+          </Label>
+          <Select
+            value={selectedCategory}
+            onValueChange={(value) => setSelectedCategory(value)}
+            disabled={isLoading}
+          >
+            <SelectTrigger
+              id="category"
+              className="w-full bg-black/50 border-zinc-700 text-white hover:border-primary/50 focus:border-primary transition-all duration-300 h-12"
+            >
+              <SelectValue placeholder="All activities" />
+            </SelectTrigger>
+            <SelectContent className="bg-zinc-900 border-zinc-700">
+              <SelectItem value="all">All Activities</SelectItem>
+              <SelectItem value="food-wine">🍷 Food & Wine</SelectItem>
+              <SelectItem value="outdoor">🏔️ Outdoor Adventures</SelectItem>
+              <SelectItem value="cultural">🎭 Cultural Experiences</SelectItem>
+              <SelectItem value="water">🌊 Water Activities</SelectItem>
+              <SelectItem value="adventure">⚡ Adventure & Sports</SelectItem>
+              <SelectItem value="workshops">🎨 Classes & Workshops</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Free Cancellation Toggle */}
+        <div className="flex items-center justify-between p-4 bg-zinc-800/30 rounded-xl border border-zinc-700/50 hover:border-zinc-600/50 transition-all duration-300">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
+              <Check className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <Label htmlFor="free-cancel" className="text-sm font-medium cursor-pointer text-zinc-200">
+                Free Cancellation
+              </Label>
+              <p className="text-xs text-zinc-500">Only show activities with flexible cancellation</p>
+            </div>
+          </div>
+          <Switch
+            id="free-cancel"
+            checked={freeCancellation}
+            onCheckedChange={setFreeCancellation}
+            disabled={isLoading}
           />
         </div>
 
