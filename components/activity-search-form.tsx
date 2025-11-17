@@ -188,21 +188,6 @@ export function ActivitySearchForm({ onSubmit, isLoading = false }: ActivitySear
           )}
         </div>
 
-        {/* Vibe */}
-        <div className="space-y-3">
-          <Label htmlFor="vibe" className="text-sm font-medium text-zinc-300">
-            What's the vibe? <span className="text-zinc-500 text-xs">(optional)</span>
-          </Label>
-          <Input
-            id="vibe"
-            value={formData.vibe || ""}
-            onChange={(e) => updateField("vibe", e.target.value)}
-            placeholder="e.g., adventurous, relaxing, team bonding"
-            disabled={isLoading}
-            className="w-full bg-black/50 border-zinc-700 text-white placeholder:text-zinc-500 hover:border-primary/50 focus:border-primary transition-all duration-300 h-12"
-          />
-        </div>
-
         {/* Activity Category selector */}
         <div className="space-y-3">
           <Label htmlFor="category" className="text-sm font-medium text-zinc-300">
@@ -229,6 +214,21 @@ export function ActivitySearchForm({ onSubmit, isLoading = false }: ActivitySear
               <SelectItem value="workshops">🎨 Classes & Workshops</SelectItem>
             </SelectContent>
           </Select>
+        </div>
+
+        {/* Vibe */}
+        <div className="space-y-3">
+          <Label htmlFor="vibe" className="text-sm font-medium text-zinc-300">
+            What's the vibe? <span className="text-zinc-500 text-xs">(optional)</span>
+          </Label>
+          <Input
+            id="vibe"
+            value={formData.vibe || ""}
+            onChange={(e) => updateField("vibe", e.target.value)}
+            placeholder="e.g., adventurous, relaxing, team bonding"
+            disabled={isLoading}
+            className="w-full bg-black/50 border-zinc-700 text-white placeholder:text-zinc-500 hover:border-primary/50 focus:border-primary transition-all duration-300 h-12"
+          />
         </div>
 
         {/* Submit Button */}
