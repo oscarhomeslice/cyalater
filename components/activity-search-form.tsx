@@ -8,8 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Switch } from "@/components/ui/switch"
-import { AlertCircle, MapPin, Sparkles, Check } from 'lucide-react'
+import { AlertCircle, MapPin, Sparkles } from 'lucide-react'
 
 export interface ActivitySearchFormData {
   groupSize: string
@@ -19,7 +18,6 @@ export interface ActivitySearchFormData {
   location?: string
   vibe?: string
   category?: string
-  freeCancellation: boolean
 }
 
 interface ActivitySearchFormProps {
@@ -31,7 +29,6 @@ export function ActivitySearchForm({ onSubmit, isLoading = false }: ActivitySear
   const { formData, errors, currentInspirations, updateField, validate, refreshInspirations, reset } = useActivityForm()
   
   const [selectedCategory, setSelectedCategory] = useState<string>("all")
-  const [freeCancellation, setFreeCancellation] = useState(false)
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -48,7 +45,6 @@ export function ActivitySearchForm({ onSubmit, isLoading = false }: ActivitySear
       location: formData.locationMode === "have-location" ? formData.location : undefined,
       vibe: formData.vibe || undefined,
       category: selectedCategory !== "all" ? selectedCategory : undefined,
-      freeCancellation: freeCancellation
     }
 
     console.log("[v0] Submitting form data:", submissionData)
@@ -233,27 +229,6 @@ export function ActivitySearchForm({ onSubmit, isLoading = false }: ActivitySear
               <SelectItem value="workshops">🎨 Classes & Workshops</SelectItem>
             </SelectContent>
           </Select>
-        </div>
-
-        {/* Free Cancellation Toggle */}
-        <div className="flex items-center justify-between p-4 bg-zinc-800/30 rounded-xl border border-zinc-700/50 hover:border-zinc-600/50 transition-all duration-300">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-              <Check className="w-5 h-5 text-primary" />
-            </div>
-            <div>
-              <Label htmlFor="free-cancel" className="text-sm font-medium cursor-pointer text-zinc-200">
-                Free Cancellation
-              </Label>
-              <p className="text-xs text-zinc-500">Only show activities with flexible cancellation</p>
-            </div>
-          </div>
-          <Switch
-            id="free-cancel"
-            checked={freeCancellation}
-            onCheckedChange={setFreeCancellation}
-            disabled={isLoading}
-          />
         </div>
 
         {/* Submit Button */}
