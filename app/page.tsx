@@ -11,6 +11,7 @@ import { ActivitySearchForm, type ActivitySearchFormData } from "@/components/ac
 import { ActivityResults } from "@/components/activity-results"
 import { Button } from "@/components/ui/button"
 import { ShortlistViewer } from "@/components/shortlist-viewer"
+import { EmptySearchResults } from "@/components/empty-search-results"
 
 const loadingMessages = [
   "Generating inspired ideas...",
@@ -613,7 +614,22 @@ export default function Page() {
               shortlistedIds={shortlistedIds}
             />
 
-            {showRealActivities && realActivitiesResults && (
+            {showRealActivities && realActivitiesResults?.isEmpty && (
+              <div id="real-activities" className="mt-16 pt-16 border-t border-zinc-800">
+                <EmptySearchResults
+                  location={realActivitiesResults.query?.location || "this location"}
+                  suggestions={realActivitiesResults.suggestions || []}
+                  budgetHint={
+                    realActivitiesResults.query?.budget_per_person
+                      ? `Most activities here cost ${realActivitiesResults.query.currency}${Math.round(Number(realActivitiesResults.query.budget_per_person) * 2)}+`
+                      : undefined
+                  }
+                  onSelectDestination={(dest) => handleFindRealActivities(dest)}
+                />
+              </div>
+            )}
+
+            {showRealActivities && realActivitiesResults && !realActivitiesResults.isEmpty && (
               <div id="real-activities" className="mt-16 pt-16 border-t border-zinc-800">
                 <div className="text-center mb-12">
                   <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 border border-primary/30 rounded-full mb-4">
