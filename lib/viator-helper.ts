@@ -1,8 +1,30 @@
 // Viator API Helper
 // Handles all Viator API interactions including destination lookup and product search
 
-const VIATOR_API_BASE_URL = process.env.VIATOR_API_BASE_URL?.replace(/\/partner$/, '') + "/partner" || "https://api.viator.com/partner"
+const VIATOR_BASE_URL = process.env.VIATOR_API_BASE_URL?.replace(/\/partner$/, '') + "/partner" || "https://api.viator.com/partner"
 const VIATOR_API_KEY = process.env.VIATOR_API_KEY
+
+console.log("[Viator] Module loaded with configuration:")
+console.log("[Viator] Base URL:", VIATOR_BASE_URL)
+console.log("[Viator] API Key present:", !!VIATOR_API_KEY)
+console.log("[Viator] API Key length:", VIATOR_API_KEY?.length)
+console.log("[Viator] API Key first 8 chars:", VIATOR_API_KEY?.substring(0, 8) + "...")
+
+if (!VIATOR_API_KEY) {
+  console.error("[Viator] WARNING: VIATOR_API_KEY environment variable is not set!")
+}
+
+const REQUIRED_HEADERS = {
+  "exp-api-key": VIATOR_API_KEY!,
+  "Accept-Language": "en-US",
+  "Accept": "application/json;version=2.0"
+}
+
+console.log("[Viator] Request headers configured:", {
+  hasApiKey: !!REQUIRED_HEADERS["exp-api-key"],
+  acceptLanguage: REQUIRED_HEADERS["Accept-Language"],
+  accept: REQUIRED_HEADERS["Accept"]
+})
 
 // Cache configuration
 const CACHE_DURATION = 7 * 24 * 60 * 60 * 1000 // 7 days in milliseconds
@@ -88,55 +110,71 @@ function getHeaders(includeContentType = false): HeadersInit {
 // Fetch all destinations from Viator API
 export async function fetchDestinations(): Promise<Destination[]> {
   const now = Date.now()
-  const cacheAge = now - cacheTimestamp
-
-  // Return cached data if less than 7 days old
-  if (destinationsCache.length > 0 && cacheAge < CACHE_DURATION) {
-    console.log(`[Viator] Using cached destinations (age: ${Math.round(cacheAge / (1000 * 60 * 60))} hours)`)
+  
+  // Return cached data if still valid
+  if (destinationsCache.length > 0 && (now - cacheTimestamp) < CACHE_DURATION) {
+    console.log("[Viator] Using cached destinations:", destinationsCache.length)
     return destinationsCache
   }
 
+  const endpoint = `${VIATOR_BASE_URL}/destinations`
   console.log("[Viator] Fetching fresh destinations from API")
-
+  console.log("[Viator] Base URL:", VIATOR_BASE_URL)
+  console.log("[Viator] Full endpoint:", endpoint)
+  
   try {
-    const response = await fetch(`${VIATOR_API_BASE_URL}/destinations`, {
+    // Log the request
+    logApiRequest(endpoint, "GET", REQUIRED_HEADERS)
+    
+    const response = await fetch(endpoint, {
       method: "GET",
-      headers: getHeaders()
+      headers: REQUIRED_HEADERS
     })
 
-    console.log(`[Viator] Destinations API response status: ${response.status}`)
+    // Get response text first for debugging
+    const responseText = await response.text()
+    console.log(`[Viator] Raw response status: ${response.status}`)
+    console.log(`[Viator] Raw response text (first 500 chars):`, responseText.substring(0, 500))
 
     if (!response.ok) {
-      const errorText = await response.text()
-      console.warn(`[Viator] Destinations fetch failed:`, {
-        status: response.status,
-        statusText: response.statusText,
-        body: errorText
-      })
-      // Return cached data even if expired, or fallback to common destinations
+      console.error(`[Viator] Destinations API error: ${response.status}`)
+      logApiResponse(endpoint, response.status, response.headers, responseText)
+      
+      // Return cached or fallback data
       return destinationsCache.length > 0 ? destinationsCache : COMMON_DESTINATIONS
     }
 
-    const data = await response.json()
+    // Parse the response
+    let data
+    try {
+      data = JSON.parse(responseText)
+    } catch (parseError) {
+      console.error("[Viator] Failed to parse JSON response:", parseError)
+      console.error("[Viator] Response text:", responseText)
+      return destinationsCache.length > 0 ? destinationsCache : COMMON_DESTINATIONS
+    }
     
-    console.log(`[Viator] Raw API response structure:`, {
+    logApiResponse(endpoint, response.status, response.headers, data)
+    
+    console.log(`[Viator] Response data structure:`, {
       hasDestinations: !!data.destinations,
       isArray: Array.isArray(data.destinations),
       count: data.destinations?.length,
-      firstDestination: data.destinations?.[0],
-      totalCount: data.totalCount
+      totalCount: data.totalCount,
+      firstDestinationSample: data.destinations?.[0]
     })
     
+    // Validate and filter destinations
     const rawDestinations = data.destinations || []
-    const validDestinations = rawDestinations.filter((d: any) => {
+    const validDestinations = rawDestinations.filter((d: any, index: number) => {
       const isValid = d && 
                       typeof d.destinationId === 'number' && 
                       d.destinationName && 
                       typeof d.destinationName === 'string' &&
                       d.destinationName.trim() !== ''
       
-      if (!isValid) {
-        console.warn("[Viator] Invalid destination object:", d)
+      if (!isValid && index < 5) {
+        console.warn("[Viator] Invalid destination object at index", index, ":", d)
       }
       
       return isValid
@@ -144,12 +182,14 @@ export async function fetchDestinations(): Promise<Destination[]> {
     
     destinationsCache = validDestinations
     cacheTimestamp = now
-
-    console.log(`[Viator] Cached ${destinationsCache.length} valid destinations (filtered from ${rawDestinations.length} total)`)
+    
+    console.log(`[Viator] Successfully cached ${destinationsCache.length} valid destinations (from ${rawDestinations.length} raw)`)
+    
     return destinationsCache
-  } catch (error) {
+  } catch (error: any) {
     console.error("[Viator] Error fetching destinations:", error)
-    // Return cached data even if expired, or fallback to common destinations
+    console.error("[Viator] Error stack:", error.stack)
+    // Return cached data even if expired, or fallback
     return destinationsCache.length > 0 ? destinationsCache : COMMON_DESTINATIONS
   }
 }
@@ -258,131 +298,149 @@ export async function getPopularDestinations(limit: number = 10): Promise<string
 
 // Search Viator products
 export async function searchViatorProducts(params: SearchViatorParams): Promise<SearchResult> {
-  console.log("[Viator] Searching products with params:", params)
-
-  if (!VIATOR_API_KEY) {
-    throw new Error("VIATOR_API_KEY environment variable is not set")
-  }
-
-  if (!params.destination) {
-    throw new Error("Destination is required for Viator product search")
-  }
-
-  // Convert destination name to ID
-  const destinationId = await findDestinationId(params.destination)
+  console.log("[Viator] ========== SEARCH PRODUCTS START ==========")
+  console.log("[Viator] Input parameters:", JSON.stringify(params, null, 2))
   
-  if (!destinationId) {
-    const suggestions = await getPopularDestinations(5)
-    throw new Error(
-      `Destination "${params.destination}" not found. Try one of these popular destinations: ${suggestions.join(", ")}`
-    )
-  }
-
-  // Build request body following Viator API specification
-  const requestBody: any = {
-    filtering: {
-      destination: destinationId.toString() // Must be string per API spec
-    },
-    currency: params.currency || "USD",
-    pagination: {
-      start: 1,
-      count: Math.min(params.count || 50, 50) // Enforce 50 max per Viator docs
+  let destinationId: number | null = null
+  
+  // Convert location name to ID if provided
+  if (params.destination) {
+    console.log(`[Viator] Looking up destination ID for: "${params.destination}"`)
+    try {
+      destinationId = await findDestinationId(params.destination)
+      
+      if (!destinationId) {
+        console.error(`[Viator] Destination lookup failed for: "${params.destination}"`)
+        const suggestions = await getPopularDestinations(5)
+        const errorMessage = suggestions.length > 0
+          ? `Destination "${params.destination}" not found. Try: ${suggestions.join(", ")}`
+          : `Destination "${params.destination}" not found. Please try a different location.`
+        
+        throw new Error(errorMessage)
+      }
+      
+      console.log(`[Viator] Destination ID found: ${destinationId}`)
+    } catch (error: any) {
+      console.error("[Viator] Error in destination lookup:", error)
+      throw error
     }
   }
 
-  if (params.sortOrder) {
-    requestBody.sortOrder = params.sortOrder
-  } else {
-    requestBody.sortOrder = "DEFAULT" // Use Viator's featured product ranking
+  // Build request body
+  const requestBody: any = {
+    filtering: {
+      destination: destinationId?.toString(),
+      includeAutomaticTranslations: true
+    },
+    sorting: {
+      sort: params.sortOrder || "DEFAULT",
+      order: "DESCENDING"
+    },
+    pagination: {
+      start: 1,
+      count: Math.min(params.count || 50, 50)
+    },
+    currency: params.currency
   }
 
-  // Optional filters
-  if (params.minPrice !== undefined && params.maxPrice !== undefined) {
-    requestBody.filtering.lowestPrice = params.minPrice
-    requestBody.filtering.highestPrice = params.maxPrice
+  // Add optional filters
+  if (params.minPrice !== undefined) {
+    requestBody.filtering.lowestPrice = Math.floor(params.minPrice)
   }
-
-  if (params.startDate && params.endDate) {
+  
+  if (params.maxPrice !== undefined) {
+    requestBody.filtering.highestPrice = Math.ceil(params.maxPrice)
+  }
+  
+  if (params.startDate) {
     requestBody.filtering.startDate = params.startDate
+  }
+  
+  if (params.endDate) {
     requestBody.filtering.endDate = params.endDate
   }
-
+  
+  if (params.tags && params.tags.length > 0) {
+    requestBody.filtering.tags = params.tags
+  }
+  
   if (params.confirmationType) {
     requestBody.filtering.confirmationType = params.confirmationType
   }
 
-  if (params.tags && params.tags.length > 0) {
-    requestBody.filtering.tags = params.tags
-  }
-
-  console.log("[Viator] Request body:", JSON.stringify(requestBody, null, 2))
+  const endpoint = `${VIATOR_BASE_URL}/products/search`
+  
+  console.log("[Viator] Constructed request body:", JSON.stringify(requestBody, null, 2))
+  console.log("[Viator] Full endpoint:", endpoint)
 
   try {
-    const response = await fetch(`${VIATOR_API_BASE_URL}/products/search`, {
+    // Log the request
+    logApiRequest(endpoint, "POST", {
+      ...REQUIRED_HEADERS,
+      "Content-Type": "application/json;version=2.0"
+    }, requestBody)
+    
+    const response = await fetch(endpoint, {
       method: "POST",
-      headers: getHeaders(true),
+      headers: {
+        ...REQUIRED_HEADERS,
+        "Content-Type": "application/json;version=2.0"
+      },
       body: JSON.stringify(requestBody)
     })
 
-    console.log(`[Viator] Search response status: ${response.status}`)
-    
+    // Get response text first
     const responseText = await response.text()
-
-    if (response.status === 429) {
-      throw new Error("Rate limit exceeded. Please try again in a moment.")
-    }
-
-    if (response.status === 401 || response.status === 403) {
-      console.error("[Viator] Authentication error. Check API key configuration")
-      throw new Error("Invalid or missing API key. Please check your Viator API configuration.")
-    }
+    console.log(`[Viator] Search response status: ${response.status}`)
+    console.log(`[Viator] Search response text (first 1000 chars):`, responseText.substring(0, 1000))
 
     if (!response.ok) {
-      console.error("[Viator] API error response:", {
-        status: response.status,
-        statusText: response.statusText,
-        body: responseText.substring(0, 500)
-      })
+      console.error(`[Viator] Search API error: ${response.status}`)
+      logApiResponse(endpoint, response.status, response.headers, responseText)
       
-      let errorData: any = {}
-      try {
-        errorData = JSON.parse(responseText)
-      } catch {
-        // Error response is not JSON
+      if (response.status === 404) {
+        console.error("[Viator] 404 Error - Endpoint not found")
+        console.error("[Viator] Check that the endpoint URL is correct:", endpoint)
+        console.error("[Viator] Check that your API key has access to this endpoint")
       }
       
-      const errorMessage = errorData.message || errorData.error || `API request failed with status ${response.status}`
-      throw new Error(errorMessage)
+      if (response.status === 429) {
+        throw new Error("Rate limit exceeded. Please try again in a moment.")
+      }
+      
+      if (response.status === 401) {
+        console.error("[Viator] Authentication failed - check API key")
+        throw new Error("Invalid API key")
+      }
+      
+      throw new Error(`Viator API error: ${response.status}`)
     }
 
-    let data: any = {}
+    // Parse response
+    let data
     try {
       data = JSON.parse(responseText)
     } catch (parseError) {
-      console.error("[Viator] Failed to parse successful response:", parseError)
-      throw new Error("Invalid JSON response from Viator API")
+      console.error("[Viator] Failed to parse search response JSON:", parseError)
+      console.error("[Viator] Response text:", responseText)
+      throw new Error("Invalid JSON response from Viator search API")
     }
-
-    const products = data.products || []
-    const totalCount = data.totalCount || 0
-
-    console.log(`[Viator] Found ${totalCount} total products, returning ${products.length} in this batch`)
-
+    
+    logApiResponse(endpoint, response.status, response.headers, data)
+    
+    console.log(`[Viator] Search successful - found ${data.totalCount} total products, returning ${data.products?.length || 0}`)
+    console.log("[Viator] ========== SEARCH PRODUCTS END ==========")
+    
     return {
-      products,
-      totalCount
+      products: data.products || [],
+      totalCount: data.totalCount || 0
     }
-  } catch (error) {
-    if (error instanceof Error) {
-      console.error("[Viator] Search error:", {
-        message: error.message,
-        destination: params.destination,
-        destinationId: destinationId
-      })
-      throw error
-    }
-    console.error("[Viator] Unexpected search error:", error)
-    throw new Error("Failed to search Viator products. Please try again.")
+  } catch (error: any) {
+    console.error("[Viator] ========== SEARCH ERROR ==========")
+    console.error("[Viator] Error message:", error.message)
+    console.error("[Viator] Error stack:", error.stack)
+    console.error("[Viator] ======================================")
+    throw error
   }
 }
 
@@ -391,9 +449,9 @@ export async function getProductDetails(productCode: string): Promise<ViatorProd
   console.log(`[Viator] Fetching product details for: ${productCode}`)
 
   try {
-    const response = await fetch(`${VIATOR_API_BASE_URL}/products/${productCode}`, {
+    const response = await fetch(`${VIATOR_BASE_URL}/products/${productCode}`, {
       method: "GET",
-      headers: getHeaders()
+      headers: REQUIRED_HEADERS
     })
 
     if (!response.ok) {
@@ -427,4 +485,36 @@ export const QUALITY_TAGS = {
   UNIQUE_EXPERIENCES: 21074,
   BEST_VALUE: 6226,
   VIATOR_PLUS: 21971
+}
+
+/**
+ * Log API request details for debugging
+ */
+function logApiRequest(endpoint: string, method: string, headers: any, body?: any) {
+  console.log(`[Viator API] ========== REQUEST ==========`)
+  console.log(`[Viator API] Endpoint: ${method} ${endpoint}`)
+  console.log(`[Viator API] Headers:`, JSON.stringify(headers, null, 2))
+  if (body) {
+    console.log(`[Viator API] Body:`, JSON.stringify(body, null, 2))
+  }
+  console.log(`[Viator API] ================================`)
+}
+
+/**
+ * Log API response details for debugging
+ */
+function logApiResponse(endpoint: string, status: number, headers: any, body?: any) {
+  console.log(`[Viator API] ========== RESPONSE ==========`)
+  console.log(`[Viator API] Endpoint: ${endpoint}`)
+  console.log(`[Viator API] Status: ${status}`)
+  console.log(`[Viator API] Headers:`, {
+    'content-type': headers.get('content-type'),
+    'x-unique-id': headers.get('x-unique-id'),
+    'ratelimit-limit': headers.get('ratelimit-limit'),
+    'ratelimit-remaining': headers.get('ratelimit-remaining')
+  })
+  if (body) {
+    console.log(`[Viator API] Body:`, JSON.stringify(body, null, 2))
+  }
+  console.log(`[Viator API] =================================`)
 }

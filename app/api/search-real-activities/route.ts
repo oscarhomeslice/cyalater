@@ -104,6 +104,14 @@ function extractReadableTags(viatorTags: number[] | undefined): string[] {
 }
 
 export async function POST(request: NextRequest) {
+  console.log("[Viator API Route] ========== NEW REQUEST ==========")
+  console.log("[Viator API Route] Timestamp:", new Date().toISOString())
+  
+  console.log("[Viator API Route] Environment check:")
+  console.log("  - VIATOR_API_KEY present:", !!process.env.VIATOR_API_KEY)
+  console.log("  - VIATOR_API_KEY length:", process.env.VIATOR_API_KEY?.length)
+  console.log("  - VIATOR_API_BASE_URL:", process.env.VIATOR_API_BASE_URL)
+  
   let body: RequestBody | null = null
   
   console.log("[Viator API] ===== NEW REQUEST STARTED =====")
@@ -122,15 +130,16 @@ export async function POST(request: NextRequest) {
         { status: 503 }
       )
     }
-    console.log("[Viator API] STEP 1: API key exists ✓")
+    console.log("[Viator API] STEP 1: ✓ API key exists")
 
     // Step 2: Parse request body
     console.log("[Viator API] STEP 2: Parsing request body...")
     try {
       body = await request.json()
-      console.log("[Viator API] STEP 2: Body parsed successfully ✓", JSON.stringify(body, null, 2))
+      console.log("[Viator API] STEP 2: ✓ Body parsed successfully")
+      console.log("[Viator API Route] Request body:", JSON.stringify(body, null, 2))
     } catch (parseError: any) {
-      console.error("[Viator API] STEP 2: Parse failed ✗", parseError.message)
+      console.error("[Viator API] STEP 2: ✗ Parse failed", parseError.message)
       return NextResponse.json(
         { 
           success: false, 
@@ -147,21 +156,21 @@ export async function POST(request: NextRequest) {
     // Step 3: Validate location
     console.log("[Viator API] STEP 3: Validating location...")
     if (!location) {
-      console.warn("[Viator API] STEP 3: No location provided ✗")
+      console.warn("[Viator API] STEP 3: ✗ No location provided")
       return NextResponse.json(
         { success: false, error: "Location is required to search real activities", step: "LOCATION_VALIDATION" },
         { status: 400 }
       )
     }
-    console.log("[Viator API] STEP 3: Location valid ✓:", location)
+    console.log("[Viator API] STEP 3: ✓ Location valid:", location)
 
     // Step 4: Build search parameters
     console.log("[Viator API] STEP 4: Building search parameters...")
     const searchParams: any = {
       destination: location,
       currency: currency || "USD",
-      count: 50, // Increased to 50 per Viator real-time search guidelines
-      sortOrder: "DEFAULT" // Use Viator's featured product ranking
+      count: 50,
+      sortOrder: "DEFAULT"
     }
 
     if (budgetPerPerson && !isNaN(Number(budgetPerPerson))) {
@@ -177,16 +186,16 @@ export async function POST(request: NextRequest) {
     searchParams.startDate = today.toISOString().split('T')[0]
     searchParams.endDate = endDate.toISOString().split('T')[0]
     
-    console.log("[Viator API] STEP 4: Search params built ✓:", JSON.stringify(searchParams, null, 2))
+    console.log("[Viator API] STEP 4: ✓ Search params built:", JSON.stringify(searchParams, null, 2))
 
     // Step 5: Call Viator API
     console.log("[Viator API] STEP 5: Calling searchViatorProducts...")
     let viatorResults: any
     try {
       viatorResults = await searchViatorProducts(searchParams)
-      console.log("[Viator API] STEP 5: Viator search completed ✓, products:", viatorResults.products.length)
+      console.log("[Viator API] STEP 5: ✓ Viator search completed, products:", viatorResults.products.length)
     } catch (viatorError: any) {
-      console.error("[Viator API] STEP 5: Viator search failed ✗")
+      console.error("[Viator API] STEP 5: ✗ Viator search failed")
       console.error("[Viator API] Error details:", {
         name: viatorError.name,
         message: viatorError.message,
@@ -198,7 +207,7 @@ export async function POST(request: NextRequest) {
     // Step 6: Check for empty results
     console.log("[Viator API] STEP 6: Checking results...")
     if (viatorResults.products.length === 0) {
-      console.log("[Viator API] STEP 6: No products found ✗")
+      console.log("[Viator API] STEP 6: ✗ No products found")
       const popularDestinations = await getPopularDestinations(5)
       return NextResponse.json(
         {
@@ -210,7 +219,7 @@ export async function POST(request: NextRequest) {
         { status: 404 }
       )
     }
-    console.log("[Viator API] STEP 6: Results found ✓")
+    console.log("[Viator API] STEP 6: ✓ Results found")
 
     // Step 7: Transform products
     console.log("[Viator API] STEP 7: Transforming products...")
@@ -248,9 +257,9 @@ export async function POST(request: NextRequest) {
           throw new Error(`Failed to transform product at index ${index}: ${itemError.message}`)
         }
       })
-      console.log("[Viator API] STEP 7: Products transformed ✓, count:", activities.length)
+      console.log("[Viator API] STEP 7: ✓ Products transformed, count:", activities.length)
     } catch (transformError: any) {
-      console.error("[Viator API] STEP 7: Transformation failed ✗", transformError.message)
+      console.error("[Viator API] STEP 7: ✗ Transformation failed", transformError.message)
       throw transformError
     }
 
@@ -283,7 +292,7 @@ export async function POST(request: NextRequest) {
       isRealActivities: true,
       totalCount: viatorResults.totalCount
     }
-    console.log("[Viator API] STEP 8: Response built ✓")
+    console.log("[Viator API] STEP 8: ✓ Response built")
     console.log("[Viator API] ===== REQUEST COMPLETED SUCCESSFULLY =====")
 
     return NextResponse.json(response)
