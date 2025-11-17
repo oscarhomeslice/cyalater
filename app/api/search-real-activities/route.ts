@@ -152,9 +152,16 @@ export async function POST(request: NextRequest) {
     console.log("======================================")
   } catch (error) {
     console.error("ERROR PARSING REQUEST BODY:", error)
-    throw error
+    return NextResponse.json(
+      { 
+        success: false, 
+        error: "Invalid request body",
+        step: "BODY_PARSE",
+        details: error instanceof Error ? error.message : "Unknown error"
+      },
+      { status: 400 }
+    )
   }
-  // End of debug block
 
   console.log("[Viator API Route] ========== NEW REQUEST ==========")
   console.log("[Viator API Route] Timestamp:", new Date().toISOString())
@@ -166,24 +173,21 @@ export async function POST(request: NextRequest) {
   
   console.log("[Viator API] ===== NEW REQUEST STARTED =====")
   
-  let body: RequestBody
-  
-  try {
-    body = await request.json()
-    console.log("[Viator API] Body parsed successfully")
-    console.log("[Viator API Route] Request body:", JSON.stringify(body, null, 2))
-  } catch (parseError: any) {
-    console.error("[Viator API] Failed to parse request body:", parseError.message)
+  // Body has already been parsed in the debug block above
+  if (!body) {
+    console.error("[Viator API] Body is null after parsing")
     return NextResponse.json(
       { 
         success: false, 
         error: "Invalid request body",
-        step: "BODY_PARSE",
-        details: parseError.message 
+        step: "BODY_PARSE"
       },
       { status: 400 }
     )
   }
+  
+  console.log("[Viator API] Body available from earlier parse")
+  console.log("[Viator API Route] Request body:", JSON.stringify(body, null, 2))
   
   try {
     // Step 1: Check API key
