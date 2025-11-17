@@ -166,6 +166,25 @@ export async function POST(request: NextRequest) {
   
   console.log("[Viator API] ===== NEW REQUEST STARTED =====")
   
+  let body: RequestBody
+  
+  try {
+    body = await request.json()
+    console.log("[Viator API] Body parsed successfully")
+    console.log("[Viator API Route] Request body:", JSON.stringify(body, null, 2))
+  } catch (parseError: any) {
+    console.error("[Viator API] Failed to parse request body:", parseError.message)
+    return NextResponse.json(
+      { 
+        success: false, 
+        error: "Invalid request body",
+        step: "BODY_PARSE",
+        details: parseError.message 
+      },
+      { status: 400 }
+    )
+  }
+  
   try {
     // Step 1: Check API key
     console.log("[Viator API] STEP 1: Checking API key...")
@@ -182,26 +201,14 @@ export async function POST(request: NextRequest) {
     }
     console.log("[Viator API] STEP 1: ✓ API key exists")
 
-    // Step 2: Parse request body
-    console.log("[Viator API] STEP 2: Parsing request body...")
-    try {
-      body = await request.json()
-      console.log("[Viator API] STEP 2: ✓ Body parsed successfully")
-      console.log("[Viator API Route] Request body:", JSON.stringify(body, null, 2))
-    } catch (parseError: any) {
-      console.error("[Viator API] STEP 2: ✗ Parse failed", parseError.message)
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: "Invalid request body",
-          step: "BODY_PARSE",
-          details: parseError.message 
-        },
-        { status: 400 }
-      )
-    }
-
+    console.log("[Viator API] STEP 2: Extracting parameters from body...")
     const { location, budgetPerPerson, currency, groupSize, vibe, inspirationActivities } = body
+    console.log("[Viator API] STEP 2: ✓ Parameters extracted")
+    console.log("   - location:", location)
+    console.log("   - budgetPerPerson:", budgetPerPerson)
+    console.log("   - currency:", currency)
+    console.log("   - groupSize:", groupSize)
+    console.log("   - vibe:", vibe)
 
     // Step 3: Validate location
     console.log("[Viator API] STEP 3: Validating location...")
