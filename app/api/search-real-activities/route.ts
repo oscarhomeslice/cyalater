@@ -160,7 +160,8 @@ export async function POST(request: NextRequest) {
     const searchParams: any = {
       destination: location,
       currency: currency || "USD",
-      count: 20
+      count: 50, // Increased to 50 per Viator real-time search guidelines
+      sortOrder: "DEFAULT" // Use Viator's featured product ranking
     }
 
     if (budgetPerPerson && !isNaN(Number(budgetPerPerson))) {
@@ -168,6 +169,14 @@ export async function POST(request: NextRequest) {
       searchParams.minPrice = Math.floor(budget * 0.3)
       searchParams.maxPrice = Math.ceil(budget * 2)
     }
+
+    const today = new Date()
+    const endDate = new Date(today)
+    endDate.setDate(today.getDate() + 90)
+    
+    searchParams.startDate = today.toISOString().split('T')[0]
+    searchParams.endDate = endDate.toISOString().split('T')[0]
+    
     console.log("[Viator API] STEP 4: Search params built ✓:", JSON.stringify(searchParams, null, 2))
 
     // Step 5: Call Viator API
@@ -230,7 +239,8 @@ export async function POST(request: NextRequest) {
             rating: product.reviews?.combinedAverageRating,
             reviewCount: product.reviews?.totalReviews,
             image: selectBestImage(product.images),
-            isBookable: true
+            isBookable: true,
+            confirmationType: product.bookingConfirmationSettings?.confirmationType || "MANUAL"
           }
         } catch (itemError: any) {
           console.error(`[Viator API] Failed to transform product ${index}:`, itemError.message)
@@ -251,15 +261,16 @@ export async function POST(request: NextRequest) {
       recommendations: {
         activities,
         proTips: [
-          "Most Viator activities offer free cancellation up to 24 hours before",
-          "Instant confirmation means you'll receive your voucher immediately",
-          "Check meeting point details carefully before booking"
+          "Most activities offer free cancellation up to 24 hours in advance",
+          "Instant confirmation products are confirmed immediately upon booking",
+          "Prices shown are per person unless otherwise stated",
+          "Check meeting point details and arrival instructions before your activity"
         ],
         refinementPrompts: [
-          "Show only 5-star rated activities",
+          "Show only top-rated experiences",
           "More budget-friendly options",
-          "Full-day experiences only",
-          "Instant confirmation only"
+          "Instant confirmation only",
+          "Free cancellation available"
         ]
       },
       query: {

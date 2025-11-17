@@ -38,9 +38,10 @@ export interface SearchViatorParams {
   currency: string
   startDate?: string
   endDate?: string
-  count?: number
+  count?: number // Max 50 per Viator guidelines
   tags?: number[]
   confirmationType?: "INSTANT" | "MANUAL"
+  sortOrder?: "DEFAULT" | "PRICE_FROM_LOW" | "REVIEW_AVG_RATING_D" // DEFAULT = featured products
 }
 
 export interface ViatorProduct {
@@ -214,21 +215,25 @@ export async function searchViatorProducts(params: SearchViatorParams): Promise<
     )
   }
 
-  // Required fields: filtering (with required destination as string), currency
+  // Build request body following Viator API specification
   const requestBody: any = {
     filtering: {
       destination: destinationId.toString() // Must be string per API spec
     },
-    currency: params.currency || "USD"
-  }
-
-  if (params.count) {
-    requestBody.pagination = {
+    currency: params.currency || "USD",
+    pagination: {
       start: 1,
-      count: params.count
+      count: Math.min(params.count || 50, 50) // Enforce 50 max per Viator docs
     }
   }
 
+  if (params.sortOrder) {
+    requestBody.sortOrder = params.sortOrder
+  } else {
+    requestBody.sortOrder = "DEFAULT" // Use Viator's featured product ranking
+  }
+
+  // Optional filters
   if (params.minPrice !== undefined && params.maxPrice !== undefined) {
     requestBody.filtering.lowestPrice = params.minPrice
     requestBody.filtering.highestPrice = params.maxPrice
@@ -259,16 +264,13 @@ export async function searchViatorProducts(params: SearchViatorParams): Promise<
     console.log(`[Viator] Search response status: ${response.status}`)
     
     const responseText = await response.text()
-    console.log(`[Viator] Response body preview:`, responseText.substring(0, 500))
 
     if (response.status === 429) {
       throw new Error("Rate limit exceeded. Please try again in a moment.")
     }
 
     if (response.status === 401 || response.status === 403) {
-      console.error("[Viator] Authentication error. API Key preview:", 
-        VIATOR_API_KEY ? `${VIATOR_API_KEY.slice(0, 4)}...${VIATOR_API_KEY.slice(-4)}` : 'NOT SET'
-      )
+      console.error("[Viator] Authentication error. Check API key configuration")
       throw new Error("Invalid or missing API key. Please check your Viator API configuration.")
     }
 
@@ -276,19 +278,17 @@ export async function searchViatorProducts(params: SearchViatorParams): Promise<
       console.error("[Viator] API error response:", {
         status: response.status,
         statusText: response.statusText,
-        body: responseText,
-        requestBody: requestBody
+        body: responseText.substring(0, 500)
       })
       
       let errorData: any = {}
       try {
         errorData = JSON.parse(responseText)
-        console.error("[Viator] Parsed error data:", errorData)
       } catch {
-        console.error("[Viator] Could not parse error response as JSON")
+        // Error response is not JSON
       }
       
-      const errorMessage = errorData.message || errorData.error || errorData.errorMessage || `API request failed with status ${response.status}`
+      const errorMessage = errorData.message || errorData.error || `API request failed with status ${response.status}`
       throw new Error(errorMessage)
     }
 
@@ -351,4 +351,17 @@ export async function getProductDetails(productCode: string): Promise<ViatorProd
 export async function warmCache(): Promise<void> {
   console.log("[Viator] Warming destination cache...")
   await fetchDestinations()
+}
+
+export const QUALITY_TAGS = {
+  TOP_PRODUCT: 367652,
+  LOW_SUPPLIER_CANCELLATION: 367653,
+  LOW_LAST_MINUTE_CANCELLATION: 367654,
+  EXCELLENT_QUALITY: 21972,
+  BEST_CONVERSION: 22143,
+  LIKELY_TO_SELL_OUT: 22083,
+  ONCE_IN_LIFETIME: 11940,
+  UNIQUE_EXPERIENCES: 21074,
+  BEST_VALUE: 6226,
+  VIATOR_PLUS: 21971
 }
