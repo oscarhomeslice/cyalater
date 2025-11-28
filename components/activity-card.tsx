@@ -384,22 +384,26 @@ export function ActivityCard({
             </button>
             {expandedSections.preparation && (
               <div className="mt-2 p-3 rounded-lg bg-amber-500/5 border border-amber-500/10 animate-in slide-in-from-top-2 duration-200">
-                {categoryType === "diy" &&
-                (activity.preparation.includes("•") || activity.preparation.includes(",")) ? (
-                  <ul className="space-y-2">
-                    {activity.preparation
-                      .split(/[•,]/)
-                      .map((item) => item.trim())
-                      .filter((item) => item.length > 0)
-                      .map((item, index) => (
-                        <li key={index} className="flex items-start gap-2 text-sm text-zinc-200">
-                          <Check className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                          <span>{item}</span>
-                        </li>
-                      ))}
-                  </ul>
+                {activity.preparation ? (
+                  categoryType === "diy" &&
+                  (activity.preparation.includes("•") || activity.preparation.includes(",")) ? (
+                    <ul className="space-y-2">
+                      {activity.preparation
+                        .split(/[•,]/)
+                        .map((item) => item.trim())
+                        .filter((item) => item.length > 0)
+                        .map((item, index) => (
+                          <li key={index} className="flex items-start gap-2 text-sm text-zinc-200">
+                            <Check className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                            <span>{item}</span>
+                          </li>
+                        ))}
+                    </ul>
+                  ) : (
+                    <p className="text-sm text-zinc-200 leading-relaxed">{activity.preparation}</p>
+                  )
                 ) : (
-                  <p className="text-sm text-zinc-200 leading-relaxed">{activity.preparation}</p>
+                  <p className="text-sm text-zinc-400 italic">No preparation details provided</p>
                 )}
               </div>
             )}
