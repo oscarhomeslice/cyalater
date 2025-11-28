@@ -6,8 +6,19 @@ import { Button } from "./ui/button"
 import { Badge } from "./ui/badge"
 import { Input } from "./ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select"
-import { ChevronDown, ChevronUp, Sparkles, Lightbulb, Search, Loader2, MapPin, Edit2, RefreshCw } from "lucide-react"
-import type { ActivityRecommendation, ParsedQuery } from "@/lib/types"
+import {
+  ChevronDown,
+  ChevronUp,
+  Sparkles,
+  Lightbulb,
+  Search,
+  Loader2,
+  MapPin,
+  Edit2,
+  RefreshCw,
+  AlertCircle,
+} from "lucide-react"
+import type { ActivityRecommendation, ParsedQuery, SearchContext } from "@/lib/types"
 
 interface ActivityResultsProps {
   results: {
@@ -18,7 +29,7 @@ interface ActivityResultsProps {
   onNewSearch: () => void
   onAddToShortlist?: (id: string) => void
   shortlistedIds?: string[]
-  onFindRealActivities?: (location?: string) => void
+  onFindRealActivities?: (context: SearchContext) => void
   isSearchingReal?: boolean
   hasLocation?: boolean
   onRegenerateWithParams?: (params: Partial<ParsedQuery>) => void
@@ -98,6 +109,18 @@ export function ActivityResults({
       onRegenerateWithParams(editedParams)
       setIsEditingSearch(false)
       setEditedParams({})
+    }
+  }
+
+  const buildSearchContext = (location: string): SearchContext => {
+    return {
+      location,
+      budgetPerPerson: Number.parseFloat(query.budget_per_person) || 50,
+      currency: query.currency || "EUR",
+      groupSize: query.group_size || "2 people",
+      vibe: query.vibe,
+      activityCategory: query.activity_category,
+      inspirationActivities: activities,
     }
   }
 
@@ -372,7 +395,12 @@ export function ActivityResults({
                       disabled={isSearchingReal}
                     />
                   </div>
-                  {locationError && <p className="text-red-400 text-sm mt-2">{locationError}</p>}
+                  {locationError && (
+                    <div className="flex items-center justify-center gap-2 text-red-400 text-sm mt-2">
+                      <AlertCircle className="w-4 h-4" />
+                      <p>{locationError}</p>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -382,7 +410,12 @@ export function ActivityResults({
                     setLocationError("Please enter a location to find real activities")
                     return
                   }
-                  onFindRealActivities?.(hasLocation ? query?.location : locationInput.trim())
+                  const locationToUse = hasLocation ? query?.location : locationInput.trim()
+                  if (locationToUse) {
+                    const context = buildSearchContext(locationToUse)
+                    console.log("[ActivityResults] Calling onFindRealActivities with context:", context)
+                    onFindRealActivities(context)
+                  }
                 }}
                 disabled={isSearchingReal}
                 aria-label="Search for real bookable activities"
@@ -391,7 +424,10 @@ export function ActivityResults({
                 {isSearchingReal ? (
                   <>
                     <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                    Searching Viator...
+                    <span className="flex flex-col items-start">
+                      <span>Searching Viator...</span>
+                      <span className="text-xs font-normal opacity-80">Finding bookable activities in your area</span>
+                    </span>
                   </>
                 ) : (
                   <>

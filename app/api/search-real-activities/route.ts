@@ -1,285 +1,222 @@
-import { NextRequest, NextResponse } from "next/server"
-import { searchViatorProducts, getPopularDestinations } from "@/lib/viator-helper"
+import { type NextRequest, NextResponse } from "next/server"
+import {
+  initializeDestinations,
+  findDestinationByName,
+  getSuggestedDestinations,
+} from "@/lib/services/viator-destinations"
+import { transformSearchContextToViatorParams } from "@/lib/mappers/viator-search-mapper"
+import { mapViatorProductsToActivities } from "@/lib/mappers/viator-response-mapper"
 
 interface RequestBody {
   location?: string
   budgetPerPerson?: number
-  currency: string
+  currency?: string
   groupSize: string
   vibe?: string
-  inspirationActivities?: any[]
+  inspirationActivities?: string[]
+  activityCategory?: "diy" | "find-experience"
+  groupRelationship?: string
+  timeOfDay?: string
+  indoorOutdoor?: string
+  accessibilityNeeds?: string
 }
 
-// Helper function to truncate text
-function truncateText(text: string | null | undefined, maxLength: number): string {
-  if (!text) return ""
-  if (text.length <= maxLength) return text
-  return text.substring(0, maxLength) + "..."
-}
-
-// Helper function to format duration
-function formatDuration(duration: any): string {
-  if (!duration) return "Varies"
-  
-  if (duration.fixedDurationInMinutes) {
-    const minutes = duration.fixedDurationInMinutes
-    const hours = Math.floor(minutes / 60)
-    const remainingMinutes = minutes % 60
-    
-    if (hours > 0 && remainingMinutes > 0) {
-      return `${hours}h ${remainingMinutes}m`
-    } else if (hours > 0) {
-      return `${hours}h`
-    } else {
-      return `${remainingMinutes}m`
-    }
-  }
-  
-  if (duration.variableDurationFromMinutes) {
-    const hours = Math.floor(duration.variableDurationFromMinutes / 60)
-    return `${hours}+ hours`
-  }
-  
-  return "Varies"
-}
-
-// Helper function to infer location type from tags
-function inferLocationType(tags: number[] | undefined): string {
-  // TODO: Map specific Viator tag IDs to types (requires /products/tags endpoint)
-  // For now, return hybrid as default
-  return "hybrid"
-}
-
-// Helper function to infer activity level from tags
-function inferActivityLevel(tags: number[] | undefined): string {
-  // TODO: Map specific Viator tag IDs to activity levels (requires /products/tags endpoint)
-  // For now, return moderate as default
-  return "moderate"
-}
-
-// Helper function to build preparation text
-function buildPreparationText(product: any): string {
-  const texts: string[] = []
-  
-  if (product.bookingConfirmationSettings?.confirmationType === "INSTANT") {
-    texts.push("Instant confirmation")
-  }
-  
-  if (product.cancellationPolicy?.type === "FREE_CANCELLATION") {
-    texts.push("Free cancellation available")
-  }
-  
-  if (texts.length === 0) {
-    return "Check booking details carefully"
-  }
-  
-  return texts.join(". ") + "."
-}
-
-// Helper function to select best image
-function selectBestImage(images: any[] | undefined): string | undefined {
-  if (!images || images.length === 0) return undefined
-  
-  // Try to find high-resolution image (width >= 1024)
-  for (const img of images) {
-    if (img.variants) {
-      const highRes = img.variants.find((v: any) => v.width >= 1024)
-      if (highRes) return highRes.url
-    }
-  }
-  
-  // Fallback to any available variant
-  if (images[0]?.variants && images[0].variants.length > 0) {
-    return images[0].variants[0].url
-  }
-  
-  return undefined
-}
-
-// Helper function to extract readable tags
-function extractReadableTags(viatorTags: number[] | undefined): string[] {
-  // TODO: Fetch actual tag names from /products/tags endpoint
-  // For now, return generic tags
-  return ["Experience", "Activity"]
-}
+const isDevelopment = process.env.NODE_ENV === "development"
 
 export async function POST(request: NextRequest) {
-  let body: RequestBody;
-  
+  console.log("[Viator API] ===== NEW REQUEST =====")
+
+  // Step 1: Parse and validate request body
+  let body: RequestBody
   try {
-    body = await request.json();
+    body = await request.json()
+    console.log("[Viator API] Request body:", JSON.stringify(body, null, 2))
   } catch (error) {
-    console.error("[Viator API] Failed to parse request body:", error);
+    console.error("[Viator API] Failed to parse request body:", error)
     return NextResponse.json(
-      { 
+      {
         success: false,
         error: "Invalid request body",
-        details: "Could not parse JSON"
+        details: isDevelopment ? "Could not parse JSON" : undefined,
       },
-      { status: 400 }
-    );
+      { status: 400 },
+    )
   }
 
-  console.log("[Viator API] ===== NEW REQUEST =====");
-  console.log("[Viator API] Request body:", JSON.stringify(body, null, 2));
-  
-  console.log("[Viator API] Environment check:");
-  console.log("  - API Key Present:", !!process.env.VIATOR_API_KEY);
-  console.log("  - API Key Length:", process.env.VIATOR_API_KEY?.length);
-  console.log("  - Base URL:", process.env.VIATOR_API_BASE_URL);
-
   try {
-    // Step 1: Check API key
-    console.log("[Viator API] STEP 1: Checking API key...");
+    // Step 2: Check API key
+    console.log("[Viator API] STEP 1: Checking API configuration...")
     if (!process.env.VIATOR_API_KEY) {
-      console.error("[Viator API] ✗ VIATOR_API_KEY not set");
+      console.error("[Viator API] ✗ VIATOR_API_KEY not set")
       return NextResponse.json(
-        { 
-          success: false, 
+        {
+          success: false,
           error: "Viator API is not configured. Please add VIATOR_API_KEY to environment variables.",
-          step: "API_KEY_CHECK"
         },
-        { status: 503 }
-      );
+        { status: 503 },
+      )
     }
-    console.log("[Viator API] STEP 1: ✓ API key exists");
+    console.log("[Viator API] ✓ API key present")
 
-    // Step 2: Extract parameters
-    console.log("[Viator API] STEP 2: Extracting parameters...");
-    const { 
-      location, 
-      budgetPerPerson, 
-      currency = "EUR", 
-      groupSize,
-      vibe,
-      inspirationActivities 
-    } = body;
-    
-    console.log("[Viator API] STEP 2: ✓ Parameters extracted:", {
-      location,
-      budgetPerPerson,
-      currency,
-      groupSize,
-      vibe
-    });
-
-    // Step 3: Validate location
-    console.log("[Viator API] STEP 3: Validating location...");
-    if (!location) {
-      console.warn("[Viator API] STEP 3: ✗ No location provided");
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: "Location is required to search real activities", 
-          step: "LOCATION_VALIDATION" 
-        },
-        { status: 400 }
-      );
-    }
-    console.log("[Viator API] STEP 3: ✓ Location valid:", location);
-
-    // Step 4: Calculate search parameters
-    console.log("[Viator API] STEP 4: Building search parameters...");
-    const today = new Date();
-    const startDate = today.toISOString().split('T')[0];
-    const endDate = new Date(today.getTime() + 90 * 24 * 60 * 60 * 1000)
-      .toISOString()
-      .split('T')[0];
-
-    const minPrice = budgetPerPerson ? Math.floor(Number(budgetPerPerson) * 0.5) : undefined;
-    const maxPrice = budgetPerPerson ? Math.ceil(Number(budgetPerPerson) * 1.5) : undefined;
-
-    const searchParams = {
-      destination: location,
-      minPrice,
-      maxPrice,
-      currency,
-      startDate,
-      endDate,
-      count: 50,
-      sort: "DEFAULT" as const
-    };
-    
-    console.log("[Viator API] STEP 4: ✓ Search params:", JSON.stringify(searchParams, null, 2));
-
-    // Step 5: Call Viator API
-    console.log("[Viator API] STEP 5: Calling searchViatorProducts...");
-    let viatorResults: any;
+    // Step 3: Initialize destinations
+    console.log("[Viator API] STEP 2: Initializing destinations cache...")
     try {
-      viatorResults = await searchViatorProducts(searchParams);
-      console.log("[Viator API] STEP 5: ✓ Search completed, products found:", viatorResults.products?.length || 0);
-    } catch (viatorError: any) {
-      console.error("[Viator API] STEP 5: ✗ Viator search failed:", viatorError.message);
-      throw viatorError;
+      await initializeDestinations()
+      console.log("[Viator API] ✓ Destinations initialized")
+    } catch (initError) {
+      console.warn("[Viator API] ⚠ Destinations initialization warning:", initError)
+      // Continue - the service will handle this gracefully
     }
 
-    // Step 6: Check for empty results
-    console.log("[Viator API] STEP 6: Checking results...");
-    if (!viatorResults.products || viatorResults.products.length === 0) {
-      console.log("[Viator API] STEP 6: ✗ No products found");
-      
-      const popularDestinations = await getPopularDestinations(5)
-      const budgetHint = minPrice && maxPrice
-        ? ` Most ${location} activities cost ${currency}${Math.round(maxPrice * 2)}+. Try increasing your budget.`
-        : ""
-      
+    // Step 4: Validate required fields
+    console.log("[Viator API] STEP 3: Validating request parameters...")
+    const { location, groupSize } = body
+
+    if (!location) {
+      console.warn("[Viator API] ✗ No location provided")
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Location is required to search activities",
+        },
+        { status: 400 },
+      )
+    }
+
+    if (!groupSize) {
+      console.warn("[Viator API] ✗ No group size provided")
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Group size is required to search activities",
+        },
+        { status: 400 },
+      )
+    }
+    console.log("[Viator API] ✓ Required parameters valid")
+
+    // Step 5: Find destination using fuzzy search
+    console.log(`[Viator API] STEP 4: Finding destination for "${location}"...`)
+    const destinationMatch = await findDestinationByName(location)
+
+    if (!destinationMatch) {
+      console.warn(`[Viator API] ✗ No destination match found for "${location}"`)
+
+      // Get actual suggestions from cached destinations (not hardcoded)
+      const suggestions = await getSuggestedDestinations(8)
+
+      return NextResponse.json(
+        {
+          success: false,
+          error: `We couldn't find "${location}" in our destinations database.`,
+          message: "Try searching for a major city, landmark, or popular destination.",
+          suggestions: suggestions.length > 0 ? suggestions : [],
+        },
+        { status: 404 },
+      )
+    }
+
+    console.log(`[Viator API] ✓ Destination matched:`, {
+      name: destinationMatch.destinationName,
+      id: destinationMatch.destinationId,
+      type: destinationMatch.destinationType,
+      confidence: destinationMatch.matchConfidence,
+    })
+
+    // Step 6: Transform user search context to Viator parameters
+    console.log("[Viator API] STEP 5: Transforming search context to Viator parameters...")
+    const viatorSearchParams = transformSearchContextToViatorParams({
+      destinationId: destinationMatch.destinationId,
+      destinationName: destinationMatch.destinationName,
+      budgetPerPerson: body.budgetPerPerson,
+      currency: body.currency || "EUR",
+      groupSize: body.groupSize,
+      vibe: body.vibe,
+      inspirationActivities: body.inspirationActivities,
+    })
+
+    console.log("[Viator API] ✓ Viator search parameters prepared:", JSON.stringify(viatorSearchParams, null, 2))
+
+    // Step 7: Call Viator /products/search endpoint
+    console.log("[Viator API] STEP 6: Calling Viator /products/search...")
+    const viatorUrl = `${process.env.VIATOR_API_BASE_URL || "https://api.viator.com"}/partner/products/search`
+
+    console.log("[Viator API] Request URL:", viatorUrl)
+    console.log("[Viator API] Request body:", JSON.stringify(viatorSearchParams, null, 2))
+
+    const viatorResponse = await fetch(viatorUrl, {
+      method: "POST",
+      headers: {
+        "exp-api-key": process.env.VIATOR_API_KEY,
+        "Accept-Language": "en-US",
+        Accept: "application/json;version=2.0",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(viatorSearchParams),
+    })
+
+    console.log("[Viator API] Response status:", viatorResponse.status)
+
+    if (!viatorResponse.ok) {
+      const errorText = await viatorResponse.text()
+      console.error("[Viator API] ✗ Viator API error:", errorText)
+
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Failed to search activities from Viator",
+          details: isDevelopment ? errorText : undefined,
+        },
+        { status: viatorResponse.status },
+      )
+    }
+
+    const viatorData = await viatorResponse.json()
+    console.log("[Viator API] ✓ Products retrieved:", viatorData.products?.length || 0)
+
+    // Step 8: Check for empty results
+    if (!viatorData.products || viatorData.products.length === 0) {
+      console.log("[Viator API] STEP 7: No products found")
+
+      const popularDestinations = await getSuggestedDestinations(5)
+
       return NextResponse.json({
-        success: true,  // Changed from false to handle gracefully
+        success: true,
         recommendations: {
           activities: [],
           proTips: [
-            `No activities found matching your criteria in ${location}.`,
-            `Try: Increase budget, adjust dates, or browse similar destinations.${budgetHint}`,
-            `Popular alternatives: ${popularDestinations.slice(0, 3).join(", ")}`
+            `No activities found matching your criteria in ${destinationMatch.destinationName}.`,
+            `Try adjusting your budget, dates, or exploring nearby destinations.`,
+            `Popular alternatives: ${popularDestinations.slice(0, 3).join(", ")}`,
           ],
-          refinementPrompts: popularDestinations.map(d => `Explore ${d}`)
+          refinementPrompts: popularDestinations.map((d) => `Explore ${d}`),
         },
         query: {
-          location: location || "Worldwide",
-          budget_per_person: budgetPerPerson,
-          currency: currency,
-          group_size: groupSize,
-          vibe: vibe
+          location: destinationMatch.destinationName,
+          destinationId: destinationMatch.destinationId,
+          matchConfidence: destinationMatch.matchConfidence,
+          budgetPerPerson: body.budgetPerPerson,
+          currency: body.currency || "EUR",
+          groupSize: body.groupSize,
         },
-        isEmpty: true,  // Flag to indicate no results
+        isEmpty: true,
         suggestions: popularDestinations,
-        isRealActivities: true
+        isRealActivities: true,
       })
     }
-    console.log("[Viator API] STEP 6: ✓ Results found:", viatorResults.products.length);
 
-    // Step 7: Transform products
-    console.log("[Viator API] STEP 7: Transforming products...");
-    const activities = viatorResults.products.map((product: any) => {
-      const reviewText = product.reviews?.totalReviews
-        ? `Rated ${product.reviews.combinedAverageRating}/5 by ${product.reviews.totalReviews} travelers`
-        : "New experience";
+    // Step 9: Transform Viator response to ActivityData format
+    console.log("[Viator API] STEP 8: Transforming Viator products to activities...")
+    const activities = mapViatorProductsToActivities(viatorData.products, {
+      currency: body.currency || "EUR",
+      groupSize: body.groupSize,
+      vibe: body.vibe,
+    })
 
-      return {
-        id: product.productCode,
-        name: product.title,
-        experience: truncateText(product.description, 200),
-        bestFor: `Ideal for ${groupSize} seeking ${vibe || 'memorable experiences'}. ${reviewText}`,
-        cost: product.pricing?.summary?.fromPrice || 0,
-        currency: currency,
-        duration: formatDuration(product.duration),
-        locationType: inferLocationType(product.tags),
-        activityLevel: inferActivityLevel(product.tags),
-        specialElement: product.highlights?.[0] || "Unique local experience",
-        preparation: buildPreparationText(product),
-        tags: extractReadableTags(product.tags),
-        viatorUrl: product.productUrl,
-        rating: product.reviews?.combinedAverageRating,
-        reviewCount: product.reviews?.totalReviews,
-        image: selectBestImage(product.images),
-        isBookable: true,
-        confirmationType: product.bookingConfirmationSettings?.confirmationType || "MANUAL"
-      };
-    });
-    console.log("[Viator API] STEP 7: ✓ Products transformed:", activities.length);
+    console.log("[Viator API] ✓ Activities transformed:", activities.length)
 
-    // Step 8: Build response
-    console.log("[Viator API] STEP 8: Building response...");
+    // Step 10: Build final response
+    console.log("[Viator API] STEP 9: Building response...")
     const response = {
       success: true,
       recommendations: {
@@ -288,51 +225,56 @@ export async function POST(request: NextRequest) {
           "Most activities offer free cancellation up to 24 hours in advance",
           "Instant confirmation products are confirmed immediately upon booking",
           "Prices shown are per person unless otherwise stated",
-          "Check meeting point details and arrival instructions before your activity"
+          "Check meeting point details and arrival instructions before booking",
         ],
         refinementPrompts: [
           "Show only top-rated experiences",
           "More budget-friendly options",
           "Instant confirmation only",
-          "Free cancellation available"
-        ]
+          "Free cancellation available",
+        ],
       },
       query: {
-        location,
-        budget_per_person: budgetPerPerson,
-        currency,
-        group_size: groupSize,
-        vibe
+        location: destinationMatch.destinationName,
+        destinationId: destinationMatch.destinationId,
+        matchConfidence: destinationMatch.matchConfidence,
+        budgetPerPerson: body.budgetPerPerson,
+        currency: body.currency || "EUR",
+        groupSize: body.groupSize,
+        vibe: body.vibe,
       },
       isRealActivities: true,
-      totalCount: viatorResults.totalCount
-    };
-    console.log("[Viator API] STEP 8: ✓ Response built successfully");
-    console.log("[Viator API] ===== REQUEST COMPLETED =====");
+      totalCount: viatorData.totalCount,
+    }
 
-    return NextResponse.json(response);
+    console.log("[Viator API] ✓ Response built successfully")
+    console.log("[Viator API] ===== REQUEST COMPLETED =====")
 
+    return NextResponse.json(response)
   } catch (error: any) {
-    console.error("[Viator API] ===== ERROR =====");
-    console.error("[Viator API] Error type:", error.constructor.name);
-    console.error("[Viator API] Error message:", error.message);
-    console.error("[Viator API] Stack trace:", error.stack?.split('\n').slice(0, 5).join('\n'));
-    console.error("[Viator API] ==================");
+    console.error("[Viator API] ===== ERROR =====")
+    console.error("[Viator API] Error type:", error.constructor.name)
+    console.error("[Viator API] Error message:", error.message)
+    if (isDevelopment) {
+      console.error("[Viator API] Stack trace:", error.stack)
+    }
+    console.error("[Viator API] ==================")
 
     return NextResponse.json(
       {
         success: false,
-        error: error.message || "Failed to search activities",
-        errorType: error.constructor.name,
-        debugInfo: {
-          hasApiKey: !!process.env.VIATOR_API_KEY,
-          apiKeyLength: process.env.VIATOR_API_KEY?.length || 0,
-          location: body?.location,
-          budget: body?.budgetPerPerson,
-          currency: body?.currency
-        }
+        error: "An unexpected error occurred while searching activities",
+        details: isDevelopment ? error.message : undefined,
+        debugInfo: isDevelopment
+          ? {
+              hasApiKey: !!process.env.VIATOR_API_KEY,
+              location: body?.location,
+              budget: body?.budgetPerPerson,
+              currency: body?.currency,
+            }
+          : undefined,
       },
-      { status: 500 }
-    );
+      { status: 500 },
+    )
   }
 }

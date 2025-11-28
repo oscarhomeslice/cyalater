@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button"
 import { ShortlistViewer } from "@/components/shortlist-viewer"
 import { EmptySearchResults } from "@/components/empty-search-results"
 import type { ParsedQuery } from "query-string"
+import type { SearchContext, DestinationSuggestion } from "@/lib/types"
 
 const loadingMessages = {
   diy: [
@@ -128,6 +129,7 @@ export default function Page() {
 
   const [showShortlistViewer, setShowShortlistViewer] = useState(false)
   const [searchCategory, setSearchCategory] = useState<"diy" | "experience">("diy")
+  const [destinationSuggestions, setDestinationSuggestions] = useState<DestinationSuggestion[]>([])
 
   useEffect(() => {
     if (!isLoading) return
@@ -357,45 +359,28 @@ export default function Page() {
     window.scrollTo({ top: 0, behavior: "smooth" })
   }
 
-  const handleFindRealActivities = async (providedLocation?: string) => {
+  const handleFindRealActivities = async (context: SearchContext) => {
     if (!searchResults?.query) {
       showToast("Please search for inspiration first", "error")
       return
     }
 
-    const locationToSearch = providedLocation || searchResults.query.location
-
-    if (!locationToSearch) {
+    if (!context.location) {
       showToast("Please provide a location to find real activities", "error")
       return
     }
 
     setIsSearchingReal(true)
     setRealActivitiesError(null)
+    setDestinationSuggestions([])
 
     try {
-      console.log("[Page] Searching for real activities in:", locationToSearch)
-      console.log("[Page] Search results query:", searchResults.query)
-
-      const budgetPerPerson = searchResults.query.budget_per_person || "50"
-      const currency = searchResults.query.currency || "EUR"
-      const groupSize = searchResults.query.group_size || "2-5 people"
-
-      const requestBody = {
-        location: locationToSearch,
-        budgetPerPerson: budgetPerPerson,
-        currency: currency,
-        groupSize: groupSize,
-        vibe: searchResults.query.vibe,
-        inspirationActivities: searchResults.recommendations.activities,
-      }
-
-      console.log("[Page] Real activities request with extracted values:", requestBody)
+      console.log("[Page] Searching for real activities with full context:", context)
 
       const response = await fetch("/api/search-real-activities", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(requestBody),
+        body: JSON.stringify(context),
       })
 
       console.log("[Page] Real activities response status:", response.status)
@@ -403,25 +388,31 @@ export default function Page() {
       const data = await response.json()
       console.log("[Page] Real activities response data:", data)
 
-      if (data.isEmpty) {
-        setShowRealActivities(true)
-        setRealActivitiesResults(data)
-        showToast("No exact matches - showing suggestions", "info")
-
-        setTimeout(() => {
-          document.getElementById("real-activities")?.scrollIntoView({
-            behavior: "smooth",
-            block: "start",
-          })
-        }, 100)
-        return
-      }
-
       if (!response.ok) {
-        if (response.status === 404 && data.step === "EMPTY_RESULTS") {
-          const message = data.error || `No activities found in ${locationToSearch}`
+        if (response.status === 404 && data.step === "DESTINATION_NOT_FOUND") {
+          const suggestions = data.suggestions || []
+          setDestinationSuggestions(suggestions)
+
+          const message = data.error || `Could not find destination: ${context.location}`
           const suggestionsText =
-            data.suggestions?.length > 0 ? `\n\nTry these destinations: ${data.suggestions.join(", ")}` : ""
+            suggestions.length > 0
+              ? `\n\nSuggested destinations: ${suggestions.map((s: DestinationSuggestion) => s.name).join(", ")}`
+              : ""
+
+          setRealActivitiesError(message + suggestionsText)
+          showToast("Destination not found - try a suggested location", "info")
+          return
+        }
+
+        if (response.status === 404 && data.step === "EMPTY_RESULTS") {
+          const suggestions = data.suggestions || []
+          setDestinationSuggestions(suggestions)
+
+          const message = data.error || `No activities found in ${context.location}`
+          const suggestionsText =
+            suggestions.length > 0
+              ? `\n\nTry these destinations: ${suggestions.map((s: DestinationSuggestion) => s.name).join(", ")}`
+              : ""
 
           setRealActivitiesError(message + suggestionsText)
           showToast("No activities found - try a different location", "info")
@@ -450,9 +441,9 @@ export default function Page() {
           if (data.debugInfo.hasApiKey !== undefined)
             errorDetails.push(`API Key: ${data.debugInfo.hasApiKey ? "Present" : "Missing"}`)
           if (data.debugInfo.apiKeyLength) errorDetails.push(`Key Length: ${data.debugInfo.apiKeyLength}`)
-          errorDetails.push(`Location: ${data.debugInfo.requestedLocation || locationToSearch}`)
-          errorDetails.push(`Budget: ${data.debugInfo.requestedBudget || budgetPerPerson}`)
-          errorDetails.push(`Currency: ${data.debugInfo.requestedCurrency || currency}`)
+          errorDetails.push(`Location: ${data.debugInfo.requestedLocation || context.location}`)
+          errorDetails.push(`Budget: ${data.debugInfo.requestedBudget || context.budgetPerPerson}`)
+          errorDetails.push(`Currency: ${data.debugInfo.requestedCurrency || context.currency}`)
         }
 
         const fullErrorMessage = [
@@ -468,6 +459,7 @@ export default function Page() {
 
       setRealActivitiesResults(data)
       setShowRealActivities(true)
+      setDestinationSuggestions([])
 
       setTimeout(() => {
         document.getElementById("real-activities")?.scrollIntoView({
@@ -484,6 +476,22 @@ export default function Page() {
     } finally {
       setIsSearchingReal(false)
     }
+  }
+
+  const handleRetrySuggestedDestination = async (destinationName: string) => {
+    if (!searchResults?.query) return
+
+    const context: SearchContext = {
+      location: destinationName,
+      budgetPerPerson: Number.parseFloat(searchResults.query.budget_per_person || "50"),
+      currency: searchResults.query.currency || "EUR",
+      groupSize: searchResults.query.group_size || "2-5 people",
+      vibe: searchResults.query.vibe,
+      activityCategory: searchResults.query.activity_type?.[0],
+      inspirationActivities: searchResults.recommendations.activities,
+    }
+
+    await handleFindRealActivities(context)
   }
 
   const handleAddToShortlist = (id: string) => {
@@ -505,10 +513,8 @@ export default function Page() {
   const handleRegenerateWithParams = async (editedParams: Partial<ParsedQuery>) => {
     if (!searchResults?.query) return
 
-    // Merge edited params with existing query
     const updatedQuery = { ...searchResults.query, ...editedParams }
 
-    // Convert back to form data structure
     const formData: ActivitySearchFormData = {
       groupSize: updatedQuery.group_size,
       budgetPerPerson: updatedQuery.budget_per_person?.toString() || "",
@@ -522,7 +528,6 @@ export default function Page() {
       accessibilityNeeds: updatedQuery.accessibility_needs,
     }
 
-    // Trigger new search with updated params
     await handleSearch(formData)
   }
 
@@ -705,6 +710,22 @@ export default function Page() {
                 <h3 className="font-semibold text-red-400 mb-2">Error Finding Real Activities</h3>
                 <pre className="text-sm text-red-300 whitespace-pre-wrap font-mono">{realActivitiesError}</pre>
                 <Button onClick={() => setRealActivitiesError(null)} variant="outline" className="mt-4">
+                  Dismiss
+                </Button>
+              </div>
+            )}
+
+            {destinationSuggestions.length > 0 && (
+              <div className="mt-8 p-6 bg-yellow-500/10 border border-yellow-500/30 rounded-xl">
+                <h3 className="font-semibold text-yellow-400 mb-2">Suggestions for Real Activities</h3>
+                <ul className="text-sm text-yellow-300 list-disc list-inside">
+                  {destinationSuggestions.map((suggestion) => (
+                    <li key={suggestion.name}>
+                      {suggestion.name} - {suggestion.description}
+                    </li>
+                  ))}
+                </ul>
+                <Button onClick={() => setDestinationSuggestions([])} variant="outline" className="mt-4">
                   Dismiss
                 </Button>
               </div>

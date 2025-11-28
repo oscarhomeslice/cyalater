@@ -88,6 +88,21 @@ export interface ActivitySearchFormData {
   accessibilityNeeds?: string
 }
 
+export interface SearchContext {
+  location: string
+  budgetPerPerson: number
+  currency: string
+  groupSize: string
+  vibe?: string
+  activityCategory?: string
+  inspirationActivities: Activity[]
+}
+
+export interface DestinationSuggestion {
+  name: string
+  message?: string
+}
+
 export interface EnrichedUserContext {
   // Original inputs
   groupSize: string
