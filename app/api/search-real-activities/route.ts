@@ -13,8 +13,18 @@ interface RequestBody {
   currency?: string
   groupSize: string
   vibe?: string
-  inspirationActivities?: string[]
-  activityCategory?: "diy" | "find-experience"
+  inspirationActivities?: Array<{
+    id?: string
+    name: string
+    experience?: string
+    tags?: string[]
+    cost?: number
+    duration?: string
+    activityLevel?: string
+    locationType?: string
+    [key: string]: any
+  }>
+  activityCategory?: "diy" | "experience"
   groupRelationship?: string
   timeOfDay?: string
   indoorOutdoor?: string
@@ -30,7 +40,22 @@ export async function POST(request: NextRequest) {
   let body: RequestBody
   try {
     body = await request.json()
-    console.log("[Viator API] Request body:", JSON.stringify(body, null, 2))
+    console.log("[Viator API] Request body received:")
+    console.log("[Viator API] - Location:", body.location)
+    console.log("[Viator API] - Budget:", body.budgetPerPerson)
+    console.log("[Viator API] - Currency:", body.currency)
+    console.log("[Viator API] - Group Size:", body.groupSize)
+    console.log("[Viator API] - Vibe:", body.vibe)
+    console.log("[Viator API] - Inspiration Activities Count:", body.inspirationActivities?.length || 0)
+    if (body.inspirationActivities && body.inspirationActivities.length > 0) {
+      console.log("[Viator API] - First Inspiration Activity:", JSON.stringify(body.inspirationActivities[0], null, 2))
+      console.log(
+        "[Viator API] - All Inspiration Activity Names:",
+        body.inspirationActivities.map((a) => a.name),
+      )
+    } else {
+      console.warn("[Viator API] ⚠ No inspiration activities received in request!")
+    }
   } catch (error) {
     console.error("[Viator API] Failed to parse request body:", error)
     return NextResponse.json(
@@ -111,6 +136,7 @@ export async function POST(request: NextRequest) {
           error: `We couldn't find "${location}" in our destinations database.`,
           message: "Try searching for a major city, landmark, or popular destination.",
           suggestions: suggestions.length > 0 ? suggestions : [],
+          step: "DESTINATION_NOT_FOUND",
         },
         { status: 404 },
       )
@@ -125,6 +151,16 @@ export async function POST(request: NextRequest) {
 
     // Step 6: Transform user search context to Viator parameters
     console.log("[Viator API] STEP 5: Transforming search context to Viator parameters...")
+    console.log("[Viator API] Passing to mapper:", {
+      destinationId: destinationMatch.destinationId,
+      destinationName: destinationMatch.destinationName,
+      budgetPerPerson: body.budgetPerPerson,
+      currency: body.currency || "EUR",
+      groupSize: body.groupSize,
+      vibe: body.vibe,
+      inspirationActivitiesCount: body.inspirationActivities?.length || 0,
+    })
+
     const viatorSearchParams = transformSearchContextToViatorParams({
       destinationId: destinationMatch.destinationId,
       destinationName: destinationMatch.destinationName,
@@ -135,14 +171,20 @@ export async function POST(request: NextRequest) {
       inspirationActivities: body.inspirationActivities,
     })
 
-    console.log("[Viator API] ✓ Viator search parameters prepared:", JSON.stringify(viatorSearchParams, null, 2))
+    console.log("[Viator API] ✓ Viator search parameters prepared")
+    console.log("[Viator API] Search params summary:", {
+      destinationId: viatorSearchParams.filtering?.destination,
+      currency: viatorSearchParams.currency,
+      pricingUnit: viatorSearchParams.pricingUnit,
+      sorting: viatorSearchParams.sorting,
+      tagCount: viatorSearchParams.filtering?.tags?.length || 0,
+    })
 
     // Step 7: Call Viator /products/search endpoint
     console.log("[Viator API] STEP 6: Calling Viator /products/search...")
     const viatorUrl = `${process.env.VIATOR_API_BASE_URL || "https://api.viator.com"}/partner/products/search`
 
     console.log("[Viator API] Request URL:", viatorUrl)
-    console.log("[Viator API] Request body:", JSON.stringify(viatorSearchParams, null, 2))
 
     const viatorResponse = await fetch(viatorUrl, {
       method: "POST",
@@ -202,6 +244,7 @@ export async function POST(request: NextRequest) {
         isEmpty: true,
         suggestions: popularDestinations,
         isRealActivities: true,
+        step: "EMPTY_RESULTS",
       })
     }
 
@@ -242,6 +285,7 @@ export async function POST(request: NextRequest) {
         currency: body.currency || "EUR",
         groupSize: body.groupSize,
         vibe: body.vibe,
+        activity_category: body.activityCategory,
       },
       isRealActivities: true,
       totalCount: viatorData.totalCount,
@@ -271,6 +315,7 @@ export async function POST(request: NextRequest) {
               location: body?.location,
               budget: body?.budgetPerPerson,
               currency: body?.currency,
+              inspirationActivitiesReceived: body?.inspirationActivities?.length || 0,
             }
           : undefined,
       },

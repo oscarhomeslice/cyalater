@@ -113,7 +113,13 @@ export function ActivityResults({
   }
 
   const buildSearchContext = (location: string): SearchContext => {
-    return {
+    console.log("[ActivityResults] Building search context with:")
+    console.log("[ActivityResults] - Location:", location)
+    console.log("[ActivityResults] - Activities from results:", activities)
+    console.log("[ActivityResults] - Activities count:", activities?.length)
+    console.log("[ActivityResults] - First activity:", activities?.[0])
+
+    const context: SearchContext = {
       location,
       budgetPerPerson: Number.parseFloat(query.budget_per_person) || 50,
       currency: query.currency || "EUR",
@@ -122,6 +128,11 @@ export function ActivityResults({
       activityCategory: query.activity_category,
       inspirationActivities: activities,
     }
+
+    console.log("[ActivityResults] Built context:", context)
+    console.log("[ActivityResults] Inspiration activities in context:", context.inspirationActivities?.length)
+
+    return context
   }
 
   return (

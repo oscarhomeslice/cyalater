@@ -360,6 +360,10 @@ export default function Page() {
   }
 
   const handleFindRealActivities = async (context: SearchContext) => {
+    console.log("[Page] handleFindRealActivities called with context:", context)
+    console.log("[Page] Inspiration activities received:", context.inspirationActivities)
+    console.log("[Page] Inspiration activities count:", context.inspirationActivities?.length)
+
     if (!searchResults?.query) {
       showToast("Please search for inspiration first", "error")
       return
@@ -376,6 +380,9 @@ export default function Page() {
 
     try {
       console.log("[Page] Searching for real activities with full context:", context)
+      console.log("[Page] Sending to API - location:", context.location)
+      console.log("[Page] Sending to API - budget:", context.budgetPerPerson)
+      console.log("[Page] Sending to API - inspirationActivities:", context.inspirationActivities?.length)
 
       const response = await fetch("/api/search-real-activities", {
         method: "POST",
