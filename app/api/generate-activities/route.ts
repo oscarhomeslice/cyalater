@@ -11,11 +11,10 @@ function checkRateLimit(ip: string): boolean {
   const now = Date.now()
   const userRequests = rateLimit.get(ip) || []
 
-  // Filter requests from last minute
   const recentRequests = userRequests.filter((time: number) => now - time < 60000)
 
   if (recentRequests.length >= 5) {
-    return false // Too many requests
+    return false
   }
 
   recentRequests.push(now)
@@ -35,39 +34,49 @@ export async function POST(request: NextRequest) {
     
     console.log("[v0] Received request body:", JSON.stringify(body, null, 2))
     
-    const { groupSize, budgetPerPerson, currency = "EUR", locationMode, location, vibe } = body
-
-    console.log("[v0] Validation check - groupSize:", groupSize)
-    console.log("[v0] Validation check - budgetPerPerson:", budgetPerPerson)
-    console.log("[v0] Validation check - locationMode:", locationMode)
+    const { groupSize, budgetPerPerson, currency = "EUR", location, vibe, category, activityType } = body
 
     // Validate required fields
     if (!groupSize || !groupSize.trim()) {
-      console.log("[v0] Validation failed - Missing groupSize")
       return NextResponse.json({ error: "Group size is required" }, { status: 400 })
     }
 
     if (!budgetPerPerson || budgetPerPerson.trim() === "") {
-      console.log("[v0] Validation failed - Missing budgetPerPerson")
       return NextResponse.json({ error: "Budget per person is required" }, { status: 400 })
     }
 
-    if (locationMode === "have-location" && (!location || !location.trim())) {
-      console.log("[v0] Validation failed - Location required but not provided")
-      return NextResponse.json({ error: "Location is required when 'I have a location in mind' is selected" }, { status: 400 })
+    if (!activityType || (activityType !== "diy" && activityType !== "experiences")) {
+      return NextResponse.json({ error: "Activity type is required" }, { status: 400 })
     }
 
-    // Build user input string from structured data
     const parts: string[] = []
     parts.push(`Group of ${groupSize}`)
     
     const currencySymbol = currency === "EUR" ? "€" : currency === "GBP" ? "£" : "$"
     parts.push(`${currencySymbol}${budgetPerPerson} per person budget`)
 
-    if (locationMode === "have-location" && location) {
+    if (activityType === "diy") {
+      parts.push("looking for DIY activities they can organize themselves")
+    } else {
+      parts.push("looking for bookable experiences and tours")
+    }
+
+    if (location && location.trim()) {
       parts.push(`in ${location}`)
-    } else if (locationMode === "surprise-me") {
-      parts.push(`any location worldwide`)
+    } else {
+      parts.push("location-flexible (activities that work anywhere)")
+    }
+
+    if (category && category !== "all") {
+      const categoryMap: Record<string, string> = {
+        "food-wine": "Food & Wine experiences",
+        "outdoor": "Outdoor Adventures",
+        "cultural": "Cultural Experiences",
+        "water": "Water Activities",
+        "adventure": "Adventure & Sports activities",
+        "workshops": "Classes & Workshops"
+      }
+      parts.push(`focused on ${categoryMap[category] || category}`)
     }
 
     if (vibe && vibe.trim()) {
@@ -77,21 +86,28 @@ export async function POST(request: NextRequest) {
     const userInput = parts.join(", ")
     console.log("[v0] Constructed user input for OpenAI:", userInput)
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      max_tokens: 5000,
-      temperature: 0.8,
-      messages: [
-        {
-          role: "system",
-          content: `You are a creative group activity planner. Generate 6-8 diverse, realistic activity ideas that match the group's needs.
+    const randomSeed = Date.now() + Math.random()
 
-Guidelines:
+    const systemPrompt = `You are a creative group activity planner. Generate 6-8 diverse, realistic activity ideas that match the group's needs.
+
+CRITICAL GUIDELINES:
 - Names should be clear and concise (e.g., "Pottery Workshop" not "Mystical Clay Journey")
-- Include variety: creative, outdoor, food, problem-solving, playful, calm activities
-- Must include: ONE introvert-friendly option, ONE surprising wildcard option
+- AVOID overused suggestions like: escape rooms, painting & wine nights, basic cooking classes, go-karting UNLESS they have a unique twist
+- Think of unexpected, memorable activities that still match the criteria
 - Cost should be realistic ballpark number per person (not necessarily equal to budget)
-- Activities should be doable in most cities unless specific location given
+- ${activityType === "diy" ? "Focus on activities they can organize themselves without booking" : "Focus on bookable experiences with venues/operators"}
+
+VARIETY REQUIREMENTS:
+- Include: creative expression, physical activity, social bonding, problem-solving, sensory experiences
+- Must include: ONE introvert-friendly option, ONE surprising wildcard option
+- Mix intensity levels: some calm, some energetic, some in-between
+- Vary settings: indoor, outdoor, hybrid options
+
+${location && location.trim() ? `LOCATION CONTEXT: Leverage ${location}'s unique culture, geography, climate, and local attractions for authentic suggestions.` : "LOCATION-FLEXIBLE: Suggest activities that work in most places or can be adapted to any location."}
+
+${category && category !== "all" ? `CATEGORY FOCUS: Prioritize ${category} activities but include 1-2 activities from other categories for variety.` : ""}
+
+Creative seed for uniqueness: ${randomSeed}
 
 Output ONLY valid JSON:
 {
@@ -115,6 +131,18 @@ Output ONLY valid JSON:
 }
 
 No markdown, no explanations, just JSON.`
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      max_tokens: 5000,
+      temperature: 1.0,
+      top_p: 0.95,
+      frequency_penalty: 0.6,
+      presence_penalty: 0.4,
+      messages: [
+        {
+          role: "system",
+          content: systemPrompt
         },
         {
           role: "user",
@@ -143,9 +171,10 @@ No markdown, no explanations, just JSON.`
         group_size: groupSize,
         budget_per_person: budgetPerPerson,
         currency,
-        location_mode: locationMode,
         location: location || null,
-        vibe: vibe || null
+        vibe: vibe || null,
+        category: category || null,
+        activity_type: activityType
       }
     })
   } catch (error: any) {

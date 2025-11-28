@@ -74,14 +74,13 @@ export type LocationMode = "have-location" | "surprise-me" // Updated to match n
 export type Currency = "EUR" | "USD" | "GBP"
 
 export interface ActivitySearchFormData {
-  groupSize: string // Required, not optional
+  groupSize: string // Required
   budgetPerPerson?: string // Optional but recommended
   currency?: string // Optional, defaults to EUR
-  locationMode: "have-location" | "surprise-me" // Updated options
-  location?: string // Optional, depends on locationMode
+  location?: string // Optional - can be blank for location-flexible ideas
   vibe?: string // Optional
   category?: string // Optional activity category filter
-  freeCancellation?: boolean // Optional free cancellation filter
+  activityType: "diy" | "experiences" // Required - NEW: replaces locationMode
 }
 
 export interface FormValidation {

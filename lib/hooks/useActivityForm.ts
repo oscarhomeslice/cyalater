@@ -9,10 +9,10 @@ export function useActivityForm() {
     groupSize: "",
     budgetPerPerson: undefined,
     currency: "EUR",
-    locationMode: "have-location",
     location: "",
-    inspirationPrompt: undefined,
     vibe: "",
+    category: "all",
+    activityType: "diy", // Default to DIY
   })
 
   const [errors, setErrors] = useState<FormValidation["errors"]>({})
@@ -58,12 +58,8 @@ export function useActivityForm() {
       newErrors.groupSize = "Please select a group size"
     }
 
-    if (formData.locationMode === "have-location" && !formData.location) {
-      newErrors.location = 'Please enter a location or switch to "Looking for ideas"'
-    }
-
-    if (formData.locationMode === "looking-for-ideas" && !formData.inspirationPrompt) {
-      newErrors.location = "Please select an inspiration or enter your own"
+    if (!formData.budgetPerPerson || formData.budgetPerPerson.trim() === "") {
+      newErrors.budget = "Please enter a budget per person"
     }
 
     setErrors(newErrors)
@@ -95,6 +91,19 @@ export function useActivityForm() {
     return parts.join(", ")
   }
 
+  const reset = () => {
+    setFormData({
+      groupSize: "",
+      budgetPerPerson: undefined,
+      currency: "EUR",
+      location: "",
+      vibe: "",
+      category: "all",
+      activityType: "diy",
+    })
+    setErrors({})
+  }
+
   return {
     formData,
     errors,
@@ -103,5 +112,6 @@ export function useActivityForm() {
     validate,
     buildUserInput,
     refreshInspirations,
+    reset,
   }
 }
