@@ -5,20 +5,28 @@ import { useState, useEffect, useRef } from "react"
 import type { ActivityData } from "@/components/activity-card"
 import { Badge } from "@/components/ui/badge"
 import { ErrorAlert, type ErrorType } from "@/components/error-alert"
-import { Zap, Sparkles, ListChecks } from 'lucide-react'
+import { Zap, Sparkles, ListChecks } from "lucide-react"
 import { ToastContainer, showToast } from "@/components/toast"
 import { ActivitySearchForm, type ActivitySearchFormData } from "@/components/activity-search-form"
 import { ActivityResults } from "@/components/activity-results"
 import { Button } from "@/components/ui/button"
 import { ShortlistViewer } from "@/components/shortlist-viewer"
+import { EmptySearchResults } from "@/components/empty-search-results"
 
-const loadingMessages = [
-  "Generating inspired ideas...",
-  "Exploring creative possibilities...",
-  "Crafting unique suggestions...",
-  "Finding the perfect vibe...",
-  "Preparing your inspiration...",
-]
+const loadingMessages = {
+  diy: [
+    "Curating creative DIY ideas...",
+    "Gathering materials and inspiration...",
+    "Planning your perfect group activity...",
+    "Finding unique ways to connect...",
+  ],
+  experience: [
+    "Discovering bookable experiences...",
+    "Searching for memorable activities...",
+    "Finding the perfect group outing...",
+    "Exploring local possibilities...",
+  ],
+}
 
 const backupActivities: ActivityData[] = [
   {
@@ -105,19 +113,20 @@ export default function Page() {
   const [realActivitiesResults, setRealActivitiesResults] = useState<ApiResponse | null>(null)
   const [showRealActivities, setShowRealActivities] = useState(false)
   const [realActivitiesError, setRealActivitiesError] = useState<string | null>(null)
-  
+
   const [showRealActivitiesSearch, setShowRealActivitiesSearch] = useState(false)
   const [refinementPrompts, setRefinementPrompts] = useState<string[]>([])
 
   const [shortlistedIds, setShortlistedIds] = useState<string[]>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = sessionStorage.getItem('shortlistedIds')
+    if (typeof window !== "undefined") {
+      const saved = sessionStorage.getItem("shortlistedIds")
       return saved ? JSON.parse(saved) : []
     }
     return []
   })
 
   const [showShortlistViewer, setShowShortlistViewer] = useState(false)
+  const [searchCategory, setSearchCategory] = useState<"diy" | "experience">("diy")
 
   useEffect(() => {
     if (!isLoading) return
@@ -125,13 +134,13 @@ export default function Page() {
     const interval = setInterval(() => {
       setMessageFade(false)
       setTimeout(() => {
-        setMessageIndex((prev) => (prev + 1) % loadingMessages.length)
+        setMessageIndex((prev) => (prev + 1) % loadingMessages[searchCategory].length)
         setMessageFade(true)
       }, 300)
     }, 2000)
 
     return () => clearInterval(interval)
-  }, [isLoading])
+  }, [isLoading, searchCategory])
 
   useEffect(() => {
     if (isLoading) {
@@ -154,8 +163,8 @@ export default function Page() {
   }, [isLoading])
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      sessionStorage.setItem('shortlistedIds', JSON.stringify(shortlistedIds))
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("shortlistedIds", JSON.stringify(shortlistedIds))
     }
   }, [shortlistedIds])
 
@@ -163,7 +172,7 @@ export default function Page() {
   const [messageFade, setMessageFade] = useState(true)
 
   const getCurrentMessage = () => {
-    return loadingMessages[messageIndex]
+    return loadingMessages[searchCategory][messageIndex % loadingMessages[searchCategory].length]
   }
 
   const validateForm = () => {
@@ -199,6 +208,11 @@ export default function Page() {
 
   const handleSearch = async (formData: ActivitySearchFormData) => {
     console.log("[v0] handleSearch called with formData:", formData)
+
+    if (formData.activityCategory) {
+      setSearchCategory(formData.activityCategory === "find-experience" ? "experience" : "diy")
+    }
+
     setIsLoading(true)
     setError(null)
     setShowResults(false)
@@ -345,7 +359,7 @@ export default function Page() {
     }
 
     const locationToSearch = providedLocation || searchResults.query.location
-    
+
     if (!locationToSearch) {
       showToast("Please provide a location to find real activities", "error")
       return
@@ -353,38 +367,62 @@ export default function Page() {
 
     setIsSearchingReal(true)
     setRealActivitiesError(null)
-    
+
     try {
       console.log("[Page] Searching for real activities in:", locationToSearch)
       console.log("[Page] Search results query:", searchResults.query)
-      
+
       const budgetPerPerson = searchResults.query.budget_per_person || "50"
       const currency = searchResults.query.currency || "EUR"
       const groupSize = searchResults.query.group_size || "2-5 people"
-      
+
       const requestBody = {
         location: locationToSearch,
         budgetPerPerson: budgetPerPerson,
         currency: currency,
         groupSize: groupSize,
         vibe: searchResults.query.vibe,
-        inspirationActivities: searchResults.recommendations.activities
+        inspirationActivities: searchResults.recommendations.activities,
       }
-      
+
       console.log("[Page] Real activities request with extracted values:", requestBody)
-      
+
       const response = await fetch("/api/search-real-activities", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify(requestBody),
       })
-      
+
       console.log("[Page] Real activities response status:", response.status)
-      
+
       const data = await response.json()
       console.log("[Page] Real activities response data:", data)
-      
+
+      if (data.isEmpty) {
+        setShowRealActivities(true)
+        setRealActivitiesResults(data)
+        showToast("No exact matches - showing suggestions", "info")
+
+        setTimeout(() => {
+          document.getElementById("real-activities")?.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+          })
+        }, 100)
+        return
+      }
+
       if (!response.ok) {
+        if (response.status === 404 && data.step === "EMPTY_RESULTS") {
+          const message = data.error || `No activities found in ${locationToSearch}`
+          const suggestionsText =
+            data.suggestions?.length > 0 ? `\n\nTry these destinations: ${data.suggestions.join(", ")}` : ""
+
+          setRealActivitiesError(message + suggestionsText)
+          showToast("No activities found - try a different location", "info")
+          return
+        }
+
         if (data.errorType === "CONFIGURATION_ERROR") {
           const errorMessage = [
             data.error,
@@ -392,51 +430,48 @@ export default function Page() {
             data.debugInfo?.message,
             "",
             "Steps to fix:",
-            ...(data.debugInfo?.instructions || [])
+            ...(data.debugInfo?.instructions || []),
           ].join("\n")
-          
+
           console.error("[Page] Configuration error:", errorMessage)
           setRealActivitiesError(errorMessage)
           showToast("Viator API not configured - check error details", "error")
           return
         }
-        
+
         const errorDetails = []
         if (data.errorType) errorDetails.push(`Error Type: ${data.errorType}`)
         if (data.debugInfo) {
-          if (data.debugInfo.hasApiKey !== undefined) errorDetails.push(`API Key: ${data.debugInfo.hasApiKey ? 'Present' : 'Missing'}`)
+          if (data.debugInfo.hasApiKey !== undefined)
+            errorDetails.push(`API Key: ${data.debugInfo.hasApiKey ? "Present" : "Missing"}`)
           if (data.debugInfo.apiKeyLength) errorDetails.push(`Key Length: ${data.debugInfo.apiKeyLength}`)
           errorDetails.push(`Location: ${data.debugInfo.requestedLocation || locationToSearch}`)
           errorDetails.push(`Budget: ${data.debugInfo.requestedBudget || budgetPerPerson}`)
           errorDetails.push(`Currency: ${data.debugInfo.requestedCurrency || currency}`)
         }
-        
+
         const fullErrorMessage = [
           data.error || "Failed to find real activities",
           "",
           "Debug Information:",
-          ...errorDetails
+          ...errorDetails,
         ].join("\n")
-        
+
         console.error("[Page] Detailed error:", fullErrorMessage)
         throw new Error(fullErrorMessage)
       }
-      
+
       setRealActivitiesResults(data)
       setShowRealActivities(true)
-      
+
       setTimeout(() => {
-        document.getElementById('real-activities')?.scrollIntoView({ 
-          behavior: 'smooth',
-          block: 'start'
+        document.getElementById("real-activities")?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
         })
       }, 100)
-      
-      showToast(
-        `Found ${data.recommendations.activities.length} real activities!`, 
-        "success"
-      )
-      
+
+      showToast(`Found ${data.recommendations.activities.length} real activities!`, "success")
     } catch (error: any) {
       console.error("[Page] Error finding real activities:", error)
       setRealActivitiesError(error.message)
@@ -457,8 +492,8 @@ export default function Page() {
 
   const getShortlistedActivities = (): ActivityData[] => {
     if (!searchResults?.recommendations?.activities) return []
-    return searchResults.recommendations.activities.filter(
-      (activity) => shortlistedIds.includes(activity.id || activity.name)
+    return searchResults.recommendations.activities.filter((activity) =>
+      shortlistedIds.includes(activity.id || activity.name),
     )
   }
 
@@ -588,26 +623,38 @@ export default function Page() {
               shortlistedIds={shortlistedIds}
             />
 
-            {showRealActivities && realActivitiesResults && (
+            {showRealActivities && realActivitiesResults?.isEmpty && (
+              <div id="real-activities" className="mt-16 pt-16 border-t border-zinc-800">
+                <EmptySearchResults
+                  location={realActivitiesResults.query?.location || "this location"}
+                  suggestions={realActivitiesResults.suggestions || []}
+                  budgetHint={
+                    realActivitiesResults.query?.budget_per_person
+                      ? `Most activities here cost ${realActivitiesResults.query.currency}${Math.round(Number(realActivitiesResults.query.budget_per_person) * 2)}+`
+                      : undefined
+                  }
+                  onSelectDestination={(dest) => handleFindRealActivities(dest)}
+                />
+              </div>
+            )}
+
+            {showRealActivities && realActivitiesResults && !realActivitiesResults.isEmpty && (
               <div id="real-activities" className="mt-16 pt-16 border-t border-zinc-800">
                 <div className="text-center mb-12">
                   <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 border border-primary/30 rounded-full mb-4">
                     <span className="text-2xl">🎫</span>
                     <span className="text-sm font-semibold text-primary">Real Bookable Activities</span>
                   </div>
-                  
+
                   <h2 className="text-3xl md:text-4xl font-bold mb-3">
-                    {realActivitiesResults.query?.location 
+                    {realActivitiesResults.query?.location
                       ? `Activities in ${realActivitiesResults.query.location}`
-                      : "Real Activities You Can Book"
-                    }
+                      : "Real Activities You Can Book"}
                   </h2>
-                  
-                  <p className="text-zinc-400 max-w-2xl mx-auto">
-                    Based on your preferences • Powered by Viator
-                  </p>
+
+                  <p className="text-zinc-400 max-w-2xl mx-auto">Based on your preferences • Powered by Viator</p>
                 </div>
-                
+
                 <ActivityResults
                   results={realActivitiesResults}
                   onNewSearch={() => {
@@ -626,14 +673,8 @@ export default function Page() {
             {realActivitiesError && (
               <div className="mt-8 p-6 bg-red-500/10 border border-red-500/30 rounded-xl">
                 <h3 className="font-semibold text-red-400 mb-2">Error Finding Real Activities</h3>
-                <pre className="text-sm text-red-300 whitespace-pre-wrap font-mono">
-                  {realActivitiesError}
-                </pre>
-                <Button
-                  onClick={() => setRealActivitiesError(null)}
-                  variant="outline"
-                  className="mt-4"
-                >
+                <pre className="text-sm text-red-300 whitespace-pre-wrap font-mono">{realActivitiesError}</pre>
+                <Button onClick={() => setRealActivitiesError(null)} variant="outline" className="mt-4">
                   Dismiss
                 </Button>
               </div>

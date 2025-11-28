@@ -74,12 +74,39 @@ export type LocationMode = "have-location" | "surprise-me" // Updated to match n
 export type Currency = "EUR" | "USD" | "GBP"
 
 export interface ActivitySearchFormData {
-  groupSize: string // Required, not optional
-  budgetPerPerson?: string // Optional but recommended
+  groupSize: string // Required
+  budgetPerPerson?: string // Required but made optional in interface for partial form states
   currency?: string // Optional, defaults to EUR
-  locationMode: "have-location" | "surprise-me" // Updated options
-  location?: string // Optional, depends on locationMode
-  vibe?: string // Optional
+  location?: string // Optional - simplified from locationMode
+  vibe?: string // Optional, moved to collapsible section
+  activityCategory?: "diy" | "find-experience" // Required - new field replacing locationMode
+
+  // New optional fields in collapsible section
+  groupRelationship?: string
+  timeOfDay?: string
+  indoorOutdoorPreference?: string
+  accessibilityNeeds?: string
+}
+
+export interface EnrichedUserContext {
+  // Original inputs
+  groupSize: string
+  budgetPerPerson: number
+  currency: string
+  location?: string
+  activityCategory: "diy" | "find-experience"
+
+  // Optional context
+  groupRelationship?: string
+  timeOfDay?: string
+  indoorOutdoor?: string
+  accessibilityNeeds?: string
+  vibe?: string
+
+  // Derived insights
+  budgetTier: "budget" | "moderate" | "premium" | "luxury"
+  groupSizeCategory: "intimate" | "small" | "medium" | "large"
+  seasonalContext?: string // derived from current date
 }
 
 export interface FormValidation {
@@ -88,6 +115,7 @@ export interface FormValidation {
     groupSize?: string
     location?: string
     budget?: string
+    activityCategory?: string // Added activityCategory to errors
   }
 }
 

@@ -5,7 +5,7 @@ import { ActivityCard, type ActivityData } from "./activity-card"
 import { Button } from "./ui/button"
 import { Badge } from "./ui/badge"
 import { Input } from "./ui/input"
-import { ChevronDown, ChevronUp, Sparkles, Lightbulb, Search, Loader2, MapPin } from 'lucide-react'
+import { ChevronDown, ChevronUp, Sparkles, Lightbulb, Search, Loader2, MapPin } from "lucide-react"
 import type { ActivityRecommendation, ParsedQuery } from "@/lib/types"
 
 interface ActivityResultsProps {
@@ -22,23 +22,27 @@ interface ActivityResultsProps {
   hasLocation?: boolean
 }
 
-export function ActivityResults({ 
-  results, 
-  onNewSearch, 
-  onAddToShortlist, 
+export function ActivityResults({
+  results,
+  onNewSearch,
+  onAddToShortlist,
   shortlistedIds = [],
   onFindRealActivities,
   isSearchingReal = false,
-  hasLocation = false
+  hasLocation = false,
 }: ActivityResultsProps) {
+  const [showProTips, setShowProTips] = useState(false)
+  const [locationInput, setLocationInput] = useState("")
+  const [locationError, setLocationError] = useState("")
+
   console.log("[Results] Received results:", results)
   console.log("[Results] Has recommendations:", !!results?.recommendations)
-  
+
   if (!results || !results.recommendations) {
     return (
       <div className="text-center py-12">
         <p className="text-zinc-400">No results to display</p>
-        <Button onClick={onNewSearch} className="mt-4" variant="outline">
+        <Button onClick={onNewSearch} className="mt-4 bg-transparent" variant="outline">
           Try again
         </Button>
       </div>
@@ -55,16 +59,12 @@ export function ActivityResults({
     return (
       <div className="text-center py-12">
         <p className="text-zinc-400">No activities were generated. Please try again.</p>
-        <Button onClick={onNewSearch} className="mt-4" variant="outline">
+        <Button onClick={onNewSearch} className="mt-4 bg-transparent" variant="outline">
           New Search
         </Button>
       </div>
     )
   }
-  
-  const [showProTips, setShowProTips] = useState(false)
-  const [locationInput, setLocationInput] = useState("")
-  const [locationError, setLocationError] = useState("")
 
   const transformedActivities: ActivityData[] = activities.map((activity, index) => ({
     id: activity.id || `activity-${index}`,
@@ -84,7 +84,60 @@ export function ActivityResults({
   console.log("[Results] Transformed activities with all fields:", transformedActivities)
 
   return (
-    <div className="space-y-8 pb-16">
+    <div className="space-y-8 pb-16 animate-in fade-in slide-in-from-bottom duration-500">
+      <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6">
+        <h3 className="text-sm font-medium text-zinc-400 mb-3">Your Search</h3>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+          <div>
+            <span className="text-zinc-500">Group:</span>
+            <span className="ml-2 text-white">{query.group_size}</span>
+          </div>
+          <div>
+            <span className="text-zinc-500">Budget:</span>
+            <span className="ml-2 text-white">
+              {query.currency}
+              {query.budget_per_person} per person
+            </span>
+          </div>
+          {query.activity_category && (
+            <div>
+              <span className="text-zinc-500">Category:</span>
+              <span className="ml-2 text-white">{query.activity_category === "diy" ? "DIY" : "Find Experience"}</span>
+            </div>
+          )}
+          {query.location && (
+            <div>
+              <span className="text-zinc-500">Location:</span>
+              <span className="ml-2 text-white">{query.location}</span>
+            </div>
+          )}
+          {query.vibe && (
+            <div>
+              <span className="text-zinc-500">Vibe:</span>
+              <span className="ml-2 text-white">{query.vibe}</span>
+            </div>
+          )}
+          {query.group_relationship && (
+            <div>
+              <span className="text-zinc-500">Group Type:</span>
+              <span className="ml-2 text-white">{query.group_relationship}</span>
+            </div>
+          )}
+          {query.time_of_day && (
+            <div>
+              <span className="text-zinc-500">Time:</span>
+              <span className="ml-2 text-white">{query.time_of_day}</span>
+            </div>
+          )}
+          {query.indoor_outdoor && (
+            <div>
+              <span className="text-zinc-500">Setting:</span>
+              <span className="ml-2 text-white">{query.indoor_outdoor}</span>
+            </div>
+          )}
+        </div>
+      </div>
+
       <div className="flex items-center justify-center">
         <Badge
           variant="outline"
@@ -95,12 +148,7 @@ export function ActivityResults({
         </Badge>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="text-sm text-zinc-400">
-          {query.group_size} people {query.location && `• ${query.location}`}
-          {query.vibe && ` • ${query.vibe}`}
-        </div>
-
+      <div className="flex justify-end">
         <Button
           onClick={onNewSearch}
           variant="outline"
@@ -116,13 +164,19 @@ export function ActivityResults({
           Creative Ideas to Explore
         </h2>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {transformedActivities.map((activity) => (
-            <ActivityCard
+          {transformedActivities.map((activity, index) => (
+            <div
               key={activity.id}
-              activity={activity}
-              onAddToShortlist={onAddToShortlist}
-              isShortlisted={shortlistedIds.includes(activity.id)}
-            />
+              className="animate-in fade-in slide-in-from-bottom duration-500"
+              style={{ animationDelay: `${index * 100}ms` }}
+            >
+              <ActivityCard
+                activity={activity}
+                categoryType={query.activity_category}
+                onAddToShortlist={onAddToShortlist}
+                isShortlisted={shortlistedIds.includes(activity.id)}
+              />
+            </div>
           ))}
         </div>
       </div>
@@ -136,16 +190,13 @@ export function ActivityResults({
               <div className="w-16 h-16 mx-auto mb-4 bg-primary/20 rounded-full flex items-center justify-center border border-primary/30">
                 <Sparkles className="w-8 h-8 text-primary" />
               </div>
-              <h3 className="text-2xl md:text-3xl font-bold mb-3 text-white">
-                Ready to Book Real Activities?
-              </h3>
+              <h3 className="text-2xl md:text-3xl font-bold mb-3 text-white">Ready to Book Real Activities?</h3>
               <p className="text-zinc-400 mb-6 max-w-md mx-auto text-base md:text-lg leading-relaxed">
                 {hasLocation && query?.location
                   ? `Find actual bookable experiences in ${query.location}`
-                  : "Search for real activities you can book right now"
-                }
+                  : "Search for real activities you can book right now"}
               </p>
-              
+
               {!hasLocation && (
                 <div className="max-w-md mx-auto mb-6">
                   <div className="relative">
@@ -162,12 +213,10 @@ export function ActivityResults({
                       disabled={isSearchingReal}
                     />
                   </div>
-                  {locationError && (
-                    <p className="text-red-400 text-sm mt-2">{locationError}</p>
-                  )}
+                  {locationError && <p className="text-red-400 text-sm mt-2">{locationError}</p>}
                 </div>
               )}
-              
+
               <Button
                 onClick={() => {
                   if (!hasLocation && !locationInput.trim()) {

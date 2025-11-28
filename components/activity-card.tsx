@@ -3,7 +3,26 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Clock, Euro, ActivityIcon, Heart, Zap, Mountain, Check, ExternalLink, Star, Users, Lightbulb, Sparkles, MapPin, ChevronDown, ChevronUp, Info } from 'lucide-react'
+import {
+  Clock,
+  Euro,
+  Heart,
+  Zap,
+  Mountain,
+  Check,
+  ExternalLink,
+  Star,
+  Users,
+  Sparkles,
+  MapPin,
+  ChevronDown,
+  ChevronUp,
+  Info,
+  Wrench,
+  Ticket,
+  Package,
+  CheckCircle,
+} from "lucide-react"
 
 export interface ActivityData {
   id?: string
@@ -32,6 +51,7 @@ interface ActivityCardProps {
   onAddToShortlist?: (id: string) => void
   isShortlisted?: boolean
   isBookable?: boolean // Added isBookable prop to distinguish real vs AI activities
+  categoryType?: "diy" | "experience" // Added categoryType prop to display DIY vs Experience badge
 }
 
 const tagColors: Record<string, string> = {
@@ -80,12 +100,18 @@ const renderStars = (rating: number) => {
   return stars
 }
 
-export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false, isBookable = false }: ActivityCardProps) {
+export function ActivityCard({
+  activity,
+  onAddToShortlist,
+  isShortlisted = false,
+  isBookable = false,
+  categoryType,
+}: ActivityCardProps) {
   const [showCheckmark, setShowCheckmark] = useState(false)
   const [expandedSections, setExpandedSections] = useState({
     bestFor: false,
     specialElement: false,
-    preparation: false
+    preparation: false,
   })
 
   console.log("[v0] ActivityCard received activity:", activity)
@@ -94,12 +120,13 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
 
   const activityName = activity.name || "Activity"
   const ActivityLevelIcon = activity?.activityLevel ? activityLevelConfig[activity.activityLevel]?.icon : Heart
-  
-  const costDisplay = typeof activity.cost === 'number' 
-    ? `${activity.cost}` 
-    : (typeof activity.cost === 'string' && activity.cost.includes('€')) 
-      ? activity.cost.replace('€', '') 
-      : activity.cost || "TBD"
+
+  const costDisplay =
+    typeof activity.cost === "number"
+      ? `${activity.cost}`
+      : typeof activity.cost === "string" && activity.cost.includes("€")
+        ? activity.cost.replace("€", "")
+        : activity.cost || "TBD"
 
   const handleShortlist = () => {
     if (!isShortlisted) {
@@ -109,10 +136,10 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
     onAddToShortlist?.(activity.id || activityName)
   }
 
-  const toggleSection = (section: 'bestFor' | 'specialElement' | 'preparation') => {
-    setExpandedSections(prev => ({
+  const toggleSection = (section: "bestFor" | "specialElement" | "preparation") => {
+    setExpandedSections((prev) => ({
       ...prev,
-      [section]: !prev[section]
+      [section]: !prev[section],
     }))
   }
 
@@ -127,7 +154,6 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
       }`}
       aria-label={`${activityName} activity`}
     >
-      
       {activity?.image && (
         <div className="relative w-full h-48 overflow-hidden">
           <img
@@ -140,20 +166,57 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
             }}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-zinc-900 to-transparent" />
-          
+
           <div className="absolute top-4 right-4">
-            <Badge className={
-              isBookable 
-                ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30 backdrop-blur-sm"
-                : "bg-purple-500/20 text-purple-400 border-purple-500/30 backdrop-blur-sm"
-            }>
-              {isBookable ? "🎫 Bookable" : "✨ Inspiration"}
+            <Badge
+              className={
+                isBookable
+                  ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30 backdrop-blur-sm"
+                  : "bg-purple-500/20 text-purple-400 border-purple-500/30 backdrop-blur-sm"
+              }
+            >
+              {isBookable ? (
+                <>
+                  <Ticket className="w-3 h-3 mr-1 inline" />
+                  Bookable
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-3 h-3 mr-1 inline" />
+                  Inspiration
+                </>
+              )}
             </Badge>
           </div>
         </div>
       )}
 
       <div className="p-6">
+        {categoryType && (
+          <div className="mb-3">
+            <Badge
+              variant="outline"
+              className={
+                categoryType === "diy"
+                  ? "bg-blue-500/20 text-blue-400 border-blue-500/30"
+                  : "bg-purple-500/20 text-purple-400 border-purple-500/30"
+              }
+            >
+              {categoryType === "diy" ? (
+                <>
+                  <Wrench className="w-3 h-3 mr-1" />
+                  DIY
+                </>
+              ) : (
+                <>
+                  <Ticket className="w-3 h-3 mr-1" />
+                  Find Experience
+                </>
+              )}
+            </Badge>
+          </div>
+        )}
+
         {/* Header */}
         <div className="mb-4">
           <h3 className="text-xl md:text-2xl font-bold text-white leading-tight mb-2">{activityName}</h3>
@@ -170,18 +233,18 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
         </div>
 
         {hasRating && (
-          <div className={`mb-4 p-3 rounded-lg ${
-            isBookable 
-              ? "bg-emerald-500/10 border border-emerald-500/20"
-              : "bg-purple-500/10 border border-purple-500/20"
-          }`}>
+          <div
+            className={`mb-4 p-3 rounded-lg ${
+              isBookable
+                ? "bg-emerald-500/10 border border-emerald-500/20"
+                : "bg-purple-500/10 border border-purple-500/20"
+            }`}
+          >
             <div className="flex items-center gap-2 flex-wrap">
               <div className="flex items-center gap-1">{renderStars(activity.rating)}</div>
               <span className="font-semibold">{activity.rating.toFixed(1)}</span>
               {activity?.reviewCount && (
-                <span className="text-sm text-zinc-400">
-                  ({activity.reviewCount.toLocaleString()} reviews)
-                </span>
+                <span className="text-sm text-zinc-400">({activity.reviewCount.toLocaleString()} reviews)</span>
               )}
             </div>
           </div>
@@ -237,9 +300,7 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
             <div className="flex items-start gap-2">
               <Info className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
               <div>
-                <p className="text-xs font-semibold text-blue-300 mb-1">
-                  Booking Info:
-                </p>
+                <p className="text-xs font-semibold text-blue-300 mb-1">Booking Info:</p>
                 <p className="text-sm text-zinc-300">{activity.preparation}</p>
               </div>
             </div>
@@ -248,7 +309,7 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
 
         <div className="mb-3">
           <button
-            onClick={() => toggleSection('bestFor')}
+            onClick={() => toggleSection("bestFor")}
             className="w-full p-3 rounded-lg bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/20 hover:border-purple-500/40 transition-all duration-200 text-left"
           >
             <div className="flex items-center justify-between">
@@ -272,7 +333,7 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
 
         <div className="mb-3">
           <button
-            onClick={() => toggleSection('specialElement')}
+            onClick={() => toggleSection("specialElement")}
             className="w-full p-3 rounded-lg bg-gradient-to-br from-primary/10 via-emerald-400/10 to-cyan-400/10 border border-primary/30 hover:border-primary/50 transition-all duration-200 text-left"
           >
             <div className="flex items-center justify-between">
@@ -297,13 +358,22 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
         {!isBookable && (
           <div className="mb-4">
             <button
-              onClick={() => toggleSection('preparation')}
+              onClick={() => toggleSection("preparation")}
               className="w-full p-3 rounded-lg bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/20 hover:border-amber-500/40 transition-all duration-200 text-left"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Lightbulb className="w-4 h-4 text-amber-400" aria-hidden="true" />
-                  <span className="text-sm font-semibold text-amber-300">Preparation needed</span>
+                  {categoryType === "diy" ? (
+                    <>
+                      <Package className="w-4 h-4 text-amber-400" aria-hidden="true" />
+                      <span className="text-sm font-semibold text-amber-300">Materials You'll Need</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="w-4 h-4 text-amber-400" aria-hidden="true" />
+                      <span className="text-sm font-semibold text-amber-300">What's Included</span>
+                    </>
+                  )}
                 </div>
                 {expandedSections.preparation ? (
                   <ChevronUp className="w-4 h-4 text-amber-400" />
@@ -314,7 +384,23 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
             </button>
             {expandedSections.preparation && (
               <div className="mt-2 p-3 rounded-lg bg-amber-500/5 border border-amber-500/10 animate-in slide-in-from-top-2 duration-200">
-                <p className="text-sm text-zinc-200 leading-relaxed">{activity.preparation}</p>
+                {categoryType === "diy" &&
+                (activity.preparation.includes("•") || activity.preparation.includes(",")) ? (
+                  <ul className="space-y-2">
+                    {activity.preparation
+                      .split(/[•,]/)
+                      .map((item) => item.trim())
+                      .filter((item) => item.length > 0)
+                      .map((item, index) => (
+                        <li key={index} className="flex items-start gap-2 text-sm text-zinc-200">
+                          <Check className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-zinc-200 leading-relaxed">{activity.preparation}</p>
+                )}
               </div>
             )}
           </div>
@@ -323,18 +409,13 @@ export function ActivityCard({ activity, onAddToShortlist, isShortlisted = false
         {isBookable ? (
           // Bookable activities: Show "Book on Viator" button with attribution
           <div className="space-y-3">
-            <a
-              href={activity.viatorUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block w-full"
-            >
+            <a href={activity.viatorUrl} target="_blank" rel="noopener noreferrer" className="block w-full">
               <Button className="w-full h-12 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-semibold transition-all duration-300 hover:scale-105 shadow-lg shadow-emerald-500/20">
                 <ExternalLink className="w-4 h-4 mr-2" aria-hidden="true" />
                 Book on Viator
               </Button>
             </a>
-            
+
             {/* Viator Attribution */}
             <div className="flex items-center justify-center gap-2 text-xs text-zinc-500 pt-2 border-t border-zinc-800">
               <span>Powered by</span>

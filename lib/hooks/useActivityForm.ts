@@ -1,107 +1,84 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import type { ActivitySearchForm, FormValidation } from "@/lib/types"
-import { getFilteredInspirations, type InspirationPrompt } from "@/lib/data/inspiration-prompts"
+import { useState } from "react"
+import type { ActivitySearchFormData } from "@/lib/types"
+import { validateBudget } from "@/lib/utils/validate-budget"
+
+interface FormErrors {
+  groupSize?: string
+  budgetPerPerson?: string
+  activityCategory?: string
+}
 
 export function useActivityForm() {
-  const [formData, setFormData] = useState<ActivitySearchForm>({
+  const [formData, setFormData] = useState<ActivitySearchFormData>({
     groupSize: "",
     budgetPerPerson: undefined,
     currency: "EUR",
-    locationMode: "have-location",
-    location: "",
-    inspirationPrompt: undefined,
-    vibe: "",
+    location: undefined,
+    activityCategory: undefined,
+    vibe: undefined,
+    groupRelationship: undefined,
+    timeOfDay: undefined,
+    indoorOutdoorPreference: undefined,
+    accessibilityNeeds: undefined,
   })
 
-  const [errors, setErrors] = useState<FormValidation["errors"]>({})
+  const [errors, setErrors] = useState<FormErrors>({})
 
-  const [currentInspirations, setCurrentInspirations] = useState<InspirationPrompt[]>([])
-
-  useEffect(() => {
-    if (formData.locationMode === "looking-for-ideas") {
-      // Get smart suggestions based on current form data
-      const inspirations = getFilteredInspirations(
-        {
-          budget: formData.budgetPerPerson,
-          vibe: formData.vibe,
-        },
-        3,
-      )
-      setCurrentInspirations(inspirations)
-    }
-  }, [formData.locationMode, formData.budgetPerPerson])
-
-  const refreshInspirations = () => {
-    const inspirations = getFilteredInspirations(
-      {
-        budget: formData.budgetPerPerson,
-        vibe: formData.vibe,
-      },
-      3,
-    )
-    setCurrentInspirations(inspirations)
-  }
-
-  const updateField = <K extends keyof ActivitySearchForm>(field: K, value: ActivitySearchForm[K]) => {
+  const updateField = <K extends keyof ActivitySearchFormData>(field: K, value: ActivitySearchFormData[K]) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
-    if (errors[field as keyof typeof errors]) {
+    // Clear error when field is updated
+    if (errors[field as keyof FormErrors]) {
       setErrors((prev) => ({ ...prev, [field]: undefined }))
     }
   }
 
   const validate = (): boolean => {
-    const newErrors: FormValidation["errors"] = {}
+    const newErrors: FormErrors = {}
 
     if (!formData.groupSize) {
       newErrors.groupSize = "Please select a group size"
     }
 
-    if (formData.locationMode === "have-location" && !formData.location) {
-      newErrors.location = 'Please enter a location or switch to "Looking for ideas"'
+    if (!formData.budgetPerPerson || formData.budgetPerPerson.trim() === "") {
+      newErrors.budgetPerPerson = "Budget is required"
+    } else {
+      const budgetError = validateBudget(formData.budgetPerPerson)
+      if (budgetError) {
+        newErrors.budgetPerPerson = budgetError
+      }
     }
 
-    if (formData.locationMode === "looking-for-ideas" && !formData.inspirationPrompt) {
-      newErrors.location = "Please select an inspiration or enter your own"
+    if (!formData.activityCategory) {
+      newErrors.activityCategory = "Please select an activity category"
     }
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
 
-  const buildUserInput = (): string => {
-    const parts: string[] = []
-
-    if (formData.groupSize) {
-      parts.push(`Group of ${formData.groupSize} people`)
-    }
-
-    if (formData.budgetPerPerson) {
-      const currencySymbol = formData.currency === "EUR" ? "€" : formData.currency === "GBP" ? "£" : "$"
-      parts.push(`${currencySymbol}${formData.budgetPerPerson} per person`)
-    }
-
-    if (formData.locationMode === "have-location" && formData.location) {
-      parts.push(`in ${formData.location}`)
-    } else if (formData.inspirationPrompt) {
-      parts.push(formData.inspirationPrompt)
-    }
-
-    if (formData.vibe) {
-      parts.push(formData.vibe)
-    }
-
-    return parts.join(", ")
+  const reset = () => {
+    setFormData({
+      groupSize: "",
+      budgetPerPerson: undefined,
+      currency: "EUR",
+      location: undefined,
+      activityCategory: undefined,
+      vibe: undefined,
+      groupRelationship: undefined,
+      timeOfDay: undefined,
+      indoorOutdoorPreference: undefined,
+      accessibilityNeeds: undefined,
+    })
+    setErrors({})
   }
 
   return {
     formData,
     errors,
-    currentInspirations,
     updateField,
     validate,
-    buildUserInput,
-    refreshInspirations,
+    reset,
   }
 }
