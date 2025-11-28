@@ -349,6 +349,39 @@ Think like you're planning for friends who trust your taste. Be bold. Be specifi
     })
 
     if (recommendations.activities && recommendations.activities.length > 0) {
+      const originalCount = recommendations.activities.length
+
+      recommendations.activities = recommendations.activities.filter((activity: any) => {
+        const isValid =
+          activity.name &&
+          activity.name.trim() !== "" &&
+          activity.name !== "Activity" &&
+          activity.experience &&
+          activity.experience.trim() !== "" &&
+          activity.experience !== "Experience description coming soon" &&
+          activity.bestFor &&
+          activity.bestFor.trim() !== "" &&
+          activity.cost &&
+          activity.duration &&
+          activity.duration !== "TBD" &&
+          activity.specialElement &&
+          activity.specialElement.trim() !== ""
+
+        if (!isValid) {
+          console.log("[API] Filtered out incomplete activity:", activity)
+        }
+
+        return isValid
+      })
+
+      const filteredCount = recommendations.activities.length
+
+      if (filteredCount < originalCount) {
+        console.log(
+          `[API] Filtered out ${originalCount - filteredCount} incomplete activities. Remaining: ${filteredCount}`,
+        )
+      }
+
       console.log("[API] Activity breakdown:")
       recommendations.activities.forEach((activity: any, index: number) => {
         console.log(`  [${index + 1}] ${activity.name}:`, {

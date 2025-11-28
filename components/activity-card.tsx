@@ -21,7 +21,6 @@ import {
   Wrench,
   Ticket,
   Package,
-  CheckCircle,
 } from "lucide-react"
 
 export interface ActivityData {
@@ -127,6 +126,8 @@ export function ActivityCard({
       : typeof activity.cost === "string" && activity.cost.includes("€")
         ? activity.cost.replace("€", "")
         : activity.cost || "TBD"
+
+  const costLabel = categoryType === "experience" ? "est. per person" : "per person"
 
   const handleShortlist = () => {
     if (!isShortlisted) {
@@ -271,7 +272,7 @@ export function ActivityCard({
               <Euro className="w-4 h-4" aria-hidden="true" />
               <span className="font-bold text-lg">{costDisplay}</span>
             </div>
-            <span className="text-xs text-zinc-500">per person</span>
+            <span className="text-xs text-zinc-500">{costLabel}</span>
           </div>
 
           <div className="flex flex-col items-center text-center">
@@ -355,7 +356,7 @@ export function ActivityCard({
           )}
         </div>
 
-        {!isBookable && (
+        {!isBookable && categoryType === "diy" && (
           <div className="mb-4">
             <button
               onClick={() => toggleSection("preparation")}
@@ -363,17 +364,8 @@ export function ActivityCard({
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  {categoryType === "diy" ? (
-                    <>
-                      <Package className="w-4 h-4 text-amber-400" aria-hidden="true" />
-                      <span className="text-sm font-semibold text-amber-300">Materials You'll Need</span>
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle className="w-4 h-4 text-amber-400" aria-hidden="true" />
-                      <span className="text-sm font-semibold text-amber-300">What's Included</span>
-                    </>
-                  )}
+                  <Package className="w-4 h-4 text-amber-400" aria-hidden="true" />
+                  <span className="text-sm font-semibold text-amber-300">Materials You'll Need</span>
                 </div>
                 {expandedSections.preparation ? (
                   <ChevronUp className="w-4 h-4 text-amber-400" />
@@ -385,8 +377,7 @@ export function ActivityCard({
             {expandedSections.preparation && (
               <div className="mt-2 p-3 rounded-lg bg-amber-500/5 border border-amber-500/10 animate-in slide-in-from-top-2 duration-200">
                 {activity.preparation ? (
-                  categoryType === "diy" &&
-                  (activity.preparation.includes("•") || activity.preparation.includes(",")) ? (
+                  activity.preparation.includes("•") || activity.preparation.includes(",") ? (
                     <ul className="space-y-2">
                       {activity.preparation
                         .split(/[•,]/)
@@ -403,7 +394,7 @@ export function ActivityCard({
                     <p className="text-sm text-zinc-200 leading-relaxed">{activity.preparation}</p>
                   )
                 ) : (
-                  <p className="text-sm text-zinc-400 italic">No preparation details provided</p>
+                  <p className="text-sm text-zinc-400 italic">No materials specified</p>
                 )}
               </div>
             )}

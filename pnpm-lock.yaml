@@ -10,7 +10,7 @@ importers:
     dependencies:
       '@hookform/resolvers':
         specifier: ^3.10.0
-        version: 3.10.0(react-hook-form@7.66.0(react@19.2.0))
+        version: 3.10.0(react-hook-form@7.66.1(react@19.2.0))
       '@radix-ui/react-accordion':
         specifier: latest
         version: 1.2.12(@types/react-dom@19.0.0)(@types/react@19.0.0)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
@@ -94,7 +94,7 @@ importers:
         version: 1.2.8(@types/react-dom@19.0.0)(@types/react@19.0.0)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       '@supabase/ssr':
         specifier: latest
-        version: 0.7.0(@supabase/supabase-js@2.46.0)
+        version: 0.8.0(@supabase/supabase-js@2.46.0)
       '@supabase/supabase-js':
         specifier: ^2.45.7
         version: 2.46.0
@@ -139,25 +139,28 @@ importers:
         version: 0.4.6(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       openai:
         specifier: latest
-        version: 6.8.1(ws@8.18.3)(zod@3.25.76)
+        version: 6.9.1(ws@8.18.3)(zod@3.25.76)
+      query-string:
+        specifier: latest
+        version: 9.3.1
       react:
         specifier: 19.2.0
         version: 19.2.0
       react-day-picker:
         specifier: latest
-        version: 9.11.1(react@19.2.0)
+        version: 9.11.2(react@19.2.0)
       react-dom:
         specifier: 19.2.0
         version: 19.2.0(react@19.2.0)
       react-hook-form:
         specifier: latest
-        version: 7.66.0(react@19.2.0)
+        version: 7.66.1(react@19.2.0)
       react-resizable-panels:
         specifier: latest
         version: 3.0.6(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       recharts:
         specifier: latest
-        version: 3.3.0(@types/react@19.0.0)(react-dom@19.2.0(react@19.2.0))(react-is@19.2.0)(react@19.2.0)(redux@5.0.1)
+        version: 3.5.1(@types/react@19.0.0)(react-dom@19.2.0(react@19.2.0))(react-is@19.2.0)(react@19.2.0)(redux@5.0.1)
       sonner:
         specifier: latest
         version: 2.0.7(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
@@ -1132,10 +1135,10 @@ packages:
   '@supabase/realtime-js@2.10.7':
     resolution: {integrity: sha512-OLI0hiSAqQSqRpGMTUwoIWo51eUivSYlaNBgxsXZE7PSoWh12wPRdVt0psUMaUzEonSB85K21wGc7W5jHnT6uA==}
 
-  '@supabase/ssr@0.7.0':
-    resolution: {integrity: sha512-G65t5EhLSJ5c8hTCcXifSL9Q/ZRXvqgXeNo+d3P56f4U1IxwTqjB64UfmfixvmMcjuxnq2yGqEWVJqUcO+AzAg==}
+  '@supabase/ssr@0.8.0':
+    resolution: {integrity: sha512-/PKk8kNFSs8QvvJ2vOww1mF5/c5W8y42duYtXvkOSe+yZKRgTTZywYG2l41pjhNomqESZCpZtXuWmYjFRMV+dw==}
     peerDependencies:
-      '@supabase/supabase-js': ^2.43.4
+      '@supabase/supabase-js': ^2.76.1
 
   '@supabase/storage-js@2.7.1':
     resolution: {integrity: sha512-asYHcyDR1fKqrMpytAS1zjyEfvxuOIp1CIXX7ji4lHHcJKqyk+sLl/Vxgm4sN6u8zvuUtae9e4kDxQP2qrwWBA==}
@@ -1422,6 +1425,10 @@ packages:
   decimal.js-light@2.5.1:
     resolution: {integrity: sha512-qIMFpTMZmny+MMIitAB6D7iVPEorVw6YQRWkvarTkT4tBeSLLiHzcwj6q0MmYSFCiVpiqPJTJEYIrpcPzVEIvg==}
 
+  decode-uri-component@0.4.1:
+    resolution: {integrity: sha512-+8VxcR21HhTy8nOt6jf20w0c9CADrw1O8d+VZ/YzzCt4bJ3uBjw+D1q2osAB8RnpwwaeYBxy0HyKQxD5JBMuuQ==}
+    engines: {node: '>=14.16'}
+
   delayed-stream@1.0.0:
     resolution: {integrity: sha512-ZySD7Nf91aLB0RxL4KGrKHBXl7Eds1DAmEdcoVawXnLD7SDhpNgtuII2aAkg7a7QS41jxPSZ17p4VdGnMHk3MQ==}
     engines: {node: '>=0.4.0'}
@@ -1482,6 +1489,10 @@ packages:
 
   eventemitter3@5.0.1:
     resolution: {integrity: sha512-GWkBvjiSZK87ELrYOSESUYeVIc9mvLLf/nXalMOS5dYrgZq9o5OVkbZAVM06CVxYsCwH9BDZFPlQTlPA1j4ahA==}
+
+  filter-obj@5.1.0:
+    resolution: {integrity: sha512-qWeTREPoT7I0bifpPUXtxkZJ1XJzxWtfoWWkdVGqa+eCr3SHW/Ocp89o8vLvbUuQnadybJpjOKu4V+RwO6sGng==}
+    engines: {node: '>=14.16'}
 
   follow-redirects@1.15.11:
     resolution: {integrity: sha512-deG2P0JfjrTxl50XGCDyfI97ZGVCxIpfKYmfyrQ54n5FO/0gfIES8C/Psl6kWVDolizcaaxZJnTS0QSMxvnsBQ==}
@@ -1686,8 +1697,8 @@ packages:
     resolution: {integrity: sha512-bdok/XvKII3nUpklnV6P2hxtMNrCboOjAcyBuQnWEhO665FwrSNRxU+AqpsyvO6LgGYPspN+lu5CLtw4jPRKNA==}
     engines: {node: '>=0.10.0'}
 
-  openai@6.8.1:
-    resolution: {integrity: sha512-ACifslrVgf+maMz9vqwMP4+v9qvx5Yzssydizks8n+YUJ6YwUoxj51sKRQ8HYMfR6wgKLSIlaI108ZwCk+8yig==}
+  openai@6.9.1:
+    resolution: {integrity: sha512-vQ5Rlt0ZgB3/BNmTa7bIijYFhz3YBceAA3Z4JuoMSBftBF9YqFHIEhZakSs+O/Ad7EaoEimZvHxD5ylRjN11Lg==}
     hasBin: true
     peerDependencies:
       ws: ^8.18.0
@@ -1715,8 +1726,12 @@ packages:
   proxy-from-env@1.1.0:
     resolution: {integrity: sha512-D+zkORCbA9f1tdWRK0RaCR3GPv50cMxcrz4X8k5LTSUD1Dkw47mKJEZQNunItRTkWwgtaUSo1RVFRIG9ZXiFYg==}
 
-  react-day-picker@9.11.1:
-    resolution: {integrity: sha512-l3ub6o8NlchqIjPKrRFUCkTUEq6KwemQlfv3XZzzwpUeGwmDJ+0u0Upmt38hJyd7D/vn2dQoOoLV/qAp0o3uUw==}
+  query-string@9.3.1:
+    resolution: {integrity: sha512-5fBfMOcDi5SA9qj5jZhWAcTtDfKF5WFdd2uD9nVNlbxVv1baq65aALy6qofpNEGELHvisjjasxQp7BlM9gvMzw==}
+    engines: {node: '>=18'}
+
+  react-day-picker@9.11.2:
+    resolution: {integrity: sha512-TD/xMUGg2oiKX8jUR21MST5pj+7Y36097YtnDHQFlIcZOu3mbLLw2B2JqEByEGrR3HHveWYnKlyls6WqJgohAg==}
     engines: {node: '>=18'}
     peerDependencies:
       react: '>=16.8.0'
@@ -1726,8 +1741,8 @@ packages:
     peerDependencies:
       react: ^19.2.0
 
-  react-hook-form@7.66.0:
-    resolution: {integrity: sha512-xXBqsWGKrY46ZqaHDo+ZUYiMUgi8suYu5kdrS20EG8KiL7VRQitEbNjm+UcrDYrNi1YLyfpmAeGjCZYXLT9YBw==}
+  react-hook-form@7.66.1:
+    resolution: {integrity: sha512-2KnjpgG2Rhbi+CIiIBQQ9Df6sMGH5ExNyFl4Hw9qO7pIqMBR8Bvu9RQyjl3JM4vehzCh9soiNUM/xYMswb2EiA==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
       react: ^16.8.0 || ^17 || ^18 || ^19
@@ -1787,8 +1802,8 @@ packages:
     resolution: {integrity: sha512-tmbWg6W31tQLeB5cdIBOicJDJRR2KzXsV7uSK9iNfLWQ5bIZfxuPEHp7M8wiHyHnn0DD1i7w3Zmin0FtkrwoCQ==}
     engines: {node: '>=0.10.0'}
 
-  recharts@3.3.0:
-    resolution: {integrity: sha512-Vi0qmTB0iz1+/Cz9o5B7irVyUjX2ynvEgImbgMt/3sKRREcUM07QiYjS1QpAVrkmVlXqy5gykq4nGWMz9AS4Rg==}
+  recharts@3.5.1:
+    resolution: {integrity: sha512-+v+HJojK7gnEgG6h+b2u7k8HH7FhyFUzAc4+cPrsjL4Otdgqr/ecXzAnHciqlzV1ko064eNcsdzrYOM78kankA==}
     engines: {node: '>=18'}
     peerDependencies:
       react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
@@ -1827,6 +1842,10 @@ packages:
   source-map-js@1.2.1:
     resolution: {integrity: sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==}
     engines: {node: '>=0.10.0'}
+
+  split-on-first@3.0.0:
+    resolution: {integrity: sha512-qxQJTx2ryR0Dw0ITYyekNQWpz6f8dGd7vffGNflQQ3Iqj9NJ6qiZ7ELpZsJ/QBhIVAiDfXdag3+Gp8RvWa62AA==}
+    engines: {node: '>=12'}
 
   styled-jsx@5.1.6:
     resolution: {integrity: sha512-qSVyDTeMotdvQYoHWLNGwRFJHC+i+ZvdBRYosOFgC+Wg1vx4frN2/RG/NA7SYqqvKNLf39P2LSRA2pu6n0XYZA==}
@@ -1978,9 +1997,9 @@ snapshots:
 
   '@floating-ui/utils@0.2.10': {}
 
-  '@hookform/resolvers@3.10.0(react-hook-form@7.66.0(react@19.2.0))':
+  '@hookform/resolvers@3.10.0(react-hook-form@7.66.1(react@19.2.0))':
     dependencies:
-      react-hook-form: 7.66.0(react@19.2.0)
+      react-hook-form: 7.66.1(react@19.2.0)
 
   '@img/colour@1.0.0':
     optional: true
@@ -2860,7 +2879,7 @@ snapshots:
       - bufferutil
       - utf-8-validate
 
-  '@supabase/ssr@0.7.0(@supabase/supabase-js@2.46.0)':
+  '@supabase/ssr@0.8.0(@supabase/supabase-js@2.46.0)':
     dependencies:
       '@supabase/supabase-js': 2.46.0
       cookie: 1.0.2
@@ -3121,6 +3140,8 @@ snapshots:
 
   decimal.js-light@2.5.1: {}
 
+  decode-uri-component@0.4.1: {}
+
   delayed-stream@1.0.0: {}
 
   detect-libc@2.1.2: {}
@@ -3172,6 +3193,8 @@ snapshots:
   escalade@3.2.0: {}
 
   eventemitter3@5.0.1: {}
+
+  filter-obj@5.1.0: {}
 
   follow-redirects@1.15.11: {}
 
@@ -3335,7 +3358,7 @@ snapshots:
 
   normalize-range@0.1.2: {}
 
-  openai@6.8.1(ws@8.18.3)(zod@3.25.76):
+  openai@6.9.1(ws@8.18.3)(zod@3.25.76):
     optionalDependencies:
       ws: 8.18.3
       zod: 3.25.76
@@ -3358,7 +3381,13 @@ snapshots:
 
   proxy-from-env@1.1.0: {}
 
-  react-day-picker@9.11.1(react@19.2.0):
+  query-string@9.3.1:
+    dependencies:
+      decode-uri-component: 0.4.1
+      filter-obj: 5.1.0
+      split-on-first: 3.0.0
+
+  react-day-picker@9.11.2(react@19.2.0):
     dependencies:
       '@date-fns/tz': 1.4.1
       date-fns: 4.1.0
@@ -3370,7 +3399,7 @@ snapshots:
       react: 19.2.0
       scheduler: 0.27.0
 
-  react-hook-form@7.66.0(react@19.2.0):
+  react-hook-form@7.66.1(react@19.2.0):
     dependencies:
       react: 19.2.0
 
@@ -3419,7 +3448,7 @@ snapshots:
 
   react@19.2.0: {}
 
-  recharts@3.3.0(@types/react@19.0.0)(react-dom@19.2.0(react@19.2.0))(react-is@19.2.0)(react@19.2.0)(redux@5.0.1):
+  recharts@3.5.1(@types/react@19.0.0)(react-dom@19.2.0(react@19.2.0))(react-is@19.2.0)(react@19.2.0)(redux@5.0.1):
     dependencies:
       '@reduxjs/toolkit': 2.10.1(react-redux@9.2.0(@types/react@19.0.0)(react@19.2.0)(redux@5.0.1))(react@19.2.0)
       clsx: 2.1.1
@@ -3490,6 +3519,8 @@ snapshots:
       react-dom: 19.2.0(react@19.2.0)
 
   source-map-js@1.2.1: {}
+
+  split-on-first@3.0.0: {}
 
   styled-jsx@5.1.6(react@19.2.0):
     dependencies:

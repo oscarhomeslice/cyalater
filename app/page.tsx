@@ -12,6 +12,7 @@ import { ActivityResults } from "@/components/activity-results"
 import { Button } from "@/components/ui/button"
 import { ShortlistViewer } from "@/components/shortlist-viewer"
 import { EmptySearchResults } from "@/components/empty-search-results"
+import type { ParsedQuery } from "query-string"
 
 const loadingMessages = {
   diy: [
@@ -501,6 +502,30 @@ export default function Page() {
     )
   }
 
+  const handleRegenerateWithParams = async (editedParams: Partial<ParsedQuery>) => {
+    if (!searchResults?.query) return
+
+    // Merge edited params with existing query
+    const updatedQuery = { ...searchResults.query, ...editedParams }
+
+    // Convert back to form data structure
+    const formData: ActivitySearchFormData = {
+      groupSize: updatedQuery.group_size,
+      budgetPerPerson: updatedQuery.budget_per_person?.toString() || "",
+      currency: updatedQuery.currency || "EUR",
+      location: updatedQuery.location,
+      activityCategory: updatedQuery.activity_category as "diy" | "experience",
+      vibe: updatedQuery.vibe,
+      groupRelationship: updatedQuery.group_relationship,
+      timeOfDay: updatedQuery.time_of_day,
+      indoorOutdoorPreference: updatedQuery.indoor_outdoor,
+      accessibilityNeeds: updatedQuery.accessibility_needs,
+    }
+
+    // Trigger new search with updated params
+    await handleSearch(formData)
+  }
+
   const [error, setError] = useState<{ type: ErrorType; message?: string } | null>(null)
   const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({})
 
@@ -625,6 +650,7 @@ export default function Page() {
               hasLocation={!!searchResults.query?.location}
               onAddToShortlist={handleAddToShortlist}
               shortlistedIds={shortlistedIds}
+              onRegenerateWithParams={handleRegenerateWithParams}
             />
 
             {showRealActivities && realActivitiesResults?.isEmpty && (

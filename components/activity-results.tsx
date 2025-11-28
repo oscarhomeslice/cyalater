@@ -5,7 +5,8 @@ import { ActivityCard, type ActivityData } from "./activity-card"
 import { Button } from "./ui/button"
 import { Badge } from "./ui/badge"
 import { Input } from "./ui/input"
-import { ChevronDown, ChevronUp, Sparkles, Lightbulb, Search, Loader2, MapPin } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select"
+import { ChevronDown, ChevronUp, Sparkles, Lightbulb, Search, Loader2, MapPin, Edit2, RefreshCw } from "lucide-react"
 import type { ActivityRecommendation, ParsedQuery } from "@/lib/types"
 
 interface ActivityResultsProps {
@@ -20,6 +21,7 @@ interface ActivityResultsProps {
   onFindRealActivities?: (location?: string) => void
   isSearchingReal?: boolean
   hasLocation?: boolean
+  onRegenerateWithParams?: (params: Partial<ParsedQuery>) => void
 }
 
 export function ActivityResults({
@@ -30,10 +32,14 @@ export function ActivityResults({
   onFindRealActivities,
   isSearchingReal = false,
   hasLocation = false,
+  onRegenerateWithParams,
 }: ActivityResultsProps) {
   const [showProTips, setShowProTips] = useState(false)
   const [locationInput, setLocationInput] = useState("")
   const [locationError, setLocationError] = useState("")
+
+  const [isEditingSearch, setIsEditingSearch] = useState(false)
+  const [editedParams, setEditedParams] = useState<Partial<ParsedQuery>>({})
 
   console.log("[Results] Received results:", results)
   console.log("[Results] Has recommendations:", !!results?.recommendations)
@@ -83,69 +89,222 @@ export function ActivityResults({
 
   console.log("[Results] Transformed activities with all fields:", transformedActivities)
 
+  const getCurrentValue = (field: keyof ParsedQuery) => {
+    return isEditingSearch && editedParams[field] !== undefined ? editedParams[field] : query[field]
+  }
+
+  const handleRegenerate = () => {
+    if (onRegenerateWithParams && Object.keys(editedParams).length > 0) {
+      onRegenerateWithParams(editedParams)
+      setIsEditingSearch(false)
+      setEditedParams({})
+    }
+  }
+
   return (
     <div className="space-y-8 pb-16 animate-in fade-in slide-in-from-bottom duration-500">
       <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6">
-        <h3 className="text-sm font-medium text-zinc-400 mb-3">Your Search</h3>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-medium text-zinc-400">Your Search</h3>
+          <div className="flex items-center gap-2">
+            {isEditingSearch ? (
+              <>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setIsEditingSearch(false)
+                    setEditedParams({})
+                  }}
+                  className="text-zinc-400 hover:text-white"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleRegenerate}
+                  disabled={Object.keys(editedParams).length === 0}
+                  className="bg-primary hover:bg-primary/90"
+                >
+                  <RefreshCw className="w-4 h-4 mr-1" />
+                  Regenerate
+                </Button>
+              </>
+            ) : (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setIsEditingSearch(true)}
+                className="text-zinc-400 hover:text-primary"
+              >
+                <Edit2 className="w-4 h-4 mr-1" />
+                Edit
+              </Button>
+            )}
+          </div>
+        </div>
+
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+          {/* Group Size */}
           <div>
             <span className="text-zinc-500">Group:</span>
-            <span className="ml-2 text-white">{query.group_size}</span>
+            {isEditingSearch ? (
+              <Input
+                type="text"
+                value={getCurrentValue("group_size") as string}
+                onChange={(e) => setEditedParams({ ...editedParams, group_size: e.target.value })}
+                className="mt-1 bg-zinc-800 border-zinc-700 text-white text-sm h-8"
+                placeholder="e.g., 2-5 people"
+              />
+            ) : (
+              <span className="ml-2 text-white">{query.group_size}</span>
+            )}
           </div>
+
+          {/* Budget */}
           <div>
             <span className="text-zinc-500">Budget:</span>
-            <span className="ml-2 text-white">
-              {query.currency}
-              {query.budget_per_person} per person
-            </span>
+            {isEditingSearch ? (
+              <div className="flex items-center gap-1 mt-1">
+                <Input
+                  type="number"
+                  value={getCurrentValue("budget_per_person") as number}
+                  onChange={(e) =>
+                    setEditedParams({ ...editedParams, budget_per_person: Number.parseFloat(e.target.value) })
+                  }
+                  className="bg-zinc-800 border-zinc-700 text-white text-sm h-8 w-20"
+                />
+                <span className="text-white text-xs">per person</span>
+              </div>
+            ) : (
+              <span className="ml-2 text-white">
+                {query.currency}
+                {query.budget_per_person} per person
+              </span>
+            )}
           </div>
+
+          {/* Category */}
           {query.activity_category && (
             <div>
               <span className="text-zinc-500">Category:</span>
-              <span className="ml-2 text-white">{query.activity_category === "diy" ? "DIY" : "Find Experience"}</span>
+              {isEditingSearch ? (
+                <Select
+                  value={getCurrentValue("activity_category") as string}
+                  onValueChange={(value) => setEditedParams({ ...editedParams, activity_category: value })}
+                >
+                  <SelectTrigger className="mt-1 bg-zinc-800 border-zinc-700 text-white text-sm h-8">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="diy">DIY</SelectItem>
+                    <SelectItem value="experience">Find Experience</SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : (
+                <span className="ml-2 text-white">{query.activity_category === "diy" ? "DIY" : "Find Experience"}</span>
+              )}
             </div>
           )}
+
+          {/* Location */}
           {query.location && (
             <div>
               <span className="text-zinc-500">Location:</span>
-              <span className="ml-2 text-white">{query.location}</span>
+              {isEditingSearch ? (
+                <Input
+                  type="text"
+                  value={getCurrentValue("location") as string}
+                  onChange={(e) => setEditedParams({ ...editedParams, location: e.target.value })}
+                  className="mt-1 bg-zinc-800 border-zinc-700 text-white text-sm h-8"
+                  placeholder="Enter location"
+                />
+              ) : (
+                <span className="ml-2 text-white">{query.location}</span>
+              )}
             </div>
           )}
+
+          {/* Vibe */}
           {query.vibe && (
             <div>
               <span className="text-zinc-500">Vibe:</span>
-              <span className="ml-2 text-white">{query.vibe}</span>
+              {isEditingSearch ? (
+                <Input
+                  type="text"
+                  value={getCurrentValue("vibe") as string}
+                  onChange={(e) => setEditedParams({ ...editedParams, vibe: e.target.value })}
+                  className="mt-1 bg-zinc-800 border-zinc-700 text-white text-sm h-8"
+                  placeholder="e.g., adventurous"
+                />
+              ) : (
+                <span className="ml-2 text-white">{query.vibe}</span>
+              )}
             </div>
           )}
+
+          {/* Group Type */}
           {query.group_relationship && (
             <div>
               <span className="text-zinc-500">Group Type:</span>
-              <span className="ml-2 text-white">{query.group_relationship}</span>
+              {isEditingSearch ? (
+                <Input
+                  type="text"
+                  value={getCurrentValue("group_relationship") as string}
+                  onChange={(e) => setEditedParams({ ...editedParams, group_relationship: e.target.value })}
+                  className="mt-1 bg-zinc-800 border-zinc-700 text-white text-sm h-8"
+                  placeholder="e.g., friends"
+                />
+              ) : (
+                <span className="ml-2 text-white">{query.group_relationship}</span>
+              )}
             </div>
           )}
+
+          {/* Time */}
           {query.time_of_day && (
             <div>
               <span className="text-zinc-500">Time:</span>
-              <span className="ml-2 text-white">{query.time_of_day}</span>
+              {isEditingSearch ? (
+                <Input
+                  type="text"
+                  value={getCurrentValue("time_of_day") as string}
+                  onChange={(e) => setEditedParams({ ...editedParams, time_of_day: e.target.value })}
+                  className="mt-1 bg-zinc-800 border-zinc-700 text-white text-sm h-8"
+                  placeholder="e.g., flexible"
+                />
+              ) : (
+                <span className="ml-2 text-white">{query.time_of_day}</span>
+              )}
             </div>
           )}
+
+          {/* Setting */}
           {query.indoor_outdoor && (
             <div>
               <span className="text-zinc-500">Setting:</span>
-              <span className="ml-2 text-white">{query.indoor_outdoor}</span>
+              {isEditingSearch ? (
+                <Input
+                  type="text"
+                  value={getCurrentValue("indoor_outdoor") as string}
+                  onChange={(e) => setEditedParams({ ...editedParams, indoor_outdoor: e.target.value })}
+                  className="mt-1 bg-zinc-800 border-zinc-700 text-white text-sm h-8"
+                  placeholder="e.g., outdoor"
+                />
+              ) : (
+                <span className="ml-2 text-white">{query.indoor_outdoor}</span>
+              )}
             </div>
           )}
         </div>
       </div>
 
-      <div className="flex items-center justify-center">
-        <Badge
-          variant="outline"
-          className="bg-gradient-to-r from-primary/20 to-purple-500/20 border-primary/30 text-white px-6 py-3 text-base font-semibold flex items-center gap-2"
-        >
-          <Sparkles className="w-5 h-5 text-primary" />
+      <div className="text-center">
+        <h2 className="text-3xl font-bold bg-gradient-to-r from-primary via-purple-400 to-emerald-400 bg-clip-text text-transparent flex items-center justify-center gap-3">
+          <Sparkles className="w-8 h-8 text-primary" />
           <span>Inspired Ideas for Your Group</span>
-        </Badge>
+          <Sparkles className="w-8 h-8 text-emerald-400" />
+        </h2>
       </div>
 
       <div className="flex justify-end">
