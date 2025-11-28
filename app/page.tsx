@@ -253,24 +253,22 @@ export default function Page() {
 
       console.log("[v0] API response status:", response.status)
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-
-        if (response.status === 429) {
-          throw { type: "ratelimit", message: errorData.error }
-        } else if (response.status === 400) {
-          throw { type: "validation", message: errorData.error }
-        } else if (response.status >= 500) {
-          throw { type: "generic", message: "Server error. Please try again." }
-        } else {
-          throw { type: "generic", message: errorData.error }
-        }
-      }
-
       const data: ApiResponse = await response.json()
       console.log("[v0] Full API response:", data)
-      console.log("[v0] Recommendations object:", data.recommendations)
-      console.log("[v0] Activities array:", data.recommendations?.activities)
+
+      if (!response.ok) {
+        if (response.status === 429) {
+          throw { type: "ratelimit", message: data.error || "Too many requests. Please try again later." }
+        } else if (response.status === 400) {
+          throw { type: "validation", message: data.error || "Invalid request parameters." }
+        } else if (response.status === 503) {
+          throw { type: "generic", message: data.error || "Service temporarily unavailable. Please try again." }
+        } else if (response.status >= 500) {
+          throw { type: "generic", message: data.error || "Server error. Please try again." }
+        } else {
+          throw { type: "generic", message: data.error || "An error occurred." }
+        }
+      }
 
       if (!data.success) {
         throw {
@@ -281,13 +279,11 @@ export default function Page() {
 
       if (!data.recommendations?.activities || data.recommendations.activities.length === 0) {
         console.warn("[v0] No activities returned from API")
-        setError({
+        throw {
           type: "empty",
           message:
             "We couldn't generate ideas right now. Please try again in a few minutes or try describing your request differently.",
-        })
-        setIsLoading(false)
-        return
+        }
       }
 
       console.log("[v0] Successfully received activities:", data.recommendations.activities.length)
@@ -527,7 +523,7 @@ export default function Page() {
       budgetPerPerson: updatedQuery.budget_per_person?.toString() || "",
       currency: updatedQuery.currency || "EUR",
       location: updatedQuery.location,
-      activityCategory: updatedQuery.activity_category as "diy" | "experience",
+      activityCategory: (updatedQuery.activity_category as "diy" | "experience") || "diy",
       vibe: updatedQuery.vibe,
       groupRelationship: updatedQuery.group_relationship,
       timeOfDay: updatedQuery.time_of_day,

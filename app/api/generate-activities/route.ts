@@ -2,9 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import OpenAI from "openai"
 import type { EnrichedUserContext } from "@/lib/types"
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
+const openai = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null
 
 const rateLimit = new Map<string, number[]>()
 
@@ -109,10 +107,29 @@ export async function POST(request: NextRequest) {
     console.log("[API] === NEW REQUEST STARTED ===")
     console.log("[API] Timestamp:", new Date().toISOString())
 
+    if (!process.env.OPENAI_API_KEY || !openai) {
+      console.error("[API] OPENAI_API_KEY is not configured")
+      return NextResponse.json(
+        {
+          success: false,
+          error: "AI service is not configured. Please contact support.",
+          query: null,
+        },
+        { status: 503 },
+      )
+    }
+
     const ip = request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown"
 
     if (!checkRateLimit(ip)) {
-      return NextResponse.json({ error: "Whoa! Too many requests. Wait 60 seconds and try again." }, { status: 429 })
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Whoa! Too many requests. Wait 60 seconds and try again.",
+          query: null,
+        },
+        { status: 429 },
+      )
     }
 
     const body = await request.json()
@@ -154,24 +171,52 @@ export async function POST(request: NextRequest) {
     // Validate required fields
     if (!groupSize?.trim()) {
       console.log("[v0] Validation failed - Missing groupSize")
-      return NextResponse.json({ error: "Group size is required" }, { status: 400 })
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Group size is required",
+          query: { groupSize, budgetPerPerson, activityCategory },
+        },
+        { status: 400 },
+      )
     }
 
-    if (!budgetPerPerson || budgetPerPerson.trim() === "") {
+    if (!budgetPerPerson || budgetPerPerson.toString().trim() === "") {
       console.log("[v0] Validation failed - Missing budgetPerPerson")
-      return NextResponse.json({ error: "Budget per person is required" }, { status: 400 })
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Budget per person is required",
+          query: { groupSize, budgetPerPerson, activityCategory },
+        },
+        { status: 400 },
+      )
     }
 
     // Validate budget is numeric and in range
     const budget = Number.parseFloat(budgetPerPerson)
     if (isNaN(budget) || budget < 0 || budget > 2000) {
       console.log("[v0] Validation failed - Budget out of range:", budget)
-      return NextResponse.json({ error: "Budget must be between 0 and 2000" }, { status: 400 })
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Budget must be between 0 and 2000",
+          query: { groupSize, budgetPerPerson, activityCategory },
+        },
+        { status: 400 },
+      )
     }
 
     if (!activityCategory || !["diy", "experience"].includes(activityCategory)) {
       console.log("[v0] Validation failed - Invalid activityCategory:", activityCategory)
-      return NextResponse.json({ error: "Activity category is required (diy or experience)" }, { status: 400 })
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Activity category is required (diy or experience)",
+          query: { groupSize, budgetPerPerson, activityCategory },
+        },
+        { status: 400 },
+      )
     }
 
     // Optional fields don't need validation, just pass through
@@ -337,7 +382,27 @@ Think like you're planning for friends who trust your taste. Be bold. Be specifi
       response_format: { type: "json_object" },
     })
 
-    const recommendations = JSON.parse(completion.choices[0].message.content || "{}")
+    let recommendations
+    try {
+      recommendations = JSON.parse(completion.choices[0].message.content || "{}")
+    } catch (parseError) {
+      console.error("[API] Failed to parse OpenAI response:", parseError)
+      console.error("[API] Raw response:", completion.choices[0].message.content)
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Failed to parse AI response. Please try again.",
+          query: {
+            group_size: groupSize,
+            budget_per_person: budgetPerPerson,
+            currency,
+            location: location || null,
+            activity_category: activityCategory,
+          },
+        },
+        { status: 500 },
+      )
+    }
 
     console.log("[API] OpenAI response received:", {
       activitiesCount: recommendations.activities?.length || 0,
@@ -379,6 +444,29 @@ Think like you're planning for friends who trust your taste. Be bold. Be specifi
       if (filteredCount < originalCount) {
         console.log(
           `[API] Filtered out ${originalCount - filteredCount} incomplete activities. Remaining: ${filteredCount}`,
+        )
+      }
+
+      if (filteredCount === 0) {
+        console.error("[API] No valid activities after filtering")
+        return NextResponse.json(
+          {
+            success: false,
+            error: "No valid activities were generated. Please try again with different parameters.",
+            query: {
+              group_size: groupSize,
+              budget_per_person: budgetPerPerson,
+              currency,
+              location: location || null,
+              activity_category: activityCategory,
+              group_relationship: groupRelationship || null,
+              time_of_day: timeOfDay || null,
+              indoor_outdoor: indoorOutdoor || null,
+              accessibility_needs: accessibilityNeeds || null,
+              vibe: vibe || null,
+            },
+          },
+          { status: 500 },
         )
       }
 
@@ -428,12 +516,31 @@ Think like you're planning for friends who trust your taste. Be bold. Be specifi
     console.error("[API] Error message:", error.message)
     console.error("[API] Error stack:", error.stack)
 
+    let statusCode = 500
+    let errorMessage = "Something went wrong. Please try again."
+
+    if (error.code === "insufficient_quota" || error.message?.includes("quota")) {
+      statusCode = 503
+      errorMessage = "AI service quota exceeded. Please contact support."
+    } else if (error.code === "invalid_api_key" || error.message?.includes("API key")) {
+      statusCode = 503
+      errorMessage = "AI service configuration error. Please contact support."
+    } else if (error.name === "AbortError") {
+      statusCode = 499
+      errorMessage = "Request was cancelled."
+    } else if (error.message?.includes("timeout")) {
+      statusCode = 504
+      errorMessage = "Request timed out. Please try again."
+    }
+
     return NextResponse.json(
       {
-        error: "Something went wrong. Please try again.",
+        success: false,
+        error: errorMessage,
         details: process.env.NODE_ENV === "development" ? error.message : undefined,
+        query: null,
       },
-      { status: 500 },
+      { status: statusCode },
     )
   }
 }

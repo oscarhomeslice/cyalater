@@ -12,6 +12,8 @@ import { AlertCircle, Sparkles, Wrench, Ticket, ChevronDown, ChevronUp, Info } f
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import type { ActivitySearchFormData } from "@/types/activitySearchFormData" // Declare the variable here
 
+export type { ActivitySearchFormData }
+
 interface ActivitySearchFormProps {
   onSubmit: (formData: ActivitySearchFormData) => void
   isLoading?: boolean
@@ -45,14 +47,12 @@ export function ActivitySearchForm({ onSubmit, isLoading = false }: ActivitySear
       return
     }
 
-    const apiCategory = formData.activityCategory === "find-experience" ? "experience" : formData.activityCategory
-
     const submissionData: ActivitySearchFormData = {
       groupSize: formData.groupSize,
       budgetPerPerson: formData.budgetPerPerson,
       currency: formData.currency || "EUR",
       location: formData.location || undefined,
-      activityCategory: apiCategory as "diy" | "experience",
+      activityCategory: formData.activityCategory,
       vibe: formData.vibe || undefined,
       groupRelationship: formData.groupRelationship || undefined,
       timeOfDay: formData.timeOfDay || undefined,
@@ -184,7 +184,7 @@ export function ActivitySearchForm({ onSubmit, isLoading = false }: ActivitySear
             </Label>
             <RadioGroup
               value={formData.activityCategory}
-              onValueChange={(value: "diy" | "find-experience") => updateField("activityCategory", value)}
+              onValueChange={(value: "diy" | "experience") => updateField("activityCategory", value)}
               disabled={isLoading}
               className="grid grid-cols-1 md:grid-cols-2 gap-4"
             >
@@ -209,12 +209,12 @@ export function ActivitySearchForm({ onSubmit, isLoading = false }: ActivitySear
               <Label
                 htmlFor="category-experience"
                 className={`flex flex-col items-start space-y-2 rounded-xl border-2 p-5 cursor-pointer transition-all duration-300 ${
-                  formData.activityCategory === "find-experience"
+                  formData.activityCategory === "experience"
                     ? "border-primary bg-primary/10 text-primary"
                     : "border-zinc-700 bg-black/30 text-zinc-400 hover:border-zinc-600"
                 } ${isLoading ? "opacity-50 cursor-not-allowed" : ""}`}
               >
-                <RadioGroupItem value="find-experience" id="category-experience" className="sr-only" />
+                <RadioGroupItem value="experience" id="category-experience" className="sr-only" />
                 <div className="flex items-center gap-2">
                   <Ticket className="w-5 h-5" />
                   <span className="font-semibold text-base">Find an Experience</span>

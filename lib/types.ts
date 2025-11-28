@@ -79,7 +79,7 @@ export interface ActivitySearchFormData {
   currency?: string // Optional, defaults to EUR
   location?: string // Optional - simplified from locationMode
   vibe?: string // Optional, moved to collapsible section
-  activityCategory?: "diy" | "find-experience" // Required - new field replacing locationMode
+  activityCategory?: "diy" | "experience" // Required - new field replacing locationMode
 
   // New optional fields in collapsible section
   groupRelationship?: string
@@ -109,7 +109,7 @@ export interface EnrichedUserContext {
   budgetPerPerson: number
   currency: string
   location?: string
-  activityCategory: "diy" | "find-experience"
+  activityCategory: "diy" | "experience"
 
   // Optional context
   groupRelationship?: string
