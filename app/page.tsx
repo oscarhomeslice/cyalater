@@ -210,7 +210,7 @@ export default function Page() {
     console.log("[v0] handleSearch called with formData:", formData)
 
     if (formData.activityCategory) {
-      setSearchCategory(formData.activityCategory === "find-experience" ? "experience" : "diy")
+      setSearchCategory(formData.activityCategory === "experience" ? "experience" : "diy")
     }
 
     setIsLoading(true)
@@ -230,9 +230,13 @@ export default function Page() {
         groupSize: formData.groupSize,
         budgetPerPerson: formData.budgetPerPerson,
         currency: formData.currency || "EUR",
-        locationMode: formData.locationMode,
         location: formData.location,
+        activityCategory: formData.activityCategory,
         vibe: formData.vibe,
+        groupRelationship: formData.groupRelationship,
+        timeOfDay: formData.timeOfDay,
+        indoorOutdoorPreference: formData.indoorOutdoorPreference,
+        accessibilityNeeds: formData.accessibilityNeeds,
       }
 
       console.log("[v0] Sending to API:", requestBody)

@@ -16,7 +16,7 @@ export function useActivityForm() {
     budgetPerPerson: undefined,
     currency: "EUR",
     location: undefined,
-    activityCategory: undefined,
+    activityCategory: "" as any,
     vibe: undefined,
     groupRelationship: undefined,
     timeOfDay: undefined,
@@ -50,7 +50,7 @@ export function useActivityForm() {
       }
     }
 
-    if (!formData.activityCategory) {
+    if (!formData.activityCategory || formData.activityCategory === "") {
       newErrors.activityCategory = "Please select an activity category"
     }
 
@@ -64,7 +64,7 @@ export function useActivityForm() {
       budgetPerPerson: undefined,
       currency: "EUR",
       location: undefined,
-      activityCategory: undefined,
+      activityCategory: "" as any,
       vibe: undefined,
       groupRelationship: undefined,
       timeOfDay: undefined,

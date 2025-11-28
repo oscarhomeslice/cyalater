@@ -45,12 +45,14 @@ export function ActivitySearchForm({ onSubmit, isLoading = false }: ActivitySear
       return
     }
 
+    const apiCategory = formData.activityCategory === "find-experience" ? "experience" : formData.activityCategory
+
     const submissionData: ActivitySearchFormData = {
       groupSize: formData.groupSize,
       budgetPerPerson: formData.budgetPerPerson,
       currency: formData.currency || "EUR",
       location: formData.location || undefined,
-      activityCategory: formData.activityCategory,
+      activityCategory: apiCategory as "diy" | "experience",
       vibe: formData.vibe || undefined,
       groupRelationship: formData.groupRelationship || undefined,
       timeOfDay: formData.timeOfDay || undefined,
