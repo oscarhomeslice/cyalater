@@ -104,12 +104,23 @@ export function ActivityResults({
     return isEditingSearch && editedParams[field] !== undefined ? editedParams[field] : query[field]
   }
 
-  const handleRegenerate = () => {
+  const handleSubmitChanges = () => {
+    console.log("[v0] ActivityResults: Submitting changes with editedParams:", editedParams)
+    console.log("[v0] ActivityResults: Has onRegenerateWithParams?", !!onRegenerateWithParams)
+    console.log("[v0] ActivityResults: Number of edited params:", Object.keys(editedParams).length)
+
     if (onRegenerateWithParams && Object.keys(editedParams).length > 0) {
+      console.log("[v0] ActivityResults: Calling onRegenerateWithParams")
       onRegenerateWithParams(editedParams)
       setIsEditingSearch(false)
       setEditedParams({})
+    } else {
+      console.warn("[v0] ActivityResults: Not calling onRegenerateWithParams - missing callback or no edits")
     }
+  }
+
+  const handleRegenerate = () => {
+    handleSubmitChanges()
   }
 
   const buildSearchContext = (location: string): SearchContext => {
@@ -156,7 +167,7 @@ export function ActivityResults({
                 </Button>
                 <Button
                   size="sm"
-                  onClick={handleRegenerate}
+                  onClick={handleSubmitChanges}
                   disabled={Object.keys(editedParams).length === 0}
                   className="bg-primary hover:bg-primary/90"
                 >

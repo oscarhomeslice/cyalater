@@ -514,9 +514,15 @@ export default function Page() {
   }
 
   const handleRegenerateWithParams = async (editedParams: Partial<ParsedQuery>) => {
-    if (!searchResults?.query) return
+    console.log("[v0] handleRegenerateWithParams called with:", editedParams)
+
+    if (!searchResults?.query) {
+      console.warn("[v0] No search results query available for regeneration")
+      return
+    }
 
     const updatedQuery = { ...searchResults.query, ...editedParams }
+    console.log("[v0] Updated query:", updatedQuery)
 
     const formData: ActivitySearchFormData = {
       groupSize: updatedQuery.group_size,
@@ -531,6 +537,7 @@ export default function Page() {
       accessibilityNeeds: updatedQuery.accessibility_needs,
     }
 
+    console.log("[v0] Regenerating with formData:", formData)
     await handleSearch(formData)
   }
 
