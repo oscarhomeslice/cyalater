@@ -130,26 +130,44 @@ export async function initializeDestinations(): Promise<void> {
       })
 
       if (!response.ok) {
-        throw new Error(`Viator API responded with status ${response.status}`)
+        const errorText = await response.text()
+        console.error(`[Viator Destinations] API Error ${response.status}:`, errorText)
+        throw new Error(`Viator API responded with status ${response.status}: ${errorText}`)
       }
 
       const data = await response.json()
+
+      console.log("[Viator Destinations] Raw API response type:", typeof data)
+      console.log("[Viator Destinations] Raw API response keys:", Object.keys(data || {}))
+      console.log("[Viator Destinations] First 500 chars of response:", JSON.stringify(data).substring(0, 500))
 
       let destinations: any[] = []
 
       // Handle different response structures
       if (Array.isArray(data)) {
         // Plain array response
+        console.log("[Viator Destinations] Response is a plain array")
         destinations = data
       } else if (data.destinations && Array.isArray(data.destinations)) {
         // Nested under "destinations" key
+        console.log("[Viator Destinations] Response has 'destinations' array")
         destinations = data.destinations
       } else if (data.data && Array.isArray(data.data)) {
         // Nested under "data" key
+        console.log("[Viator Destinations] Response has 'data' array")
         destinations = data.data
+      } else if (data.data && data.data.destinations && Array.isArray(data.data.destinations)) {
+        console.log("[Viator Destinations] Response has 'data.data.destinations' array")
+        destinations = data.data.destinations
+      } else {
+        console.error("[Viator Destinations] Unexpected response format:", JSON.stringify(data, null, 2))
       }
 
-      console.log(`[Viator Destinations] Raw API response contained ${destinations.length} destinations`)
+      console.log(`[Viator Destinations] Extracted ${destinations.length} raw destination records`)
+
+      if (destinations.length > 0) {
+        console.log("[Viator Destinations] Sample raw destination:", JSON.stringify(destinations[0], null, 2))
+      }
 
       const validDestinations = destinations
         .filter((d: any) => d && (d.destinationId || d.destId) && (d.destinationName || d.destName))
@@ -176,6 +194,7 @@ export async function initializeDestinations(): Promise<void> {
       console.log(`[Viator Destinations] First 10 destinations:`, sample)
     } catch (error: any) {
       console.error("[Viator Destinations] Failed to fetch destinations:", error.message)
+      console.error("[Viator Destinations] Error stack:", error.stack)
       throw error
     } finally {
       initializationPromise = null
