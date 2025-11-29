@@ -138,6 +138,7 @@ export function ActivityResults({
       vibe: query.vibe,
       activityCategory: query.activity_category,
       inspirationActivities: activities,
+      accessibilityNeeds: query.accessibility_needs,
     }
 
     console.log("[ActivityResults] Built context:", context)
@@ -230,117 +231,178 @@ export function ActivityResults({
           </div>
 
           {/* Category */}
-          {query.activity_category && (
-            <div>
-              <span className="text-zinc-500">Category:</span>
-              {isEditingSearch ? (
-                <Select
-                  value={getCurrentValue("activity_category") as string}
-                  onValueChange={(value) => setEditedParams({ ...editedParams, activity_category: value })}
-                >
-                  <SelectTrigger className="mt-1 bg-zinc-800 border-zinc-700 text-white text-sm h-8">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="diy">DIY</SelectItem>
-                    <SelectItem value="experience">Find Experience</SelectItem>
-                  </SelectContent>
-                </Select>
-              ) : (
-                <span className="ml-2 text-white">{query.activity_category === "diy" ? "DIY" : "Find Experience"}</span>
-              )}
-            </div>
-          )}
+          <div>
+            <span className="text-zinc-500">Category:</span>
+            {isEditingSearch ? (
+              <Select
+                value={getCurrentValue("activity_category") as string}
+                onValueChange={(value) => setEditedParams({ ...editedParams, activity_category: value })}
+              >
+                <SelectTrigger className="mt-1 bg-zinc-800 border-zinc-700 text-white text-sm h-8">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="diy">DIY</SelectItem>
+                  <SelectItem value="experience">Find Experience</SelectItem>
+                </SelectContent>
+              </Select>
+            ) : (
+              <span className="ml-2 text-white">{query.activity_category === "diy" ? "DIY" : "Find Experience"}</span>
+            )}
+          </div>
 
           {/* Location */}
-          {query.location && (
-            <div>
-              <span className="text-zinc-500">Location:</span>
-              {isEditingSearch ? (
-                <Input
-                  type="text"
-                  value={getCurrentValue("location") as string}
-                  onChange={(e) => setEditedParams({ ...editedParams, location: e.target.value })}
-                  className="mt-1 bg-zinc-800 border-zinc-700 text-white text-sm h-8"
-                  placeholder="Enter location"
-                />
-              ) : (
-                <span className="ml-2 text-white">{query.location}</span>
-              )}
-            </div>
-          )}
+          <div>
+            <span className="text-zinc-500">Location:</span>
+            {isEditingSearch ? (
+              <Input
+                type="text"
+                value={(getCurrentValue("location") as string) || ""}
+                onChange={(e) => setEditedParams({ ...editedParams, location: e.target.value })}
+                className="mt-1 bg-zinc-800 border-zinc-700 text-white text-sm h-8"
+                placeholder="Enter location"
+              />
+            ) : query.location ? (
+              <span className="ml-2 text-white">{query.location}</span>
+            ) : (
+              <span className="ml-2 text-zinc-500 italic">Not specified</span>
+            )}
+          </div>
 
           {/* Vibe */}
-          {query.vibe && (
-            <div>
-              <span className="text-zinc-500">Vibe:</span>
-              {isEditingSearch ? (
-                <Input
-                  type="text"
-                  value={getCurrentValue("vibe") as string}
-                  onChange={(e) => setEditedParams({ ...editedParams, vibe: e.target.value })}
-                  className="mt-1 bg-zinc-800 border-zinc-700 text-white text-sm h-8"
-                  placeholder="e.g., adventurous"
-                />
-              ) : (
-                <span className="ml-2 text-white">{query.vibe}</span>
-              )}
-            </div>
-          )}
+          <div>
+            <span className="text-zinc-500">Vibe:</span>
+            {isEditingSearch ? (
+              <Select
+                value={(getCurrentValue("vibe") as string) || "not-specified"}
+                onValueChange={(value) =>
+                  setEditedParams({ ...editedParams, vibe: value === "not-specified" ? undefined : value })
+                }
+              >
+                <SelectTrigger className="mt-1 bg-zinc-800 border-zinc-700 text-white text-sm h-8">
+                  <SelectValue placeholder="Select vibe" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="not-specified">Not specified</SelectItem>
+                  <SelectItem value="adventurous">Adventurous</SelectItem>
+                  <SelectItem value="relaxed">Relaxed</SelectItem>
+                  <SelectItem value="creative">Creative</SelectItem>
+                  <SelectItem value="competitive">Competitive</SelectItem>
+                  <SelectItem value="cultural">Cultural</SelectItem>
+                  <SelectItem value="social">Social</SelectItem>
+                </SelectContent>
+              </Select>
+            ) : query.vibe ? (
+              <span className="ml-2 text-white">{query.vibe}</span>
+            ) : (
+              <span className="ml-2 text-zinc-500 italic">Not specified</span>
+            )}
+          </div>
 
           {/* Group Type */}
-          {query.group_relationship && (
-            <div>
-              <span className="text-zinc-500">Group Type:</span>
-              {isEditingSearch ? (
-                <Input
-                  type="text"
-                  value={getCurrentValue("group_relationship") as string}
-                  onChange={(e) => setEditedParams({ ...editedParams, group_relationship: e.target.value })}
-                  className="mt-1 bg-zinc-800 border-zinc-700 text-white text-sm h-8"
-                  placeholder="e.g., friends"
-                />
-              ) : (
-                <span className="ml-2 text-white">{query.group_relationship}</span>
-              )}
-            </div>
-          )}
+          <div>
+            <span className="text-zinc-500">Group Type:</span>
+            {isEditingSearch ? (
+              <Select
+                value={(getCurrentValue("group_relationship") as string) || "not-specified"}
+                onValueChange={(value) =>
+                  setEditedParams({
+                    ...editedParams,
+                    group_relationship: value === "not-specified" ? undefined : value,
+                  })
+                }
+              >
+                <SelectTrigger className="mt-1 bg-zinc-800 border-zinc-700 text-white text-sm h-8">
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="not-specified">Not specified</SelectItem>
+                  <SelectItem value="coworkers">Coworkers</SelectItem>
+                  <SelectItem value="friends">Friends</SelectItem>
+                  <SelectItem value="family">Family</SelectItem>
+                  <SelectItem value="mixed">Mixed group</SelectItem>
+                </SelectContent>
+              </Select>
+            ) : query.group_relationship ? (
+              <span className="ml-2 text-white">{query.group_relationship}</span>
+            ) : (
+              <span className="ml-2 text-zinc-500 italic">Not specified</span>
+            )}
+          </div>
 
           {/* Time */}
-          {query.time_of_day && (
-            <div>
-              <span className="text-zinc-500">Time:</span>
-              {isEditingSearch ? (
-                <Input
-                  type="text"
-                  value={getCurrentValue("time_of_day") as string}
-                  onChange={(e) => setEditedParams({ ...editedParams, time_of_day: e.target.value })}
-                  className="mt-1 bg-zinc-800 border-zinc-700 text-white text-sm h-8"
-                  placeholder="e.g., flexible"
-                />
-              ) : (
-                <span className="ml-2 text-white">{query.time_of_day}</span>
-              )}
-            </div>
-          )}
+          <div>
+            <span className="text-zinc-500">Time:</span>
+            {isEditingSearch ? (
+              <Select
+                value={(getCurrentValue("time_of_day") as string) || "not-specified"}
+                onValueChange={(value) =>
+                  setEditedParams({ ...editedParams, time_of_day: value === "not-specified" ? undefined : value })
+                }
+              >
+                <SelectTrigger className="mt-1 bg-zinc-800 border-zinc-700 text-white text-sm h-8">
+                  <SelectValue placeholder="Select time" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="not-specified">Not specified</SelectItem>
+                  <SelectItem value="morning">Morning</SelectItem>
+                  <SelectItem value="afternoon">Afternoon</SelectItem>
+                  <SelectItem value="evening">Evening</SelectItem>
+                  <SelectItem value="night">Night</SelectItem>
+                  <SelectItem value="flexible">Flexible</SelectItem>
+                </SelectContent>
+              </Select>
+            ) : query.time_of_day ? (
+              <span className="ml-2 text-white">{query.time_of_day}</span>
+            ) : (
+              <span className="ml-2 text-zinc-500 italic">Not specified</span>
+            )}
+          </div>
 
           {/* Setting */}
-          {query.indoor_outdoor && (
-            <div>
-              <span className="text-zinc-500">Setting:</span>
-              {isEditingSearch ? (
-                <Input
-                  type="text"
-                  value={getCurrentValue("indoor_outdoor") as string}
-                  onChange={(e) => setEditedParams({ ...editedParams, indoor_outdoor: e.target.value })}
-                  className="mt-1 bg-zinc-800 border-zinc-700 text-white text-sm h-8"
-                  placeholder="e.g., outdoor"
-                />
-              ) : (
-                <span className="ml-2 text-white">{query.indoor_outdoor}</span>
-              )}
-            </div>
-          )}
+          <div>
+            <span className="text-zinc-500">Setting:</span>
+            {isEditingSearch ? (
+              <Select
+                value={(getCurrentValue("indoor_outdoor") as string) || "not-specified"}
+                onValueChange={(value) =>
+                  setEditedParams({ ...editedParams, indoor_outdoor: value === "not-specified" ? undefined : value })
+                }
+              >
+                <SelectTrigger className="mt-1 bg-zinc-800 border-zinc-700 text-white text-sm h-8">
+                  <SelectValue placeholder="Select setting" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="not-specified">Not specified</SelectItem>
+                  <SelectItem value="indoor">Indoor</SelectItem>
+                  <SelectItem value="outdoor">Outdoor</SelectItem>
+                  <SelectItem value="no-preference">No preference</SelectItem>
+                </SelectContent>
+              </Select>
+            ) : query.indoor_outdoor ? (
+              <span className="ml-2 text-white">{query.indoor_outdoor}</span>
+            ) : (
+              <span className="ml-2 text-zinc-500 italic">Not specified</span>
+            )}
+          </div>
+
+          {/* Accessibility Needs */}
+          <div>
+            <span className="text-zinc-500">Accessibility:</span>
+            {isEditingSearch ? (
+              <Input
+                type="text"
+                value={(getCurrentValue("accessibility_needs") as string) || ""}
+                onChange={(e) => setEditedParams({ ...editedParams, accessibility_needs: e.target.value })}
+                className="mt-1 bg-zinc-800 border-zinc-700 text-white text-sm h-8"
+                placeholder="Any accessibility needs"
+              />
+            ) : query.accessibility_needs ? (
+              <span className="ml-2 text-white">{query.accessibility_needs}</span>
+            ) : (
+              <span className="ml-2 text-zinc-500 italic">Not specified</span>
+            )}
+          </div>
         </div>
       </div>
 
