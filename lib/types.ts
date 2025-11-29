@@ -6,6 +6,13 @@ export interface ParsedQuery {
   activity_type: string[]
   vibe: string
   duration?: string
+  activity_category?: string
+  group_relationship?: string
+  time_of_day?: string
+  indoor_outdoor?: string
+  accessibility_needs?: string
+  enriched?: any
+  variety_seed?: any
 }
 
 export interface Activity {

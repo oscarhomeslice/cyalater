@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { ActivityCard, type ActivityData } from "./activity-card"
 import { Button } from "./ui/button"
 import { Badge } from "./ui/badge"
@@ -51,6 +51,12 @@ export function ActivityResults({
 
   const [isEditingSearch, setIsEditingSearch] = useState(false)
   const [editedParams, setEditedParams] = useState<Partial<ParsedQuery>>({})
+
+  const [isRegenerating, setIsRegenerating] = useState(false)
+
+  useEffect(() => {
+    setIsRegenerating(false)
+  }, [results])
 
   console.log("[Results] Received results:", results)
   console.log("[Results] Has recommendations:", !!results?.recommendations)
@@ -111,6 +117,7 @@ export function ActivityResults({
 
     if (onRegenerateWithParams && Object.keys(editedParams).length > 0) {
       console.log("[v0] ActivityResults: Calling onRegenerateWithParams")
+      setIsRegenerating(true)
       onRegenerateWithParams(editedParams)
       setIsEditingSearch(false)
       setEditedParams({})
@@ -149,6 +156,15 @@ export function ActivityResults({
 
   return (
     <div className="space-y-8 pb-16 animate-in fade-in slide-in-from-bottom duration-500">
+      {isRegenerating && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-8 flex flex-col items-center gap-4">
+            <Loader2 className="w-12 h-12 text-primary animate-spin" />
+            <p className="text-white text-lg font-medium">Regenerating ideas...</p>
+          </div>
+        </div>
+      )}
+
       <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-medium text-zinc-400">Your Search</h3>

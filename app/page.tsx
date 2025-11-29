@@ -149,7 +149,7 @@ export default function Page() {
     if (isLoading) {
       requestTimeoutRef.current = setTimeout(() => {
         setShowTimeoutWarning(true)
-      }, 30000)
+      }, 50000) // Increased timeout from 30 seconds to 50 seconds
     } else {
       if (requestTimeoutRef.current) {
         clearTimeout(requestTimeoutRef.current)
@@ -333,7 +333,7 @@ export default function Page() {
     }
     requestTimeoutRef.current = setTimeout(() => {
       setShowTimeoutWarning(true)
-    }, 30000)
+    }, 50000) // Increased timeout from 30 seconds to 50 seconds
   }
 
   const handleRetry = () => {
@@ -525,16 +525,16 @@ export default function Page() {
     console.log("[v0] Updated query:", updatedQuery)
 
     const formData: ActivitySearchFormData = {
-      groupSize: updatedQuery.group_size,
+      groupSize: updatedQuery.group_size || "",
       budgetPerPerson: updatedQuery.budget_per_person?.toString() || "",
       currency: updatedQuery.currency || "EUR",
-      location: updatedQuery.location,
+      location: updatedQuery.location || "",
       activityCategory: (updatedQuery.activity_category as "diy" | "experience") || "diy",
-      vibe: updatedQuery.vibe,
-      groupRelationship: updatedQuery.group_relationship,
-      timeOfDay: updatedQuery.time_of_day,
-      indoorOutdoorPreference: updatedQuery.indoor_outdoor,
-      accessibilityNeeds: updatedQuery.accessibility_needs,
+      vibe: updatedQuery.vibe || "",
+      groupRelationship: updatedQuery.group_relationship || "",
+      timeOfDay: updatedQuery.time_of_day || "",
+      indoorOutdoorPreference: updatedQuery.indoor_outdoor || "",
+      accessibilityNeeds: updatedQuery.accessibility_needs || "",
     }
 
     console.log("[v0] Regenerating with formData:", formData)

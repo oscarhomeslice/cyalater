@@ -145,9 +145,12 @@ export async function POST(request: NextRequest) {
       groupRelationship,
       timeOfDay,
       indoorOutdoor,
+      indoorOutdoorPreference, // Accept both field name variants
       accessibilityNeeds,
       vibe,
     } = body
+
+    const indoorOutdoorValue = indoorOutdoor || indoorOutdoorPreference
 
     console.log("[API] Extracted fields:", {
       groupSize,
@@ -157,7 +160,7 @@ export async function POST(request: NextRequest) {
       activityCategory,
       groupRelationship,
       timeOfDay,
-      indoorOutdoor,
+      indoorOutdoor: indoorOutdoorValue,
       accessibilityNeeds,
       vibe,
     })
@@ -221,7 +224,10 @@ export async function POST(request: NextRequest) {
 
     // Optional fields don't need validation, just pass through
 
-    const enrichedContext = enrichUserContext(body)
+    const enrichedContext = enrichUserContext({
+      ...body,
+      indoorOutdoor: indoorOutdoorValue, // Use the resolved value
+    })
     console.log("[API] Enriched context:", JSON.stringify(enrichedContext, null, 2))
     console.log("[API] Derived insights:", {
       budgetTier: enrichedContext.budgetTier,
@@ -245,7 +251,7 @@ CONTEXT PROVIDED:
 ${enrichedContext.location ? `- Location: ${enrichedContext.location} (weave in local cultural context and hidden gems)` : "- Location: Not specified (design universally adaptable activities)"}
 ${enrichedContext.groupRelationship ? `- Group Type: ${enrichedContext.groupRelationship}` : ""}
 ${enrichedContext.timeOfDay ? `- Preferred Time: ${enrichedContext.timeOfDay}` : ""}
-${enrichedContext.indoorOutdoor ? `- Setting Preference: ${enrichedContext.indoorOutdoor}` : ""}
+${indoorOutdoorValue ? `- Setting Preference: ${indoorOutdoorValue}` : ""}
 ${enrichedContext.accessibilityNeeds ? `- Accessibility: ${enrichedContext.accessibilityNeeds}` : ""}
 ${enrichedContext.vibe ? `- Desired Vibe: ${enrichedContext.vibe} (let this be your creative North Star)` : ""}
 - Season: ${enrichedContext.seasonalContext} (consider weather and seasonal opportunities)
@@ -461,7 +467,7 @@ Think like you're planning for friends who trust your taste. Be bold. Be specifi
               activity_category: activityCategory,
               group_relationship: groupRelationship || null,
               time_of_day: timeOfDay || null,
-              indoor_outdoor: indoorOutdoor || null,
+              indoor_outdoor: indoorOutdoorValue || null,
               accessibility_needs: accessibilityNeeds || null,
               vibe: vibe || null,
             },
@@ -499,7 +505,7 @@ Think like you're planning for friends who trust your taste. Be bold. Be specifi
         activity_category: activityCategory,
         group_relationship: groupRelationship || null,
         time_of_day: timeOfDay || null,
-        indoor_outdoor: indoorOutdoor || null,
+        indoor_outdoor: indoorOutdoorValue || null,
         accessibility_needs: accessibilityNeeds || null,
         vibe: vibe || null,
         enriched: {
