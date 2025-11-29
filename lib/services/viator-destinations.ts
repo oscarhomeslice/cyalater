@@ -26,6 +26,17 @@ export interface DestinationMatch {
   matchConfidence: "exact" | "partial" | "fuzzy"
 }
 
+function getViatorDestinationsUrl(): string {
+  const envUrl = process.env.VIATOR_API_BASE_URL
+  if (!envUrl) {
+    return "https://api.viator.com/v1/taxonomy/destinations"
+  }
+  const baseUrl = envUrl.replace(/\/partner\/?$/, "").replace(/\/+$/, "")
+  return `${baseUrl}/v1/taxonomy/destinations`
+}
+
+const DESTINATIONS_ENDPOINT = getViatorDestinationsUrl()
+
 // API Headers
 function getHeaders(): HeadersInit {
   if (!VIATOR_API_KEY) {
@@ -35,7 +46,7 @@ function getHeaders(): HeadersInit {
   return {
     "exp-api-key": VIATOR_API_KEY,
     "Accept-Language": "en-US",
-    Accept: "application/json;version=2.0",
+    Accept: "application/json",
   }
 }
 
@@ -110,12 +121,10 @@ export async function initializeDestinations(): Promise<void> {
 
   // Create new initialization promise
   initializationPromise = (async () => {
-    const endpoint = `${VIATOR_BASE_URL}/destinations`
-
-    console.log("[Viator Destinations] Fetching all destinations from:", endpoint)
+    console.log("[Viator Destinations] Fetching all destinations from:", DESTINATIONS_ENDPOINT)
 
     try {
-      const response = await fetch(endpoint, {
+      const response = await fetch(DESTINATIONS_ENDPOINT, {
         method: "GET",
         headers: getHeaders(),
       })
@@ -126,22 +135,45 @@ export async function initializeDestinations(): Promise<void> {
 
       const data = await response.json()
 
-      // Validate and filter destinations
-      const validDestinations = (data.destinations || []).filter(
-        (d: any) =>
-          d &&
-          typeof d.destinationId === "number" &&
-          d.destinationName &&
-          typeof d.destinationName === "string" &&
-          d.destinationName.trim() !== "",
-      )
+      let destinations: any[] = []
+
+      // Handle different response structures
+      if (Array.isArray(data)) {
+        // Plain array response
+        destinations = data
+      } else if (data.destinations && Array.isArray(data.destinations)) {
+        // Nested under "destinations" key
+        destinations = data.destinations
+      } else if (data.data && Array.isArray(data.data)) {
+        // Nested under "data" key
+        destinations = data.data
+      }
+
+      console.log(`[Viator Destinations] Raw API response contained ${destinations.length} destinations`)
+
+      const validDestinations = destinations
+        .filter((d: any) => d && (d.destinationId || d.destId) && (d.destinationName || d.destName))
+        .map((d: any) => ({
+          destinationId: d.destinationId || d.destId,
+          destinationName: d.destinationName || d.destName,
+          destinationType: d.destinationType || d.destType || "UNKNOWN",
+          parentId: d.parentId || d.lookupId,
+        }))
 
       destinationsCache = validDestinations
       cacheTimestamp = Date.now()
 
+      console.log(`[Viator Destinations] Successfully cached ${destinationsCache.length} destinations`)
+
+      const madridMatch = destinationsCache.find((d) => normalizeText(d.destinationName).includes("madrid"))
       console.log(
-        `[Viator Destinations] Successfully cached ${destinationsCache.length} destinations (from ${data.destinations?.length || 0} raw)`,
+        `[Viator Destinations] Madrid in cache: ${madridMatch ? `Yes (${madridMatch.destinationName}, ID: ${madridMatch.destinationId})` : "No"}`,
       )
+
+      const sample = destinationsCache
+        .slice(0, 10)
+        .map((d) => `${d.destinationName} (${d.destinationType}, ID: ${d.destinationId})`)
+      console.log(`[Viator Destinations] First 10 destinations:`, sample)
     } catch (error: any) {
       console.error("[Viator Destinations] Failed to fetch destinations:", error.message)
       throw error
