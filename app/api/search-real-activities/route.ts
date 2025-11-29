@@ -89,8 +89,15 @@ export async function POST(request: NextRequest) {
       await initializeDestinations()
       console.log("[Viator API] ✓ Destinations initialized")
     } catch (initError) {
-      console.warn("[Viator API] ⚠ Destinations initialization warning:", initError)
-      // Continue - the service will handle this gracefully
+      console.error("[Viator API] ✗ CRITICAL: Failed to initialize destinations:", initError)
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Failed to load destinations database. Please check Viator API configuration.",
+          details: isDevelopment ? String(initError) : undefined,
+        },
+        { status: 503 },
+      )
     }
 
     // Step 4: Validate required fields

@@ -107,8 +107,11 @@ function calculateSimilarity(str1: string, str2: string): number {
  * This should be called on app startup
  */
 export async function initializeDestinations(): Promise<void> {
+  console.log("[Viator Destinations] ===== INITIALIZATION START =====")
+
   // Return existing initialization promise if already in progress
   if (initializationPromise) {
+    console.log("[Viator Destinations] Already initializing, returning existing promise")
     return initializationPromise
   }
 
@@ -119,15 +122,27 @@ export async function initializeDestinations(): Promise<void> {
     return Promise.resolve()
   }
 
+  if (!VIATOR_API_KEY) {
+    const error = new Error("VIATOR_API_KEY environment variable is not set - cannot initialize destinations")
+    console.error("[Viator Destinations] CRITICAL ERROR:", error.message)
+    throw error
+  }
+  console.log("[Viator Destinations] API key is present")
+
   // Create new initialization promise
   initializationPromise = (async () => {
     console.log("[Viator Destinations] Fetching all destinations from:", DESTINATIONS_ENDPOINT)
+    console.log("[Viator Destinations] Using API key starting with:", VIATOR_API_KEY.substring(0, 10) + "...")
 
     try {
+      console.log("[Viator Destinations] Making fetch request...")
       const response = await fetch(DESTINATIONS_ENDPOINT, {
         method: "GET",
         headers: getHeaders(),
       })
+
+      console.log("[Viator Destinations] Response received - status:", response.status)
+      console.log("[Viator Destinations] Response headers:", Object.fromEntries(response.headers.entries()))
 
       if (!response.ok) {
         const errorText = await response.text()
@@ -157,10 +172,12 @@ export async function initializeDestinations(): Promise<void> {
         console.log("[Viator Destinations] Response has 'data' array")
         destinations = data.data
       } else if (data.data && data.data.destinations && Array.isArray(data.data.destinations)) {
-        console.log("[Viator Destinations] Response has 'data.data.destinations' array")
+        // Nested under "data.destinations" key
+        console.log("[Viator Destinations] Response has 'data.destinations' array")
         destinations = data.data.destinations
       } else {
         console.error("[Viator Destinations] Unexpected response format:", JSON.stringify(data, null, 2))
+        throw new Error("Unexpected API response format - could not find destinations array")
       }
 
       console.log(`[Viator Destinations] Extracted ${destinations.length} raw destination records`)
@@ -192,9 +209,14 @@ export async function initializeDestinations(): Promise<void> {
         .slice(0, 10)
         .map((d) => `${d.destinationName} (${d.destinationType}, ID: ${d.destinationId})`)
       console.log(`[Viator Destinations] First 10 destinations:`, sample)
+
+      console.log("[Viator Destinations] ===== INITIALIZATION COMPLETE =====")
     } catch (error: any) {
-      console.error("[Viator Destinations] Failed to fetch destinations:", error.message)
+      console.error("[Viator Destinations] ===== INITIALIZATION FAILED =====")
+      console.error("[Viator Destinations] Error type:", error.constructor?.name)
+      console.error("[Viator Destinations] Error message:", error.message)
       console.error("[Viator Destinations] Error stack:", error.stack)
+      console.error("[Viator Destinations] =======================================")
       throw error
     } finally {
       initializationPromise = null
