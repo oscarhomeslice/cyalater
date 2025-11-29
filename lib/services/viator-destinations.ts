@@ -1,8 +1,7 @@
 // Viator Destinations Service
 // Fetches and caches ALL destinations from Viator's API with fuzzy matching
 
-const VIATOR_BASE_URL =
-  process.env.VIATOR_API_BASE_URL?.replace(/\/partner$/, "") + "/partner" || "https://api.viator.com/partner"
+const VIATOR_BASE_URL = process.env.VIATOR_API_BASE_URL || "https://api.viator.com/partner"
 const VIATOR_API_KEY = process.env.VIATOR_API_KEY
 
 // Cache configuration
@@ -26,16 +25,7 @@ export interface DestinationMatch {
   matchConfidence: "exact" | "partial" | "fuzzy"
 }
 
-function getViatorDestinationsUrl(): string {
-  const envUrl = process.env.VIATOR_API_BASE_URL
-  if (!envUrl) {
-    return "https://api.viator.com/v1/taxonomy/destinations"
-  }
-  const baseUrl = envUrl.replace(/\/partner\/?$/, "").replace(/\/+$/, "")
-  return `${baseUrl}/v1/taxonomy/destinations`
-}
-
-const DESTINATIONS_ENDPOINT = getViatorDestinationsUrl()
+const DESTINATIONS_ENDPOINT = `${VIATOR_BASE_URL}/destinations`
 
 // API Headers
 function getHeaders(): HeadersInit {
@@ -46,7 +36,7 @@ function getHeaders(): HeadersInit {
   return {
     "exp-api-key": VIATOR_API_KEY,
     "Accept-Language": "en-US",
-    Accept: "application/json",
+    Accept: "application/json;version=2.0",
   }
 }
 
@@ -142,7 +132,6 @@ export async function initializeDestinations(): Promise<void> {
       })
 
       console.log("[Viator Destinations] Response received - status:", response.status)
-      console.log("[Viator Destinations] Response headers:", Object.fromEntries(response.headers.entries()))
 
       if (!response.ok) {
         const errorText = await response.text()
@@ -153,30 +142,21 @@ export async function initializeDestinations(): Promise<void> {
       const data = await response.json()
 
       console.log("[Viator Destinations] Raw API response type:", typeof data)
-      console.log("[Viator Destinations] Raw API response keys:", Object.keys(data || {}))
-      console.log("[Viator Destinations] First 500 chars of response:", JSON.stringify(data).substring(0, 500))
+      console.log("[Viator Destinations] Is array:", Array.isArray(data))
 
       let destinations: any[] = []
 
-      // Handle different response structures
       if (Array.isArray(data)) {
-        // Plain array response
-        console.log("[Viator Destinations] Response is a plain array")
+        console.log("[Viator Destinations] Response is a direct array")
         destinations = data
       } else if (data.destinations && Array.isArray(data.destinations)) {
-        // Nested under "destinations" key
         console.log("[Viator Destinations] Response has 'destinations' array")
         destinations = data.destinations
       } else if (data.data && Array.isArray(data.data)) {
-        // Nested under "data" key
         console.log("[Viator Destinations] Response has 'data' array")
         destinations = data.data
-      } else if (data.data && data.data.destinations && Array.isArray(data.data.destinations)) {
-        // Nested under "data.destinations" key
-        console.log("[Viator Destinations] Response has 'data.destinations' array")
-        destinations = data.data.destinations
       } else {
-        console.error("[Viator Destinations] Unexpected response format:", JSON.stringify(data, null, 2))
+        console.error("[Viator Destinations] Unexpected response format")
         throw new Error("Unexpected API response format - could not find destinations array")
       }
 
@@ -187,11 +167,11 @@ export async function initializeDestinations(): Promise<void> {
       }
 
       const validDestinations = destinations
-        .filter((d: any) => d && (d.destinationId || d.destId) && (d.destinationName || d.destName))
+        .filter((d: any) => d && d.destinationId && d.destinationName)
         .map((d: any) => ({
-          destinationId: d.destinationId || d.destId,
-          destinationName: d.destinationName || d.destName,
-          destinationType: d.destinationType || d.destType || "UNKNOWN",
+          destinationId: d.destinationId,
+          destinationName: d.destinationName,
+          destinationType: d.destinationType || d.type || "UNKNOWN",
           parentId: d.parentId || d.lookupId,
         }))
 
