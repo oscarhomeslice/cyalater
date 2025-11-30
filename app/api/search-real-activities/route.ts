@@ -202,7 +202,9 @@ export async function POST(request: NextRequest) {
 
     // Step 7: Call Viator /products/search endpoint
     console.log("[Viator API] STEP 6: Calling Viator /products/search...")
-    const viatorUrl = `${process.env.VIATOR_API_BASE_URL || "https://api.viator.com"}/partner/products/search`
+    // Use consistent base URL that includes /partner, then append specific endpoint
+    const baseUrl = process.env.VIATOR_API_BASE_URL || "https://api.viator.com/partner"
+    const viatorUrl = `${baseUrl}/products/search`
 
     console.log("[Viator API] Request URL:", viatorUrl)
 
