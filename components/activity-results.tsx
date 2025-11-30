@@ -145,12 +145,15 @@ export function ActivityResults({
     setVisibleRealActivitiesCount(ACTIVITIES_PER_PAGE)
   }
 
-  const displayActivities = refreshedActivities.length > 0 ? refreshedActivities : results.realActivities || []
+  const realActivitiesData = results.realActivities || []
+  const displayActivities = refreshedActivities.length > 0 ? refreshedActivities : realActivitiesData
 
-  const hasRealActivities = results.isRealActivities && displayActivities.length > 0
+  const hasRealActivities =
+    (results.isRealActivities === true || !!results.realActivities) && (results.realActivities?.length ?? 0) > 0
 
   console.log("[v0] ActivityResults - hasRealActivities:", hasRealActivities)
   console.log("[v0] ActivityResults - results.isRealActivities:", results.isRealActivities)
+  console.log("[v0] ActivityResults - results.realActivities:", results.realActivities)
   console.log("[v0] ActivityResults - displayActivities:", displayActivities)
 
   return (

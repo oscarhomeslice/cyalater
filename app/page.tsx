@@ -111,8 +111,6 @@ export default function Page() {
   const requestAbortRef = useRef<AbortController | null>(null)
 
   const [isSearchingReal, setIsSearchingReal] = useState(false)
-  const [realActivitiesResults, setRealActivitiesResults] = useState<ApiResponse | null>(null)
-  const [showRealActivities, setShowRealActivities] = useState(false)
   const [realActivitiesError, setRealActivitiesError] = useState<string | null>(null)
 
   const [showRealActivitiesSearch, setShowRealActivitiesSearch] = useState(false)
@@ -129,6 +127,8 @@ export default function Page() {
   const [showShortlistViewer, setShowShortlistViewer] = useState(false)
   const [searchCategory, setSearchCategory] = useState<"diy" | "experience">("diy")
   const [destinationSuggestions, setDestinationSuggestions] = useState<DestinationSuggestion[]>([])
+
+  const [showRealActivities, setShowRealActivities] = useState(false)
 
   useEffect(() => {
     if (!isLoading) return
@@ -220,7 +220,6 @@ export default function Page() {
     setShowResults(false)
     setSearchResults(null)
     setShowRealActivities(false)
-    setRealActivitiesResults(null)
     setRealActivitiesError(null)
     setShowRealActivitiesSearch(false)
     window.scrollTo({ top: 0, behavior: "smooth" })
@@ -349,7 +348,6 @@ export default function Page() {
     setShowResults(false)
     setSearchResults(null)
     setShowRealActivities(false)
-    setRealActivitiesResults(null)
     setRealActivitiesError(null)
     setShowRealActivitiesSearch(false)
     setError(null)
@@ -461,7 +459,11 @@ export default function Page() {
         throw new Error(fullErrorMessage)
       }
 
-      setRealActivitiesResults(data)
+      setSearchResults((prev) => ({
+        ...prev!,
+        isRealActivities: true,
+        realActivities: data.recommendations.activities,
+      }))
       setShowRealActivities(true)
       setDestinationSuggestions([])
 
@@ -668,23 +670,6 @@ export default function Page() {
               onRegenerateWithParams={handleRegenerateWithParams}
               isSearchingReal={isSearchingReal}
             />
-
-            {showRealActivities && realActivitiesResults && (
-              <div id="real-activities" className="mt-12">
-                <ActivityResults
-                  results={realActivitiesResults}
-                  onNewSearch={() => {
-                    setShowRealActivities(false)
-                    setRealActivitiesResults(null)
-                    handleNewSearch()
-                  }}
-                  isSearchingReal={false}
-                  hasLocation={!!realActivitiesResults.query?.location}
-                  onAddToShortlist={handleAddToShortlist}
-                  shortlistedIds={shortlistedIds}
-                />
-              </div>
-            )}
 
             {realActivitiesError && (
               <div className="mt-8 p-6 bg-red-500/10 border border-red-500/30 rounded-xl">
