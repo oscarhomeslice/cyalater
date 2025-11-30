@@ -47,12 +47,19 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  console.log("[v0 DEBUG] POST /api/search-real-activities called at", new Date().toISOString())
+  console.log("[v0 DEBUG] Request headers:", Object.fromEntries(request.headers.entries()))
+  console.log("[v0 DEBUG] Request URL:", request.url)
+
   console.log("[Viator API] ===== NEW REQUEST =====")
 
   // Step 1: Parse and validate request body
   let body: RequestBody
   try {
+    console.log("[v0 DEBUG] About to parse request body...")
     body = await request.json()
+    console.log("[v0 DEBUG] Request body parsed successfully")
+
     console.log("[Viator API] Request body received:")
     console.log("[Viator API] - Location:", body.location)
     console.log("[Viator API] - Budget:", body.budgetPerPerson)
@@ -70,7 +77,8 @@ export async function POST(request: NextRequest) {
       console.warn("[Viator API] ⚠ No inspiration activities received in request!")
     }
   } catch (error) {
-    console.error("[Viator API] Failed to parse request body:", error)
+    console.error("[v0 DEBUG] Failed to parse request body - Error details:", error)
+    console.error("[v0 DEBUG] Failed to parse request body:", error)
     return NextResponse.json(
       {
         success: false,
@@ -82,6 +90,8 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    console.log("[v0 DEBUG] Entering main try block")
+
     // Step 2: Check API key
     console.log("[Viator API] STEP 1: Checking API configuration...")
     if (!process.env.VIATOR_API_KEY) {
@@ -272,11 +282,12 @@ export async function POST(request: NextRequest) {
 
     // Step 9: Transform Viator response to ActivityData format
     console.log("[Viator API] STEP 8: Transforming Viator products to activities...")
-    const activities = mapViatorProductsToActivities(viatorData.products, {
-      currency: body.currency || "EUR",
-      groupSize: body.groupSize,
-      vibe: body.vibe,
-    })
+    const activities = mapViatorProductsToActivities(
+      viatorData.products,
+      body.currency || "EUR",
+      body.groupSize,
+      body.vibe,
+    )
 
     console.log("[Viator API] ✓ Activities transformed:", activities.length)
 
@@ -318,12 +329,14 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(response)
   } catch (error: any) {
+    console.error("[v0 DEBUG] Caught error in main try block")
     console.error("[Viator API] ===== ERROR =====")
     console.error("[Viator API] Error type:", error.constructor.name)
     console.error("[Viator API] Error message:", error.message)
     if (isDevelopment) {
       console.error("[Viator API] Stack trace:", error.stack)
     }
+    console.error("[v0 DEBUG] Full error object:", JSON.stringify(error, Object.getOwnPropertyNames(error)))
     console.error("[Viator API] ==================")
 
     return NextResponse.json(
@@ -338,6 +351,8 @@ export async function POST(request: NextRequest) {
               budget: body?.budgetPerPerson,
               currency: body?.currency,
               inspirationActivitiesReceived: body?.inspirationActivities?.length || 0,
+              errorType: error.constructor.name,
+              errorMessage: error.message,
             }
           : undefined,
       },
