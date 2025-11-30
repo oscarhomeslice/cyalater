@@ -426,8 +426,8 @@ export async function POST(request: NextRequest) {
             userBudget: body.budgetPerPerson || 50,
             viatorRating: scored.rating,
             viatorReviewCount: scored.reviewCount,
-            viatorHighlights: safeHighlightsArray, // Use safe arrays
-            viatorTags: safeTagsArray, // Use safe arrays
+            viatorHighlights: safeHighlightsArray,
+            viatorTags: safeTagsArray,
             viatorName: scored.name,
           })
         }
@@ -436,18 +436,40 @@ export async function POST(request: NextRequest) {
         if (scored.bestInspirationMatch.memorableMoment) {
           enrichedSpecialElement = blendMemorableMoment(
             scored.bestInspirationMatch.memorableMoment,
-            safeHighlightsArray, // Use safe arrays
+            safeHighlightsArray,
             {
               userGroupSize: body.groupSize,
               userVibe: body.vibe,
               userBudget: body.budgetPerPerson || 50,
               viatorRating: scored.rating,
               viatorReviewCount: scored.reviewCount,
-              viatorHighlights: safeHighlightsArray, // Use safe arrays
-              viatorTags: safeTagsArray, // Use safe arrays
+              viatorHighlights: safeHighlightsArray,
+              viatorTags: safeTagsArray,
               viatorName: scored.name,
             },
           )
+        }
+      } else {
+        if (safeHighlightsArray.length > 0) {
+          // Check if current specialElement is generic
+          const genericPhrases = ["unique local experience", "authentic experience", "local experience"]
+          const isGeneric = genericPhrases.some((phrase) => scored.specialElement?.toLowerCase().includes(phrase))
+
+          if (isGeneric) {
+            // Build better specialElement from highlights
+            const topHighlights = safeHighlightsArray.slice(0, 3)
+            if (topHighlights.length === 1) {
+              enrichedSpecialElement = topHighlights[0]
+            } else if (topHighlights.length === 2) {
+              enrichedSpecialElement = `${topHighlights[0]} and ${topHighlights[1].toLowerCase()}`
+            } else if (topHighlights.length === 3) {
+              enrichedSpecialElement = `${topHighlights[0]}, ${topHighlights[1].toLowerCase()}, and ${topHighlights[2].toLowerCase()}`
+            }
+
+            console.log(
+              `[Copy Adapter] No match for "${scored.name}", but improved specialElement from highlights: "${enrichedSpecialElement}"`,
+            )
+          }
         }
       }
 

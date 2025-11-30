@@ -369,13 +369,14 @@ export function mapViatorProductToActivity(
     duration: mapDuration(product.duration),
     locationType: inferLocationType(product.tags),
     activityLevel: inferActivityLevel(product.tags),
-    specialElement: specialElement, // Now uses highlights instead of generic text
+    specialElement: specialElement,
     preparation: buildPreparationText(product),
     viatorUrl: product.productUrl,
     rating: product.reviews?.combinedAverageRating,
     reviewCount: product.reviews?.totalReviews,
     tags: extractReadableTags(product.tags),
-    image: selectBestImage(product.images), // Add image to activity
+    image: selectBestImage(product.images),
+    highlights: product.highlights, // Add highlights array to activity object so it's available for enrichment
   }
 }
 

@@ -291,8 +291,20 @@ export function calculateInspirationMatchScore(
       .filter((t): t is string => typeof t === "string")
       .map((t) => t.toLowerCase())
 
+    // Direct tag overlap
     const tagOverlap = viatorTagsLower.filter((t) => inspirationTagsLower.includes(t)).length
     score += tagOverlap * 10
+
+    // Also check partial tag matches (e.g., "workshop" matches "creative workshop")
+    let partialMatches = 0
+    for (const vTag of viatorTagsLower) {
+      for (const iTag of inspirationTagsLower) {
+        if (vTag.includes(iTag) || iTag.includes(vTag)) {
+          partialMatches += 0.5
+        }
+      }
+    }
+    score += partialMatches * 5
   }
 
   // Check search keyword matching (worth up to 45 points)
@@ -302,6 +314,28 @@ export function calculateInspirationMatchScore(
       .filter((keyword): keyword is string => typeof keyword === "string")
       .filter((keyword) => viatorText.includes(keyword.toLowerCase())).length
     score += keywordMatches * 15
+  }
+
+  const activityCategories = {
+    food: ["food", "wine", "culinary", "cooking", "tasting", "gastronomy", "dining", "cuisine", "chef"],
+    adventure: ["adventure", "adrenaline", "thrill", "extreme", "zip", "climb", "dive", "kayak", "rafting"],
+    cultural: ["museum", "gallery", "historic", "heritage", "cultural", "tradition", "temple", "church"],
+    nature: ["nature", "wildlife", "park", "garden", "scenic", "mountain", "forest", "beach"],
+    creative: ["workshop", "class", "art", "craft", "create", "make", "diy", "painting", "pottery"],
+    tour: ["tour", "guided", "walking", "bus", "hop-on", "sightseeing", "city tour"],
+  }
+
+  const viatorNameLower = viatorActivity.name.toLowerCase()
+  const viatorDescLower = viatorActivity.description?.toLowerCase() || ""
+  const inspirationNameLower = inspirationActivity.name.toLowerCase()
+
+  for (const [category, keywords] of Object.entries(activityCategories)) {
+    const viatorHasCategory = keywords.some((kw) => viatorNameLower.includes(kw) || viatorDescLower.includes(kw))
+    const inspirationHasCategory = keywords.some((kw) => inspirationNameLower.includes(kw))
+
+    if (viatorHasCategory && inspirationHasCategory) {
+      score += 15 // Bonus for matching category
+    }
   }
 
   // Check name similarity (worth up to 15 points)

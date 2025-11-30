@@ -32,6 +32,8 @@ export interface Activity {
   rating?: number
   reviewCount?: number
   tags?: string[]
+  highlights?: string[] // Add highlights array to store Viator product highlights
+  image?: string // Add image field
 
   reasonItFits?: string // Why this matches user's context (1 sentence)
   memorableMoment?: string // The ONE thing they'll remember (1 sentence)
