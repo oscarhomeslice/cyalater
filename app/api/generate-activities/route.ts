@@ -94,6 +94,7 @@ function enrichUserContext(formData: any): EnrichedUserContext {
     groupRelationship: formData.groupRelationship,
     timeOfDay: formData.timeOfDay,
     indoorOutdoor: formData.indoorOutdoor,
+    indoorOutdoorPreference: formData.indoorOutdoorPreference, // Accept both field name variants
     accessibilityNeeds: formData.accessibilityNeeds,
     vibe: formData.vibe,
     budgetTier,
@@ -465,8 +466,6 @@ OUTPUT FORMAT (JSON):
     }
 
     if (recommendations.activities && recommendations.activities.length > 0) {
-      const originalCount = recommendations.activities.length
-
       recommendations.activities = recommendations.activities.map((activity: any) => ({
         ...activity,
         reasonItFits: activity.reasonItFits || activity.bestFor, // Fallback to bestFor
@@ -474,63 +473,10 @@ OUTPUT FORMAT (JSON):
         searchKeywords: activity.searchKeywords || activity.tags?.slice(0, 3) || [], // Fallback to first 3 tags
       }))
 
-      recommendations.activities = recommendations.activities.filter((activity: any) => {
-        const isValid =
-          activity.name &&
-          activity.name.trim() !== "" &&
-          activity.name !== "Activity" &&
-          activity.experience &&
-          activity.experience.trim() !== "" &&
-          activity.experience !== "Experience description coming soon" &&
-          activity.bestFor &&
-          activity.bestFor.trim() !== "" &&
-          activity.cost &&
-          activity.duration &&
-          activity.duration !== "TBD" &&
-          activity.specialElement &&
-          activity.specialElement.trim() !== ""
-
-        if (!isValid) {
-          console.log("[API] Filtered out incomplete activity:", activity)
-        }
-
-        return isValid
-      })
-
-      const filteredCount = recommendations.activities.length
-
-      if (filteredCount < originalCount) {
-        console.log(
-          `[API] Filtered out ${originalCount - filteredCount} incomplete activities. Remaining: ${filteredCount}`,
-        )
-      }
-
-      if (filteredCount === 0) {
-        console.error("[API] No valid activities after filtering")
-        return NextResponse.json(
-          {
-            success: false,
-            error: "No valid activities were generated. Please try again with different parameters.",
-            query: {
-              group_size: groupSize,
-              budget_per_person: budgetPerPerson,
-              currency,
-              location: location || null,
-              activity_category: activityCategory,
-              group_relationship: groupRelationship || null,
-              time_of_day: timeOfDay || null,
-              indoor_outdoor: indoorOutdoorValue || null,
-              accessibility_needs: accessibilityNeeds || null,
-              vibe: vibe || null,
-            },
-          },
-          { status: 500 },
-        )
-      }
-
+      // Log activity breakdown for debugging
       console.log("[API] Activity breakdown:")
       recommendations.activities.forEach((activity: any, index: number) => {
-        console.log(`  [${index + 1}] ${activity.name}:`, {
+        console.log(`[${index + 1}] ${activity.name}:`, {
           cost: activity.cost,
           duration: activity.duration,
           locationType: activity.locationType,
@@ -541,36 +487,55 @@ OUTPUT FORMAT (JSON):
           searchKeywordsCount: activity.searchKeywords?.length || 0,
         })
       })
+
+      console.log("[API] === REQUEST COMPLETED SUCCESSFULLY ===")
+      return NextResponse.json(
+        {
+          success: true,
+          activities: recommendations.activities,
+          query: {
+            group_size: groupSize,
+            budget_per_person: budgetPerPerson,
+            currency,
+            location: location || null,
+            activity_category: activityCategory,
+            group_relationship: groupRelationship || null,
+            time_of_day: timeOfDay || null,
+            indoor_outdoor: indoorOutdoorValue || null,
+            accessibility_needs: accessibilityNeeds || null,
+            vibe: vibe || null,
+          },
+          metadata: {
+            count: recommendations.activities.length,
+            vibe: vibe || null,
+            time_of_day: timeOfDay || null,
+            indoor_outdoor: indoorOutdoorValue || null,
+          },
+        },
+        { status: 200 },
+      )
     }
 
-    console.log("[API] === REQUEST COMPLETED SUCCESSFULLY ===\n")
-
-    return NextResponse.json({
-      success: true,
-      recommendations: {
-        activities: recommendations.activities || [],
-        proTips: recommendations.proTips || [],
-        refinementPrompts: recommendations.refinementPrompts || [],
-      },
-      query: {
-        group_size: groupSize,
-        budget_per_person: budgetPerPerson,
-        currency,
-        location: location || null,
-        activity_category: activityCategory,
-        group_relationship: groupRelationship || null,
-        time_of_day: timeOfDay || null,
-        indoor_outdoor: indoorOutdoorValue || null,
-        accessibility_needs: accessibilityNeeds || null,
-        vibe: vibe || null,
-        enriched: {
-          budget_tier: enrichedContext.budgetTier,
-          group_size_category: enrichedContext.groupSizeCategory,
-          seasonal_context: enrichedContext.seasonalContext,
+    console.error("[API] No activities generated")
+    return NextResponse.json(
+      {
+        success: false,
+        error: "No activities were generated. Please try again with different parameters.",
+        query: {
+          group_size: groupSize,
+          budget_per_person: budgetPerPerson,
+          currency,
+          location: location || null,
+          activity_category: activityCategory,
+          group_relationship: groupRelationship || null,
+          time_of_day: timeOfDay || null,
+          indoor_outdoor: indoorOutdoorValue || null,
+          accessibility_needs: accessibilityNeeds || null,
+          vibe: vibe || null,
         },
-        variety_seed: varietySeed,
       },
-    })
+      { status: 500 },
+    )
   } catch (error: any) {
     console.error("[API] === ERROR OCCURRED ===")
     console.error("[API] Error type:", error.constructor.name)
