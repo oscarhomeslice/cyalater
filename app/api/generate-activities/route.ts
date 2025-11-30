@@ -262,7 +262,7 @@ ${varietySeed.distributionHint}
 ${varietySeed.locationPrompt}
 
 YOUR MISSION:
-Generate 6-8 activity ideas that feel FRESH, UNEXPECTED, and perfectly suited to their situation.
+Generate exactly 4 activity ideas that feel FRESH, UNEXPECTED, and perfectly suited to their situation.
 
 CRITICAL RULES:
 
@@ -310,18 +310,26 @@ CRITICAL RULES:
 
 4. BE SPECIFIC AND EVOCATIVE:
    Paint the scene. Make them FEEL it. Use vivid, specific details.
+   Keep each activity description under 100 words total.
+   Keep preparation field under 50 words.
    Bad: "Wine tasting event"
    Good: "Blind wine tournament with scorecards, regional cheese pairings, and a ridiculous trophy ceremony"
 
 5. VARIETY DISTRIBUTION:
    - Include exactly 1 low-energy option (where people can actually talk)
-   - Include at least 2 ideas that break conventional patterns
+   - Include at least 1 idea that breaks conventional patterns
    - Mix activity levels: low, moderate, high
    - Vary settings if possible: indoor/outdoor/hybrid
 
 6. SPECIAL CONSIDERATION:
    If this is a ${enrichedContext.groupRelationship || "group"}, tailor the social dynamics accordingly.
    ${enrichedContext.accessibilityNeeds ? `IMPORTANT: Ensure all suggestions accommodate: ${enrichedContext.accessibilityNeeds}` : ""}
+
+LENGTH REQUIREMENTS (CRITICAL):
+- Return EXACTLY 4 activities, no more, no less
+- Each "experience" field: maximum 100 words
+- Each "preparation" field: maximum 50 words
+- Keep descriptions concise and impactful
 
 OUTPUT FORMAT (JSON):
 {
@@ -342,9 +350,7 @@ OUTPUT FORMAT (JSON):
   ],
   "proTips": ["3-4 genuinely useful tips as plain strings"],
   "refinementPrompts": ["3-5 ways to adjust direction"]
-}
-
-Think like you're planning for friends who trust your taste. Be bold. Be specific. Above all: BE ORIGINAL.`
+}`
 
     console.log("[API] System prompt stats:", {
       length: systemPrompt.length,
@@ -365,12 +371,12 @@ Think like you're planning for friends who trust your taste. Be bold. Be specifi
       presence_penalty: 0.4,
       frequency_penalty: 0.3,
       top_p: 0.95,
-      max_tokens: 5000,
+      max_tokens: 8000,
     })
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
-      max_tokens: 5000,
+      max_tokens: 8000,
       temperature: 0.95,
       presence_penalty: 0.4,
       frequency_penalty: 0.3,
