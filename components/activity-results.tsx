@@ -50,6 +50,10 @@ export function ActivityResults({
   const [locationError, setLocationError] = useState("")
   const [isSearchingReal, setIsSearchingReal] = useState(false)
 
+  console.log("[ActivityResults] Received results:", results)
+  console.log("[ActivityResults] results.recommendations:", results.recommendations)
+  console.log("[ActivityResults] results.recommendations.activities:", results.recommendations?.activities)
+
   const [isEditingSearch, setIsEditingSearch] = useState(false)
   const [editedParams, setEditedParams] = useState<Partial<ParsedQuery>>({})
 
@@ -60,14 +64,20 @@ export function ActivityResults({
   const { activities = [], proTips = [], refinementPrompts = [] } = recommendations
 
   const transformedActivities = useMemo(() => {
-    return (results.activities || []).map((activity) => {
+    console.log("[ActivityResults] Building transformedActivities")
+    console.log("[ActivityResults] activities array:", activities)
+
+    return activities.map((activity) => {
       const costValue = Number.parseFloat(activity.cost.toString().replace(/[^0-9.]/g, ""))
       return {
         ...activity,
         cost: costValue,
       }
     })
-  }, [results.activities])
+  }, [activities])
+
+  console.log("[ActivityResults] transformedActivities:", transformedActivities)
+  console.log("[ActivityResults] transformedActivities length:", transformedActivities.length)
 
   const getCurrentValue = (field: keyof ParsedQuery) => {
     return isEditingSearch && editedParams[field] !== undefined ? editedParams[field] : query[field]
@@ -436,9 +446,9 @@ export function ActivityResults({
             <div className="relative flex justify-center">
               <div className="bg-zinc-950 px-6 py-2 rounded-full border-2 border-emerald-500/30">
                 <div className="flex items-center gap-2 text-emerald-400">
-                  <Ticket className="w-5 h-5" />
+                  <Ticket className="w-5 h-5 text-primary" />
                   <span className="font-semibold text-lg">Real Bookable Activities</span>
-                  <Ticket className="w-5 h-5" />
+                  <Ticket className="w-5 h-5 text-emerald-400" />
                 </div>
               </div>
             </div>

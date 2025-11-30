@@ -287,6 +287,8 @@ export default function Page() {
       }
 
       console.log("[v0] Successfully received activities:", data.recommendations.activities.length)
+      console.log("[v0] Activities data structure:", data.recommendations.activities)
+      console.log("[v0] Setting searchResults with data:", data)
 
       setSearchResults(data)
       setShowResults(true)
