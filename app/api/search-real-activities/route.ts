@@ -5,8 +5,9 @@ import {
   getSuggestedDestinations,
 } from "@/lib/services/viator-destinations"
 import { transformSearchContextToViatorParams } from "@/lib/mappers/viator-search-mapper"
-import { mapViatorProductsToActivities } from "@/lib/mappers/viator-response-mapper"
+import { mapViatorProductsToActivities, generateBestForSnippets } from "@/lib/mappers/viator-response-mapper"
 import { scoreAndSortActivities } from "@/lib/utils/activity-scorer"
+import { adaptReasonItFits, blendMemorableMoment } from "@/lib/utils/copy-adapter"
 
 interface RequestBody {
   location?: string
@@ -377,12 +378,93 @@ export async function POST(request: NextRequest) {
       })),
     )
 
+    console.log("[Viator API] STEP 8.6: Enriching activities with contextual descriptions...")
+    const enrichedActivities = scoredActivities.map((scored) => {
+      // Find the best matching inspiration activity name for this scored activity
+      let matchedInspirationName: string | undefined
+      if (body.inspirationActivities && body.inspirationActivities.length > 0) {
+        // Simple heuristic: find inspiration with most tag overlap
+        const activityTagsLower = (scored.tags || []).map((t) => t.toLowerCase())
+        let bestMatch = 0
+        body.inspirationActivities.forEach((inspiration) => {
+          const inspirationTagsLower = (inspiration.tags || []).map((t) => t.toLowerCase())
+          const overlap = activityTagsLower.filter((t) => inspirationTagsLower.includes(t)).length
+          if (overlap > bestMatch) {
+            bestMatch = overlap
+            matchedInspirationName = inspiration.name
+          }
+        })
+      }
+
+      // Generate enriched bestFor text using scoring breakdown
+      let enrichedBestFor = generateBestForSnippets({
+        groupSize: body.groupSize,
+        vibe: body.vibe,
+        budgetPerPerson: body.budgetPerPerson || 50,
+        timeOfDay: body.timeOfDay,
+        matchedInspirationName,
+        scoring: scored.scoringBreakdown,
+        rating: scored.rating,
+        reviewCount: scored.reviewCount,
+      })
+
+      let enrichedSpecialElement = scored.specialElement
+
+      if (scored.bestInspirationMatch && scored.matchScore > 30) {
+        console.log(
+          `[Copy Adapter] Adapting copy for "${scored.name}" matched to "${scored.bestInspirationMatch.name}" (score: ${scored.matchScore})`,
+        )
+
+        // If inspiration has reasonItFits, use it to enhance bestFor
+        if (scored.bestInspirationMatch.reasonItFits) {
+          enrichedBestFor = adaptReasonItFits(scored.bestInspirationMatch.reasonItFits, {
+            userGroupSize: body.groupSize,
+            userVibe: body.vibe,
+            userBudget: body.budgetPerPerson || 50,
+            viatorRating: scored.rating,
+            viatorReviewCount: scored.reviewCount,
+            viatorHighlights: scored.highlights || [],
+            viatorTags: scored.tags || [],
+            viatorName: scored.name,
+          })
+        }
+
+        // If inspiration has memorableMoment, blend it with Viator highlights
+        if (scored.bestInspirationMatch.memorableMoment) {
+          enrichedSpecialElement = blendMemorableMoment(
+            scored.bestInspirationMatch.memorableMoment,
+            scored.highlights || [],
+            {
+              userGroupSize: body.groupSize,
+              userVibe: body.vibe,
+              userBudget: body.budgetPerPerson || 50,
+              viatorRating: scored.rating,
+              viatorReviewCount: scored.reviewCount,
+              viatorHighlights: scored.highlights || [],
+              viatorTags: scored.tags || [],
+              viatorName: scored.name,
+            },
+          )
+        }
+      }
+
+      // Return activity with enriched copy
+      return {
+        ...scored,
+        bestFor: enrichedBestFor,
+        specialElement: enrichedSpecialElement,
+      }
+    })
+
+    console.log("[Viator API] ✓ Activities enriched with contextual descriptions")
+    console.log("[Viator API] Example enriched bestFor:", enrichedActivities[0]?.bestFor)
+
     // Step 10: Build final response with scored activities
     console.log("[Viator API] STEP 9: Building response...")
     const response = {
       success: true,
       recommendations: {
-        activities: scoredActivities, // Now sorted by relevance score
+        activities: enrichedActivities, // Now includes enriched bestFor text
         proTips: [
           "Activities shown are ranked by relevance to your preferences",
           "Most activities offer free cancellation up to 24 hours in advance",

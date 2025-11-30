@@ -58,6 +58,26 @@ export interface ViatorProduct {
   [key: string]: any // Allow for additional fields
 }
 
+export interface ScoringBreakdown {
+  budgetScore: number
+  tagScore: number
+  vibeScore: number
+  preferencesScore: number
+  qualityScore: number
+  totalScore: number
+}
+
+export interface EnrichmentContext {
+  groupSize: string
+  vibe?: string
+  budgetPerPerson: number
+  timeOfDay?: string
+  matchedInspirationName?: string
+  scoring: ScoringBreakdown
+  rating?: number
+  reviewCount?: number
+}
+
 /**
  * Map Viator duration to readable string format
  */
@@ -259,6 +279,49 @@ function truncateText(text: string | null | undefined, maxLength: number): strin
   if (!text) return ""
   if (text.length <= maxLength) return text
   return text.substring(0, maxLength).trim() + "..."
+}
+
+/**
+ * New function to generate contextual "bestFor" snippets based on scoring
+ */
+export function generateBestForSnippets(context: EnrichmentContext): string {
+  const snippets: string[] = []
+
+  // Always include group size and vibe if provided
+  snippets.push(context.groupSize)
+  if (context.vibe) {
+    snippets.push(context.vibe)
+  }
+
+  // Add context based on what scored well
+  if (context.scoring.budgetScore >= 20) {
+    snippets.push("Great value")
+  }
+
+  if (context.scoring.tagScore >= 25 && context.matchedInspirationName) {
+    // Shorten the inspiration name if it's too long
+    const inspirationName =
+      context.matchedInspirationName.length > 30
+        ? context.matchedInspirationName.substring(0, 27) + "..."
+        : context.matchedInspirationName
+    snippets.push(`Similar to ${inspirationName}`)
+  }
+
+  if (context.scoring.preferencesScore >= 8 && context.timeOfDay && context.timeOfDay !== "flexible") {
+    snippets.push(`Perfect for ${context.timeOfDay}`)
+  }
+
+  // Quality indicators - add at the end
+  if (context.scoring.qualityScore >= 8 && context.rating && context.reviewCount) {
+    const rating = context.rating.toFixed(1)
+    const reviewCount = context.reviewCount
+    snippets.push(`Top-rated (${rating}/5 from ${reviewCount} reviews)`)
+  } else if (context.rating && context.reviewCount) {
+    const rating = context.rating.toFixed(1)
+    snippets.push(`Rated ${rating}/5 by ${context.reviewCount} travelers`)
+  }
+
+  return snippets.join(" • ")
 }
 
 /**

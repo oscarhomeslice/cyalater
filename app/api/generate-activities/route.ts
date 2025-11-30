@@ -329,6 +329,8 @@ LENGTH REQUIREMENTS (CRITICAL):
 - Return EXACTLY 4 activities, no more, no less
 - Each "experience" field: maximum 100 words
 - Each "preparation" field: maximum 50 words
+- Each "reasonItFits" field: ONE sentence (max 25 words)
+- Each "memorableMoment" field: ONE sentence (max 25 words)
 - Keep descriptions concise and impactful
 
 OUTPUT FORMAT (JSON):
@@ -345,7 +347,10 @@ OUTPUT FORMAT (JSON):
       "activityLevel": "low" | "moderate" | "high",
       "specialElement": "The ONE unforgettable detail",
       "preparation": "FOR DIY: Complete materials list with specifics. FOR EXPERIENCE: What's typically included in booking",
-      "tags": ["2-4 relevant descriptors"]
+      "tags": ["2-4 relevant descriptors"],
+      "reasonItFits": "ONE sentence explaining WHY this perfectly matches THIS specific group's context and motivations (be specific to their vibe, group dynamic, preferences)",
+      "memorableMoment": "ONE sentence describing the SINGLE most unforgettable moment they'll experience (paint a vivid picture)",
+      "searchKeywords": ["3-5 keywords to find similar real activities - mix general category + specific features"]
     }
   ],
   "proTips": ["3-4 genuinely useful tips as plain strings"],
@@ -516,6 +521,13 @@ OUTPUT FORMAT (JSON):
         )
       }
 
+      recommendations.activities = recommendations.activities.map((activity: any) => ({
+        ...activity,
+        reasonItFits: activity.reasonItFits || activity.bestFor, // Fallback to bestFor
+        memorableMoment: activity.memorableMoment || activity.specialElement, // Fallback to specialElement
+        searchKeywords: activity.searchKeywords || activity.tags?.slice(0, 3) || [], // Fallback to first 3 tags
+      }))
+
       console.log("[API] Activity breakdown:")
       recommendations.activities.forEach((activity: any, index: number) => {
         console.log(`  [${index + 1}] ${activity.name}:`, {
@@ -524,6 +536,9 @@ OUTPUT FORMAT (JSON):
           locationType: activity.locationType,
           activityLevel: activity.activityLevel,
           tags: activity.tags,
+          hasReasonItFits: !!activity.reasonItFits,
+          hasMemorableMoment: !!activity.memorableMoment,
+          searchKeywordsCount: activity.searchKeywords?.length || 0,
         })
       })
     }

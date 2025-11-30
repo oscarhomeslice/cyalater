@@ -32,6 +32,10 @@ export interface Activity {
   rating?: number
   reviewCount?: number
   tags?: string[]
+
+  reasonItFits?: string // Why this matches user's context (1 sentence)
+  memorableMoment?: string // The ONE thing they'll remember (1 sentence)
+  searchKeywords?: string[] // Keywords to use when searching Viator
 }
 
 export interface ActivityRecommendation {

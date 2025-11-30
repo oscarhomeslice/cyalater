@@ -5,11 +5,17 @@
  * Part of hybrid filtering strategy: wide server-side net + smart client-side sorting
  */
 
+import type { Activity } from "@/lib/types"
+import { calculateInspirationMatchScore } from "./copy-adapter"
+
 interface InspirationActivity {
   name: string
   tags?: string[]
   activityLevel?: string
   locationType?: string
+  searchKeywords?: string[]
+  reasonItFits?: string
+  memorableMoment?: string
 }
 
 interface ScoringContext {
@@ -194,6 +200,22 @@ function scoreQualityIndicators(activity: ActivityToScore): number {
   return Math.min(score, 10)
 }
 
+export interface ScoringBreakdown {
+  budgetScore: number
+  tagScore: number
+  vibeScore: number
+  preferencesScore: number
+  qualityScore: number
+  totalScore: number
+}
+
+export interface ScoredActivityResult {
+  score: number
+  scoring: ScoringBreakdown
+  bestInspirationMatch: InspirationActivity | null
+  matchScore: number
+}
+
 /**
  * Main scoring function
  * Returns score 0-100 (higher = more relevant)
@@ -217,18 +239,82 @@ export function scoreActivity(activity: ActivityToScore, context: ScoringContext
 }
 
 /**
+ * Score activity and find best inspiration match
+ * Returns detailed scoring breakdown plus the best matching inspiration activity
+ */
+export function scoreActivityWithMatch(activity: ActivityToScore, context: ScoringContext): ScoredActivityResult {
+  const activityPrice = extractPrice(activity.cost)
+
+  const budgetScore = scoreBudgetMatch(activityPrice, context.budgetPerPerson)
+  const tagScore = scoreTagOverlap(activity.tags || [], context.inspirationActivities)
+  const vibeScore = scoreVibeAlignment(activity, context.vibe)
+  const preferencesScore = scorePreferences(activity, context)
+  const qualityScore = scoreQualityIndicators(activity)
+
+  const totalScore = budgetScore + tagScore + vibeScore + preferencesScore + qualityScore
+
+  let bestMatch: InspirationActivity | null = null
+  let bestMatchScore = 0
+
+  if (context.inspirationActivities && context.inspirationActivities.length > 0) {
+    for (const inspiration of context.inspirationActivities) {
+      const matchScore = calculateInspirationMatchScore(
+        {
+          name: activity.name,
+          tags: activity.tags,
+          description: "", // Could add description if available
+        },
+        inspiration as Activity,
+      )
+
+      if (matchScore > bestMatchScore) {
+        bestMatchScore = matchScore
+        bestMatch = inspiration
+      }
+    }
+  }
+
+  return {
+    score: Math.min(totalScore, 100),
+    scoring: {
+      budgetScore,
+      tagScore,
+      vibeScore,
+      preferencesScore,
+      qualityScore,
+      totalScore: Math.min(totalScore, 100),
+    },
+    bestInspirationMatch: bestMatch,
+    matchScore: bestMatchScore,
+  }
+}
+
+/**
  * Score and sort array of activities
  */
 export function scoreAndSortActivities<T extends ActivityToScore>(
   activities: T[],
   context: ScoringContext,
-): Array<T & { relevanceScore: number }> {
+): Array<
+  T & {
+    relevanceScore: number
+    scoringBreakdown: ScoringBreakdown
+    bestInspirationMatch: InspirationActivity | null
+    matchScore: number
+  }
+> {
   console.log(`[Activity Scorer] Scoring ${activities.length} activities...`)
 
-  const scored = activities.map((activity) => ({
-    ...activity,
-    relevanceScore: scoreActivity(activity, context),
-  }))
+  const scored = activities.map((activity) => {
+    const result = scoreActivityWithMatch(activity, context)
+    return {
+      ...activity,
+      relevanceScore: result.score,
+      scoringBreakdown: result.scoring,
+      bestInspirationMatch: result.bestInspirationMatch,
+      matchScore: result.matchScore,
+    }
+  })
 
   // Sort by score descending
   scored.sort((a, b) => b.relevanceScore - a.relevanceScore)
@@ -239,6 +325,8 @@ export function scoreAndSortActivities<T extends ActivityToScore>(
       name: a.name,
       score: a.relevanceScore,
       cost: a.cost,
+      matchedInspiration: a.bestInspirationMatch?.name,
+      matchScore: a.matchScore,
     })),
   )
 
