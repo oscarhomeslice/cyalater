@@ -388,12 +388,55 @@ Think like you're planning for friends who trust your taste. Be bold. Be specifi
       response_format: { type: "json_object" },
     })
 
+    const sanitizeJSON = (jsonString: string): string => {
+      let sanitized = jsonString
+
+      // Fix common JSON issues
+      // 1. Remove trailing commas before closing braces/brackets
+      sanitized = sanitized.replace(/,(\s*[}\]])/g, "$1")
+
+      // 2. Fix IDs with special characters (e.g., @4 -> 4)
+      sanitized = sanitized.replace(/"id":\s*"@(\d+)"/g, '"id": "$1"')
+
+      // 3. Fix single quotes to double quotes for property names
+      sanitized = sanitized.replace(/'([^']+)':/g, '"$1":')
+
+      // 4. Fix unquoted property names
+      sanitized = sanitized.replace(/([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:/g, '$1"$2":')
+
+      return sanitized
+    }
+
     let recommendations
     try {
-      recommendations = JSON.parse(completion.choices[0].message.content || "{}")
+      const rawContent = completion.choices[0].message.content || "{}"
+      console.log("[API] Raw OpenAI response length:", rawContent.length)
+
+      try {
+        recommendations = JSON.parse(rawContent)
+      } catch (firstError) {
+        console.log("[API] Initial parse failed, attempting sanitization...")
+        const sanitized = sanitizeJSON(rawContent)
+
+        try {
+          recommendations = JSON.parse(sanitized)
+          console.log("[API] Successfully parsed after sanitization")
+        } catch (secondError) {
+          console.log("[API] Sanitization failed, attempting to extract activities...")
+          const activitiesMatch = rawContent.match(/"activities"\s*:\s*\[([\s\S]*?)\]\s*[,}]/)
+          if (activitiesMatch) {
+            // Try to parse just the activities
+            const activitiesJson = `{"activities":[${activitiesMatch[1]}]}`
+            recommendations = JSON.parse(sanitizeJSON(activitiesJson))
+            console.log("[API] Successfully extracted activities array")
+          } else {
+            throw secondError
+          }
+        }
+      }
     } catch (parseError) {
       console.error("[API] Failed to parse OpenAI response:", parseError)
-      console.error("[API] Raw response:", completion.choices[0].message.content)
+      console.error("[API] Raw response (first 1000 chars):", completion.choices[0].message.content?.substring(0, 1000))
       return NextResponse.json(
         {
           success: false,
@@ -409,15 +452,6 @@ Think like you're planning for friends who trust your taste. Be bold. Be specifi
         { status: 500 },
       )
     }
-
-    console.log("[API] OpenAI response received:", {
-      activitiesCount: recommendations.activities?.length || 0,
-      proTipsCount: recommendations.proTips?.length || 0,
-      refinementPromptsCount: recommendations.refinementPrompts?.length || 0,
-      firstActivityName: recommendations.activities?.[0]?.name || "N/A",
-      activityNames: recommendations.activities?.map((a: any) => a.name) || [],
-      tokensUsed: completion.usage,
-    })
 
     if (recommendations.activities && recommendations.activities.length > 0) {
       const originalCount = recommendations.activities.length
