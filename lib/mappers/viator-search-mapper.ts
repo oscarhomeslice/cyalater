@@ -149,8 +149,8 @@ function calculateBudgetRange(budgetPerPerson: number): {
   lowestPrice: number
   highestPrice: number
 } {
-  const lowestPrice = Math.floor(budgetPerPerson * 0.5)
-  const highestPrice = Math.ceil(budgetPerPerson * 1.5)
+  const lowestPrice = 0 // Start from 0 to catch all budget options
+  const highestPrice = Math.ceil(budgetPerPerson * 2.5) // 250% of budget
 
   return { lowestPrice, highestPrice }
 }
@@ -170,39 +170,6 @@ function getDateRange(): { startDate: string; endDate: string } {
 }
 
 /**
- * Determine sorting strategy based on user context
- */
-function determineSortOrder(
-  activityCategory: "diy" | "experience",
-  vibe?: string,
-): {
-  sort: "DEFAULT" | "PRICE_FROM_LOW" | "REVIEW_AVG_RATING_D"
-  order: "ASCENDING" | "DESCENDING"
-} {
-  // For DIY activities, prioritize budget-friendly options
-  if (activityCategory === "diy") {
-    return {
-      sort: "PRICE_FROM_LOW",
-      order: "ASCENDING",
-    }
-  }
-
-  // For experiences, check if vibe indicates budget consciousness
-  if (vibe?.toLowerCase().includes("budget") || vibe?.toLowerCase().includes("affordable")) {
-    return {
-      sort: "PRICE_FROM_LOW",
-      order: "ASCENDING",
-    }
-  }
-
-  // Default to Viator's featured sort (optimized for conversion)
-  return {
-    sort: "DEFAULT",
-    order: "DESCENDING",
-  }
-}
-
-/**
  * Main mapper function: Transform user search context to Viator API format
  */
 export function mapUserSearchToViatorRequest(
@@ -211,9 +178,10 @@ export function mapUserSearchToViatorRequest(
   options?: {
     includeQualityTags?: boolean // Default true
     maxResults?: number // Default 50
+    useMinimalFilters?: boolean // NEW: Use minimal filters for broader results
   },
 ): ViatorSearchRequest {
-  const { includeQualityTags = true, maxResults = 50 } = options || {}
+  const { includeQualityTags = true, maxResults = 50, useMinimalFilters = true } = options || {}
 
   // Calculate budget range
   const { lowestPrice, highestPrice } = calculateBudgetRange(context.budgetPerPerson)
@@ -221,38 +189,41 @@ export function mapUserSearchToViatorRequest(
   // Get date range
   const { startDate, endDate } = getDateRange()
 
-  // Collect all relevant tags
   const tags: number[] = []
 
-  // Add quality tags by default for better results
-  if (includeQualityTags) {
-    tags.push(
-      VIATOR_QUALITY_TAGS.TOP_PRODUCT,
-      VIATOR_QUALITY_TAGS.EXCELLENT_QUALITY,
-      VIATOR_QUALITY_TAGS.BEST_CONVERSION,
-    )
+  // Only add 1-2 most relevant tags if we have strong signals, otherwise no tags
+  if (!useMinimalFilters) {
+    // Add quality tags only if explicitly requested
+    if (includeQualityTags) {
+      tags.push(
+        VIATOR_QUALITY_TAGS.TOP_PRODUCT,
+        VIATOR_QUALITY_TAGS.EXCELLENT_QUALITY,
+        VIATOR_QUALITY_TAGS.BEST_CONVERSION,
+      )
+    }
+
+    // Add vibe-based tags
+    const vibeTags = mapVibeToTags(context.vibe)
+    tags.push(...vibeTags)
+
+    // Add inspiration-based tags
+    const inspirationTags = mapInspirationToTags(context.inspirationActivities)
+    tags.push(...inspirationTags)
   }
-
-  // Add vibe-based tags
-  const vibeTags = mapVibeToTags(context.vibe)
-  tags.push(...vibeTags)
-
-  // Add inspiration-based tags
-  const inspirationTags = mapInspirationToTags(context.inspirationActivities)
-  tags.push(...inspirationTags)
 
   // Remove duplicate tags
   const uniqueTags = Array.from(new Set(tags))
 
-  // Determine sorting
-  const sorting = determineSortOrder(context.activityCategory, context.vibe)
+  // Determine sorting - always use rating for better quality
+  const sorting = {
+    sort: "REVIEW_AVG_RATING_D" as const,
+    order: "DESCENDING" as const,
+  }
 
-  // Build the request
+  // Build the request with minimal filters
   const request: ViatorSearchRequest = {
     filtering: {
       destination: destinationId.toString(),
-      startDate,
-      endDate,
       lowestPrice,
       highestPrice,
       includeAutomaticTranslations: true,
@@ -265,8 +236,8 @@ export function mapUserSearchToViatorRequest(
     currency: context.currency,
   }
 
-  // Only add tags if we have any
-  if (uniqueTags.length > 0) {
+  // Only add tags if we have any and not using minimal filters
+  if (uniqueTags.length > 0 && !useMinimalFilters) {
     request.filtering.tags = uniqueTags
   }
 
@@ -307,6 +278,7 @@ export function mapUserSearchToViatorRequestSimplified(
   return mapUserSearchToViatorRequest(context, destinationId, {
     includeQualityTags: false,
     maxResults: 50,
+    useMinimalFilters: true,
   })
 }
 
@@ -341,8 +313,9 @@ export function transformSearchContextToViatorParams(params: {
   }
 
   const viatorRequest = mapUserSearchToViatorRequest(context, params.destinationId, {
-    includeQualityTags: true,
+    includeQualityTags: false, // Don't filter by quality tags
     maxResults: 50,
+    useMinimalFilters: true, // Cast wide net
   })
 
   // Log the mapping for debugging

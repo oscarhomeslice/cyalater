@@ -210,15 +210,15 @@ export async function POST(request: NextRequest) {
       tagCount: viatorSearchParams.filtering?.tags?.length || 0,
     })
 
-    // Step 7: Call Viator /products/search endpoint
-    console.log("[Viator API] STEP 6: Calling Viator /products/search...")
-    // Use consistent base URL that includes /partner, then append specific endpoint
+    console.log("[Viator API] STEP 6: Calling Viator /products/search with fallback strategy...")
     const baseUrl = process.env.VIATOR_API_BASE_URL || "https://api.viator.com/partner"
     const viatorUrl = `${baseUrl}/products/search`
 
     console.log("[Viator API] Request URL:", viatorUrl)
 
-    const viatorResponse = await fetch(viatorUrl, {
+    // Attempt 1: Try with minimal filters (already configured in mapper)
+    console.log("[Viator API] Attempt 1: Minimal filters with wide price range")
+    let viatorResponse = await fetch(viatorUrl, {
       method: "POST",
       headers: {
         "exp-api-key": process.env.VIATOR_API_KEY,
@@ -245,12 +245,75 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const viatorData = await viatorResponse.json()
-    console.log("[Viator API] ✓ Products retrieved:", viatorData.products?.length || 0)
+    let viatorData = await viatorResponse.json()
+    console.log("[Viator API] ✓ Products retrieved (Attempt 1):", viatorData.products?.length || 0)
 
-    // Step 8: Check for empty results
     if (!viatorData.products || viatorData.products.length === 0) {
-      console.log("[Viator API] STEP 7: No products found")
+      console.log("[Viator API] Attempt 2: Removing price filter completely")
+      const noPriceFilterParams = {
+        ...viatorSearchParams,
+        filtering: {
+          ...viatorSearchParams.filtering,
+          lowestPrice: undefined,
+          highestPrice: undefined,
+        },
+      }
+
+      viatorResponse = await fetch(viatorUrl, {
+        method: "POST",
+        headers: {
+          "exp-api-key": process.env.VIATOR_API_KEY,
+          "Accept-Language": "en-US",
+          Accept: "application/json;version=2.0",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(noPriceFilterParams),
+      })
+
+      if (viatorResponse.ok) {
+        viatorData = await viatorResponse.json()
+        console.log("[Viator API] ✓ Products retrieved (Attempt 2):", viatorData.products?.length || 0)
+      }
+    }
+
+    if (!viatorData.products || viatorData.products.length === 0) {
+      console.log("[Viator API] Attempt 3: Absolute minimal - destination only")
+      const minimalParams = {
+        filtering: {
+          destination: destinationMatch.destinationId.toString(),
+          includeAutomaticTranslations: true,
+        },
+        sorting: {
+          sort: "REVIEW_AVG_RATING_D",
+          order: "DESCENDING",
+        },
+        pagination: {
+          start: 1,
+          count: 50,
+        },
+        currency: body.currency || "EUR",
+      }
+
+      viatorResponse = await fetch(viatorUrl, {
+        method: "POST",
+        headers: {
+          "exp-api-key": process.env.VIATOR_API_KEY,
+          "Accept-Language": "en-US",
+          Accept: "application/json;version=2.0",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(minimalParams),
+      })
+
+      if (viatorResponse.ok) {
+        viatorData = await viatorResponse.json()
+        console.log("[Viator API] ✓ Products retrieved (Attempt 3):", viatorData.products?.length || 0)
+      }
+    }
+
+    // Step 8: Check for empty results after all attempts
+    if (!viatorData.products || viatorData.products.length === 0) {
+      console.log("[Viator API] STEP 7: No products found after all fallback attempts")
 
       const popularDestinations = await getSuggestedDestinations(5)
 
@@ -259,9 +322,9 @@ export async function POST(request: NextRequest) {
         recommendations: {
           activities: [],
           proTips: [
-            `No activities found matching your criteria in ${destinationMatch.destinationName}.`,
-            `Try adjusting your budget, dates, or exploring nearby destinations.`,
-            `Popular alternatives: ${popularDestinations.slice(0, 3).join(", ")}`,
+            `No activities found in ${destinationMatch.destinationName}.`,
+            `This destination may not have activities available on Viator.`,
+            `Try popular alternatives: ${popularDestinations.slice(0, 3).join(", ")}`,
           ],
           refinementPrompts: popularDestinations.map((d) => `Explore ${d}`),
         },
