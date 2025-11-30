@@ -22,7 +22,7 @@ const loadingMessages = {
     "Finding unique ways to connect...",
   ],
   experience: [
-    "Discovering bookable experiences...",
+    "Discovering new experiences...",
     "Searching for memorable activities...",
     "Finding the perfect group outing...",
     "Exploring local possibilities...",
