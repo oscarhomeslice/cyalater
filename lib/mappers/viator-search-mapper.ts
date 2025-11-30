@@ -5,7 +5,7 @@
  * Handles budget range calculation, tag mapping, and date ranges
  */
 
-import { VIATOR_QUALITY_TAGS, VIATOR_CATEGORIES } from "@/lib/viator-helper"
+import { VIATOR_CATEGORIES } from "@/lib/viator-helper"
 
 // Input type (from form/search results)
 export interface UserSearchContext {
@@ -91,6 +91,7 @@ function mapVibeToTags(vibe?: string): number[] {
 
 /**
  * Map inspiration activities to additional tag IDs
+ * Enhanced to extract more semantic meaning from AI-generated activities
  */
 function mapInspirationToTags(
   inspirationActivities?: Array<{
@@ -103,43 +104,37 @@ function mapInspirationToTags(
   if (!inspirationActivities || inspirationActivities.length === 0) return []
 
   const tags: number[] = []
+  const tagFrequency: Record<number, number> = {}
 
   for (const activity of inspirationActivities) {
-    // Extract tags from activity tags array
-    if (activity.tags) {
-      for (const tag of activity.tags) {
-        const tagLower = tag.toLowerCase()
+    const searchText = `${activity.name} ${activity.tags?.join(" ") || ""}`.toLowerCase()
 
-        if (tagLower.includes("food") || tagLower.includes("culinary")) {
-          tags.push(VIATOR_CATEGORIES.FOOD_WINE.id)
-        }
-        if (tagLower.includes("outdoor") || tagLower.includes("nature")) {
-          tags.push(VIATOR_CATEGORIES.OUTDOOR.id)
-        }
-        if (tagLower.includes("cultural") || tagLower.includes("historic")) {
-          tags.push(VIATOR_CATEGORIES.CULTURAL.id)
-        }
-        if (tagLower.includes("water") || tagLower.includes("beach")) {
-          tags.push(VIATOR_CATEGORIES.WATER_ACTIVITIES.id)
-        }
-        if (tagLower.includes("adventure") || tagLower.includes("sport")) {
-          tags.push(VIATOR_CATEGORIES.ADVENTURE.id)
-        }
-        if (tagLower.includes("workshop") || tagLower.includes("class")) {
-          tags.push(VIATOR_CATEGORIES.WORKSHOPS.id)
-        }
+    // Map to category IDs with frequency tracking
+    const categoryMatches = [
+      { keywords: ["food", "culinary", "wine", "tasting", "cooking", "eat"], id: VIATOR_CATEGORIES.FOOD_WINE.id },
+      { keywords: ["outdoor", "nature", "hiking", "park", "mountain"], id: VIATOR_CATEGORIES.OUTDOOR.id },
+      { keywords: ["cultural", "historic", "museum", "heritage", "tradition"], id: VIATOR_CATEGORIES.CULTURAL.id },
+      { keywords: ["water", "beach", "boat", "swim", "kayak", "surf"], id: VIATOR_CATEGORIES.WATER_ACTIVITIES.id },
+      { keywords: ["adventure", "sport", "active", "extreme", "thrill"], id: VIATOR_CATEGORIES.ADVENTURE.id },
+      { keywords: ["workshop", "class", "learn", "lesson", "course"], id: VIATOR_CATEGORIES.WORKSHOPS.id },
+    ]
+
+    categoryMatches.forEach(({ keywords, id }) => {
+      const matchCount = keywords.filter((kw) => searchText.includes(kw)).length
+      if (matchCount > 0) {
+        tagFrequency[id] = (tagFrequency[id] || 0) + matchCount
       }
-    }
-
-    // Check activity name for category hints
-    const nameLower = activity.name.toLowerCase()
-    if (nameLower.includes("food") || nameLower.includes("wine") || nameLower.includes("dining")) {
-      tags.push(VIATOR_CATEGORIES.FOOD_WINE.id)
-    }
+    })
   }
 
-  // Remove duplicates
-  return Array.from(new Set(tags))
+  // Sort by frequency and take top 3-5 most common themes
+  const sortedTags = Object.entries(tagFrequency)
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 5)
+    .map(([tagId]) => Number.parseInt(tagId))
+
+  console.log("[Viator Mapper] Extracted tags from inspiration:", sortedTags)
+  return sortedTags
 }
 
 /**
@@ -171,56 +166,41 @@ function getDateRange(): { startDate: string; endDate: string } {
 
 /**
  * Main mapper function: Transform user search context to Viator API format
+ * Enhanced for hybrid filtering approach
  */
 export function mapUserSearchToViatorRequest(
   context: UserSearchContext,
   destinationId: number,
   options?: {
-    includeQualityTags?: boolean // Default true
-    maxResults?: number // Default 50
-    useMinimalFilters?: boolean // NEW: Use minimal filters for broader results
+    includeQualityTags?: boolean
+    maxResults?: number
+    useMinimalFilters?: boolean
   },
 ): ViatorSearchRequest {
-  const { includeQualityTags = true, maxResults = 50, useMinimalFilters = true } = options || {}
+  const { includeQualityTags = false, maxResults = 100, useMinimalFilters = true } = options || {}
 
-  // Calculate budget range
+  // Calculate budget range - wider range for better results
   const { lowestPrice, highestPrice } = calculateBudgetRange(context.budgetPerPerson)
-
-  // Get date range
-  const { startDate, endDate } = getDateRange()
 
   const tags: number[] = []
 
-  // Only add 1-2 most relevant tags if we have strong signals, otherwise no tags
-  if (!useMinimalFilters) {
-    // Add quality tags only if explicitly requested
-    if (includeQualityTags) {
-      tags.push(
-        VIATOR_QUALITY_TAGS.TOP_PRODUCT,
-        VIATOR_QUALITY_TAGS.EXCELLENT_QUALITY,
-        VIATOR_QUALITY_TAGS.BEST_CONVERSION,
-      )
-    }
-
-    // Add vibe-based tags
-    const vibeTags = mapVibeToTags(context.vibe)
-    tags.push(...vibeTags)
-
-    // Add inspiration-based tags
+  if (context.inspirationActivities && context.inspirationActivities.length > 0) {
     const inspirationTags = mapInspirationToTags(context.inspirationActivities)
     tags.push(...inspirationTags)
+
+    // Add vibe tags if available
+    if (context.vibe) {
+      const vibeTags = mapVibeToTags(context.vibe)
+      tags.push(...vibeTags)
+    }
   }
 
   // Remove duplicate tags
   const uniqueTags = Array.from(new Set(tags))
 
-  // Determine sorting - always use rating for better quality
-  const sorting = {
-    sort: "DEFAULT" as const,
-    order: "DESCENDING" as const,
-  }
+  console.log("[Viator Mapper] Tags for OR search:", uniqueTags.length > 0 ? uniqueTags : "NONE (cast wide net)")
 
-  // Build the request with minimal filters
+  // Build the request
   const request: ViatorSearchRequest = {
     filtering: {
       destination: destinationId.toString(),
@@ -228,17 +208,23 @@ export function mapUserSearchToViatorRequest(
       highestPrice,
       includeAutomaticTranslations: true,
     },
-    sorting,
+    sorting: {
+      sort: "DEFAULT" as const,
+      order: "DESCENDING" as const,
+    },
     pagination: {
       start: 1,
-      count: Math.min(maxResults, 50), // Viator max is 50
+      count: Math.min(maxResults, 100), // Request more results for better scoring
     },
     currency: context.currency,
   }
 
-  // Only add tags if we have any and not using minimal filters
-  if (uniqueTags.length > 0 && !useMinimalFilters) {
+  // Only if we have strong signals from inspiration activities
+  if (uniqueTags.length >= 2 && uniqueTags.length <= 7) {
     request.filtering.tags = uniqueTags
+    console.log("[Viator Mapper] Using OR logic with", uniqueTags.length, "tags")
+  } else {
+    console.log("[Viator Mapper] Not using tags - cast wide net strategy")
   }
 
   return request

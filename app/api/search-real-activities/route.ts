@@ -6,6 +6,7 @@ import {
 } from "@/lib/services/viator-destinations"
 import { transformSearchContextToViatorParams } from "@/lib/mappers/viator-search-mapper"
 import { mapViatorProductsToActivities } from "@/lib/mappers/viator-response-mapper"
+import { scoreAndSortActivities } from "@/lib/utils/activity-scorer"
 
 interface RequestBody {
   location?: string
@@ -356,17 +357,37 @@ export async function POST(request: NextRequest) {
 
     console.log("[Viator API] ✓ Activities transformed:", activities.length)
 
-    // Step 10: Build final response
+    console.log("[Viator API] STEP 8.5: Scoring and sorting activities by relevance...")
+    const scoredActivities = scoreAndSortActivities(activities, {
+      budgetPerPerson: body.budgetPerPerson || 50,
+      currency: body.currency || "EUR",
+      vibe: body.vibe,
+      inspirationActivities: body.inspirationActivities,
+      timeOfDay: body.timeOfDay,
+      indoorOutdoor: body.indoorOutdoor,
+    })
+
+    console.log("[Viator API] ✓ Activities scored and sorted by relevance")
+    console.log(
+      "[Viator API] Top 3 scores:",
+      scoredActivities.slice(0, 3).map((a) => ({
+        name: a.name,
+        score: a.relevanceScore,
+        cost: a.cost,
+      })),
+    )
+
+    // Step 10: Build final response with scored activities
     console.log("[Viator API] STEP 9: Building response...")
     const response = {
       success: true,
       recommendations: {
-        activities,
+        activities: scoredActivities, // Now sorted by relevance score
         proTips: [
+          "Activities shown are ranked by relevance to your preferences",
           "Most activities offer free cancellation up to 24 hours in advance",
           "Instant confirmation products are confirmed immediately upon booking",
           "Prices shown are per person unless otherwise stated",
-          "Check meeting point details and arrival instructions before booking",
         ],
         refinementPrompts: [
           "Show only top-rated experiences",
@@ -387,9 +408,10 @@ export async function POST(request: NextRequest) {
       },
       isRealActivities: true,
       totalCount: viatorData.totalCount,
+      scoringApplied: true, // Flag to indicate activities are relevance-sorted
     }
 
-    console.log("[Viator API] ✓ Response built successfully")
+    console.log("[Viator API] ✓ Response built successfully with scored activities")
     console.log("[Viator API] ===== REQUEST COMPLETED =====")
 
     return NextResponse.json(response)
