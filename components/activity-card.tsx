@@ -167,27 +167,14 @@ export function ActivityCard({
           />
           <div className="absolute inset-0 bg-gradient-to-t from-zinc-900 to-transparent" />
 
-          <div className="absolute top-4 right-4">
-            <Badge
-              className={
-                isBookable
-                  ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30 backdrop-blur-sm"
-                  : "bg-purple-500/20 text-purple-400 border-purple-500/30 backdrop-blur-sm"
-              }
-            >
-              {isBookable ? (
-                <>
-                  <Ticket className="w-3 h-3 mr-1 inline" />
-                  Bookable
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-3 h-3 mr-1 inline" />
-                  Inspiration
-                </>
-              )}
-            </Badge>
-          </div>
+          {!isBookable && (
+            <div className="absolute top-4 right-4">
+              <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30 backdrop-blur-sm">
+                <Sparkles className="w-3 h-3 mr-1 inline" />
+                Inspiration
+              </Badge>
+            </div>
+          )}
         </div>
       )}
 
