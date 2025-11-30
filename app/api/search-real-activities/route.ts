@@ -380,11 +380,14 @@ export async function POST(request: NextRequest) {
 
     console.log("[Viator API] STEP 8.6: Enriching activities with contextual descriptions...")
     const enrichedActivities = scoredActivities.map((scored) => {
+      const safeTagsArray = (scored.tags || []).filter((t): t is string => typeof t === "string")
+      const safeHighlightsArray = (scored.highlights || []).filter((h): h is string => typeof h === "string")
+
       // Find the best matching inspiration activity name for this scored activity
       let matchedInspirationName: string | undefined
       if (body.inspirationActivities && body.inspirationActivities.length > 0) {
         // Simple heuristic: find inspiration with most tag overlap
-        const activityTagsLower = (scored.tags || []).map((t) => t.toLowerCase())
+        const activityTagsLower = safeTagsArray.map((t) => t.toLowerCase())
         let bestMatch = 0
         body.inspirationActivities.forEach((inspiration) => {
           const inspirationTagsLower = (inspiration.tags || []).map((t) => t.toLowerCase())
@@ -423,8 +426,8 @@ export async function POST(request: NextRequest) {
             userBudget: body.budgetPerPerson || 50,
             viatorRating: scored.rating,
             viatorReviewCount: scored.reviewCount,
-            viatorHighlights: scored.highlights || [],
-            viatorTags: scored.tags || [],
+            viatorHighlights: safeHighlightsArray, // Use safe arrays
+            viatorTags: safeTagsArray, // Use safe arrays
             viatorName: scored.name,
           })
         }
@@ -433,15 +436,15 @@ export async function POST(request: NextRequest) {
         if (scored.bestInspirationMatch.memorableMoment) {
           enrichedSpecialElement = blendMemorableMoment(
             scored.bestInspirationMatch.memorableMoment,
-            scored.highlights || [],
+            safeHighlightsArray, // Use safe arrays
             {
               userGroupSize: body.groupSize,
               userVibe: body.vibe,
               userBudget: body.budgetPerPerson || 50,
               viatorRating: scored.rating,
               viatorReviewCount: scored.reviewCount,
-              viatorHighlights: scored.highlights || [],
-              viatorTags: scored.tags || [],
+              viatorHighlights: safeHighlightsArray, // Use safe arrays
+              viatorTags: safeTagsArray, // Use safe arrays
               viatorName: scored.name,
             },
           )

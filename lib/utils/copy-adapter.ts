@@ -145,7 +145,7 @@ function extractMotivations(reason: string): string[] {
  * Find Viator features that match motivation keywords
  */
 function findMatchingFeatures(motivations: string[], highlights: string[], tags: string[]): string[] {
-  const allFeatures = [...highlights, ...tags]
+  const allFeatures = [...highlights, ...tags].filter((f): f is string => typeof f === "string")
   const matches: string[] = []
 
   for (const motivation of motivations) {
@@ -249,7 +249,7 @@ function calculateStringSimilarity(str1: string, str2: string): number {
 export function calculateInspirationMatchScore(
   viatorActivity: {
     name: string
-    tags?: string[]
+    tags?: (string | number)[] // Tags can be strings or numbers (tag IDs)
     description?: string
   },
   inspirationActivity: Activity,
@@ -258,8 +258,13 @@ export function calculateInspirationMatchScore(
 
   // Check tag overlap (worth up to 40 points)
   if (viatorActivity.tags && inspirationActivity.tags) {
-    const viatorTagsLower = viatorActivity.tags.map((t) => t.toLowerCase())
-    const inspirationTagsLower = inspirationActivity.tags.map((t) => t.toLowerCase())
+    const viatorTagsLower = viatorActivity.tags
+      .filter((t): t is string | number => t !== null && t !== undefined)
+      .map((t) => String(t).toLowerCase())
+    const inspirationTagsLower = inspirationActivity.tags
+      .filter((t): t is string => typeof t === "string")
+      .map((t) => t.toLowerCase())
+
     const tagOverlap = viatorTagsLower.filter((t) => inspirationTagsLower.includes(t)).length
     score += tagOverlap * 10
   }
@@ -267,9 +272,9 @@ export function calculateInspirationMatchScore(
   // Check search keyword matching (worth up to 45 points)
   if (inspirationActivity.searchKeywords) {
     const viatorText = `${viatorActivity.name.toLowerCase()} ${viatorActivity.description?.toLowerCase() || ""}`
-    const keywordMatches = inspirationActivity.searchKeywords.filter((keyword) =>
-      viatorText.includes(keyword.toLowerCase()),
-    ).length
+    const keywordMatches = inspirationActivity.searchKeywords
+      .filter((keyword): keyword is string => typeof keyword === "string")
+      .filter((keyword) => viatorText.includes(keyword.toLowerCase())).length
     score += keywordMatches * 15
   }
 
