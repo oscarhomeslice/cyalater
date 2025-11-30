@@ -178,10 +178,10 @@ export async function initializeDestinations(): Promise<void> {
       }
 
       const validDestinations = destinations
-        .filter((d: any) => d && d.destinationId && d.destinationName)
+        .filter((d: any) => d && d.destinationId && (d.destinationName || d.name))
         .map((d: any) => ({
           destinationId: d.destinationId,
-          destinationName: d.destinationName,
+          destinationName: d.destinationName || d.name,
           destinationType: d.destinationType || d.type || "UNKNOWN",
           parentId: d.parentId || d.lookupId,
         }))
