@@ -17,7 +17,6 @@ import {
   MapPin,
   ChevronDown,
   ChevronUp,
-  Info,
   Wrench,
   Ticket,
   Package,
@@ -308,18 +307,6 @@ export function ActivityCard({
             <span className="text-xs text-zinc-500">intensity</span>
           </div>
         </div>
-
-        {isBookable && activity.preparation && (
-          <div className="mb-4 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
-            <div className="flex items-start gap-2">
-              <Info className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
-              <div>
-                <p className="text-xs font-semibold text-blue-300 mb-1">Booking Info:</p>
-                <p className="text-sm text-zinc-300">{activity.preparation}</p>
-              </div>
-            </div>
-          </div>
-        )}
 
         {!isBookable && categoryType === "diy" && activity.preparation && (
           <div className="mb-4">

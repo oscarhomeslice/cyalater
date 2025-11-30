@@ -58,7 +58,8 @@ export function ActivityResults({
   const [editedParams, setEditedParams] = useState<Partial<ParsedQuery>>({})
 
   const [realActivitiesPage, setRealActivitiesPage] = useState(1)
-  const ACTIVITIES_PER_PAGE = 5
+  const [refreshedActivities, setRefreshedActivities] = useState<ActivityData[]>([])
+  const ACTIVITIES_PER_PAGE = 6
 
   const { recommendations, query } = results
   const { activities = [], proTips = [], refinementPrompts = [] } = recommendations
@@ -125,6 +126,16 @@ export function ActivityResults({
 
     return context
   }
+
+  const handleRefreshRealActivities = () => {
+    if (!results.realActivities || results.realActivities.length <= ACTIVITIES_PER_PAGE) return
+
+    // Shuffle the activities to show different ones
+    const shuffled = [...results.realActivities].sort(() => Math.random() - 0.5)
+    setRefreshedActivities(shuffled)
+  }
+
+  const displayActivities = refreshedActivities.length > 0 ? refreshedActivities : results.realActivities || []
 
   return (
     <div className="space-y-8 pb-16 animate-in fade-in slide-in-from-bottom duration-500">
@@ -415,7 +426,7 @@ export function ActivityResults({
       <div>
         <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
           <Sparkles className="w-6 h-6 text-primary" />
-          {results.isRealActivities ? "AI-Generated Inspiration" : "Creative Ideas to Explore"}
+          Real World Fun
         </h2>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {transformedActivities.map((activity, index) => (
@@ -436,7 +447,7 @@ export function ActivityResults({
         </div>
       </div>
 
-      {results.isRealActivities && results.realActivities && results.realActivities.length > 0 && (
+      {results.isRealActivities && displayActivities.length > 0 && (
         <div className="mt-16">
           {/* Section Divider */}
           <div className="relative mb-8">
@@ -454,68 +465,39 @@ export function ActivityResults({
             </div>
           </div>
 
-          {/* Intro Text */}
           <div className="mb-8 text-center max-w-2xl mx-auto">
             <p className="text-zinc-300 leading-relaxed">
-              Based on your inspiration, we found{" "}
-              <span className="font-bold text-emerald-400">{results.realActivities.length}</span> real activities you
-              can book right now in {query.location}.
+              We found <span className="font-bold text-emerald-400">{displayActivities.length}</span> activities you can
+              book right now in {query.location}.
             </p>
           </div>
 
-          {/* Paginated Activities Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {results.realActivities
-              .slice((realActivitiesPage - 1) * ACTIVITIES_PER_PAGE, realActivitiesPage * ACTIVITIES_PER_PAGE)
-              .map((activity, index) => (
-                <div
-                  key={activity.id}
-                  className="animate-in fade-in slide-in-from-bottom duration-500"
-                  style={{ animationDelay: `${index * 100}ms` }}
-                >
-                  <ActivityCard
-                    activity={activity}
-                    onAddToShortlist={onAddToShortlist}
-                    isShortlisted={shortlistedIds.includes(activity.id)}
-                    isBookable={true}
-                  />
-                </div>
-              ))}
+            {displayActivities.slice(0, ACTIVITIES_PER_PAGE).map((activity, index) => (
+              <div
+                key={activity.id}
+                className="animate-in fade-in slide-in-from-bottom duration-500"
+                style={{ animationDelay: `${index * 100}ms` }}
+              >
+                <ActivityCard
+                  activity={activity}
+                  onAddToShortlist={onAddToShortlist}
+                  isShortlisted={shortlistedIds.includes(activity.id)}
+                  isBookable={true}
+                />
+              </div>
+            ))}
           </div>
 
-          {/* Pagination Controls */}
-          {results.realActivities.length > ACTIVITIES_PER_PAGE && (
-            <div className="mt-8 flex items-center justify-center gap-4">
+          {displayActivities.length > ACTIVITIES_PER_PAGE && (
+            <div className="mt-8 flex justify-center">
               <Button
-                onClick={() => setRealActivitiesPage((p) => Math.max(1, p - 1))}
-                disabled={realActivitiesPage === 1}
+                onClick={handleRefreshRealActivities}
                 variant="outline"
-                className="border-emerald-500/30 hover:border-emerald-500/50 disabled:opacity-50"
+                className="border-emerald-500/30 hover:border-emerald-500/50 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400"
               >
-                <ChevronUp className="w-4 h-4 mr-2 rotate-[-90deg]" />
-                Previous
-              </Button>
-
-              <div className="flex items-center gap-2 text-sm text-zinc-400">
-                <span>
-                  Page {realActivitiesPage} of {Math.ceil(results.realActivities.length / ACTIVITIES_PER_PAGE)}
-                </span>
-                <span className="text-zinc-600">•</span>
-                <span>{results.realActivities.length} total activities</span>
-              </div>
-
-              <Button
-                onClick={() =>
-                  setRealActivitiesPage((p) =>
-                    Math.min(Math.ceil(results.realActivities.length / ACTIVITIES_PER_PAGE), p + 1),
-                  )
-                }
-                disabled={realActivitiesPage >= Math.ceil(results.realActivities.length / ACTIVITIES_PER_PAGE)}
-                variant="outline"
-                className="border-emerald-500/30 hover:border-emerald-500/50 disabled:opacity-50"
-              >
-                Next
-                <ChevronUp className="w-4 h-4 ml-2 rotate-90" />
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Show Different Activities
               </Button>
             </div>
           )}
