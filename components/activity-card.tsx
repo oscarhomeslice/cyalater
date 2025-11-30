@@ -356,7 +356,7 @@ export function ActivityCard({
         <div className="mb-3">
           <button
             onClick={() => toggleSection("bestFor")}
-            className="w-full p-3 rounded-lg bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/20 hover:border-purple-500/40 transition-all duration-200 text-left"
+            className="w-full p-3 rounded-lg bg-gradient-to-br from-purple-500/10 via-emerald-400/10 to-cyan-400/10 border border-purple-500/20 hover:border-purple-500/40 transition-all duration-200 text-left"
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">

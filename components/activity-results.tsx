@@ -137,6 +137,8 @@ export function ActivityResults({
 
   const displayActivities = refreshedActivities.length > 0 ? refreshedActivities : results.realActivities || []
 
+  const hasRealActivities = results.isRealActivities && displayActivities.length > 0
+
   return (
     <div className="space-y-8 pb-16 animate-in fade-in slide-in-from-bottom duration-500">
       {isRegenerating && (
@@ -148,306 +150,314 @@ export function ActivityResults({
         </div>
       )}
 
-      <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-medium text-zinc-400">Your Search</h3>
-          <div className="flex items-center gap-2">
-            {isEditingSearch ? (
-              <>
+      {!hasRealActivities && (
+        <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-medium text-zinc-400">Your Search</h3>
+            <div className="flex items-center gap-2">
+              {isEditingSearch ? (
+                <>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setIsEditingSearch(false)
+                      setEditedParams({})
+                    }}
+                    className="text-zinc-400 hover:text-white"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={handleSubmitChanges}
+                    disabled={Object.keys(editedParams).length === 0}
+                    className="bg-primary hover:bg-primary/90"
+                  >
+                    <RefreshCw className="w-4 h-4 mr-1" />
+                    Regenerate
+                  </Button>
+                </>
+              ) : (
                 <Button
                   size="sm"
                   variant="ghost"
-                  onClick={() => {
-                    setIsEditingSearch(false)
-                    setEditedParams({})
-                  }}
-                  className="text-zinc-400 hover:text-white"
+                  onClick={() => setIsEditingSearch(true)}
+                  className="text-zinc-400 hover:text-primary"
                 >
-                  Cancel
+                  <Edit2 className="w-4 h-4 mr-1" />
+                  Edit
                 </Button>
-                <Button
-                  size="sm"
-                  onClick={handleSubmitChanges}
-                  disabled={Object.keys(editedParams).length === 0}
-                  className="bg-primary hover:bg-primary/90"
-                >
-                  <RefreshCw className="w-4 h-4 mr-1" />
-                  Regenerate
-                </Button>
-              </>
-            ) : (
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => setIsEditingSearch(true)}
-                className="text-zinc-400 hover:text-primary"
-              >
-                <Edit2 className="w-4 h-4 mr-1" />
-                Edit
-              </Button>
-            )}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
-          {/* Group Size */}
-          <div>
-            <span className="text-zinc-500">Group:</span>
-            {isEditingSearch ? (
-              <Input
-                type="text"
-                value={getCurrentValue("group_size") as string}
-                onChange={(e) => setEditedParams({ ...editedParams, group_size: e.target.value })}
-                className="mt-1 bg-zinc-800 border-zinc-700 text-white text-sm h-8"
-                placeholder="e.g., 2-5 people"
-              />
-            ) : (
-              <span className="ml-2 text-white">{query.group_size}</span>
-            )}
-          </div>
-
-          {/* Budget */}
-          <div>
-            <span className="text-zinc-500">Budget:</span>
-            {isEditingSearch ? (
-              <div className="flex items-center gap-1 mt-1">
-                <Input
-                  type="number"
-                  value={getCurrentValue("budget_per_person") as number}
-                  onChange={(e) =>
-                    setEditedParams({ ...editedParams, budget_per_person: Number.parseFloat(e.target.value) })
-                  }
-                  className="bg-zinc-800 border-zinc-700 text-white text-sm h-8 w-20"
-                />
-                <span className="text-white text-xs">per person</span>
-              </div>
-            ) : (
-              <span className="ml-2 text-white">
-                {query.currency}
-                {query.budget_per_person} per person
-              </span>
-            )}
-          </div>
-
-          {/* Category */}
-          <div>
-            <span className="text-zinc-500">Category:</span>
-            {isEditingSearch ? (
-              <Select
-                value={getCurrentValue("activity_category") as string}
-                onValueChange={(value) => setEditedParams({ ...editedParams, activity_category: value })}
-              >
-                <SelectTrigger className="mt-1 bg-zinc-800 border-zinc-700 text-white text-sm h-8">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="diy">DIY</SelectItem>
-                  <SelectItem value="experience">Find Experience</SelectItem>
-                </SelectContent>
-              </Select>
-            ) : (
-              <span className="ml-2 text-white">{query.activity_category === "diy" ? "DIY" : "Find Experience"}</span>
-            )}
-          </div>
-
-          {/* Location */}
-          <div>
-            <span className="text-zinc-500">Location:</span>
-            {isEditingSearch ? (
-              <Input
-                type="text"
-                value={(getCurrentValue("location") as string) || ""}
-                onChange={(e) => setEditedParams({ ...editedParams, location: e.target.value })}
-                className="mt-1 bg-zinc-800 border-zinc-700 focus:border-primary text-white placeholder:text-zinc-500"
-                placeholder="Enter location"
-              />
-            ) : query.location ? (
-              <span className="ml-2 text-white">{query.location}</span>
-            ) : (
-              <span className="ml-2 text-zinc-500 italic">Not specified</span>
-            )}
-          </div>
-
-          {/* Vibe */}
-          <div>
-            <span className="text-zinc-500">Vibe:</span>
-            {isEditingSearch ? (
-              <Select
-                value={(getCurrentValue("vibe") as string) || "not-specified"}
-                onValueChange={(value) =>
-                  setEditedParams({ ...editedParams, vibe: value === "not-specified" ? undefined : value })
-                }
-              >
-                <SelectTrigger className="mt-1 bg-zinc-800 border-zinc-700 text-white text-sm h-8">
-                  <SelectValue placeholder="Select vibe" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="not-specified">Not specified</SelectItem>
-                  <SelectItem value="adventurous">Adventurous</SelectItem>
-                  <SelectItem value="relaxed">Relaxed</SelectItem>
-                  <SelectItem value="creative">Creative</SelectItem>
-                  <SelectItem value="competitive">Competitive</SelectItem>
-                  <SelectItem value="cultural">Cultural</SelectItem>
-                  <SelectItem value="social">Social</SelectItem>
-                </SelectContent>
-              </Select>
-            ) : query.vibe ? (
-              <span className="ml-2 text-white">{query.vibe}</span>
-            ) : (
-              <span className="ml-2 text-zinc-500 italic">Not specified</span>
-            )}
-          </div>
-
-          {/* Group Type */}
-          <div>
-            <span className="text-zinc-500">Group Type:</span>
-            {isEditingSearch ? (
-              <Select
-                value={(getCurrentValue("group_relationship") as string) || "not-specified"}
-                onValueChange={(value) =>
-                  setEditedParams({
-                    ...editedParams,
-                    group_relationship: value === "not-specified" ? undefined : value,
-                  })
-                }
-              >
-                <SelectTrigger className="mt-1 bg-zinc-800 border-zinc-700 text-white text-sm h-8">
-                  <SelectValue placeholder="Select type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="not-specified">Not specified</SelectItem>
-                  <SelectItem value="coworkers">Coworkers</SelectItem>
-                  <SelectItem value="friends">Friends</SelectItem>
-                  <SelectItem value="family">Family</SelectItem>
-                  <SelectItem value="mixed">Mixed group</SelectItem>
-                </SelectContent>
-              </Select>
-            ) : query.group_relationship ? (
-              <span className="ml-2 text-white">{query.group_relationship}</span>
-            ) : (
-              <span className="ml-2 text-zinc-500 italic">Not specified</span>
-            )}
-          </div>
-
-          {/* Time */}
-          <div>
-            <span className="text-zinc-500">Time:</span>
-            {isEditingSearch ? (
-              <Select
-                value={(getCurrentValue("time_of_day") as string) || "not-specified"}
-                onValueChange={(value) =>
-                  setEditedParams({ ...editedParams, time_of_day: value === "not-specified" ? undefined : value })
-                }
-              >
-                <SelectTrigger className="mt-1 bg-zinc-800 border-zinc-700 text-white text-sm h-8">
-                  <SelectValue placeholder="Select time" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="not-specified">Not specified</SelectItem>
-                  <SelectItem value="morning">Morning</SelectItem>
-                  <SelectItem value="afternoon">Afternoon</SelectItem>
-                  <SelectItem value="evening">Evening</SelectItem>
-                  <SelectItem value="night">Night</SelectItem>
-                  <SelectItem value="flexible">Flexible</SelectItem>
-                </SelectContent>
-              </Select>
-            ) : query.time_of_day ? (
-              <span className="ml-2 text-white">{query.time_of_day}</span>
-            ) : (
-              <span className="ml-2 text-zinc-500 italic">Not specified</span>
-            )}
-          </div>
-
-          {/* Setting */}
-          <div>
-            <span className="text-zinc-500">Setting:</span>
-            {isEditingSearch ? (
-              <Select
-                value={(getCurrentValue("indoor_outdoor") as string) || "not-specified"}
-                onValueChange={(value) =>
-                  setEditedParams({ ...editedParams, indoor_outdoor: value === "not-specified" ? undefined : value })
-                }
-              >
-                <SelectTrigger className="mt-1 bg-zinc-800 border-zinc-700 text-white text-sm h-8">
-                  <SelectValue placeholder="Select setting" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="not-specified">Not specified</SelectItem>
-                  <SelectItem value="indoor">Indoor</SelectItem>
-                  <SelectItem value="outdoor">Outdoor</SelectItem>
-                  <SelectItem value="no-preference">No preference</SelectItem>
-                </SelectContent>
-              </Select>
-            ) : query.indoor_outdoor ? (
-              <span className="ml-2 text-white">{query.indoor_outdoor}</span>
-            ) : (
-              <span className="ml-2 text-zinc-500 italic">Not specified</span>
-            )}
-          </div>
-
-          {/* Accessibility Needs */}
-          <div>
-            <span className="text-zinc-500">Accessibility:</span>
-            {isEditingSearch ? (
-              <Input
-                type="text"
-                value={(getCurrentValue("accessibility_needs") as string) || ""}
-                onChange={(e) => setEditedParams({ ...editedParams, accessibility_needs: e.target.value })}
-                className="mt-1 bg-zinc-800 border-zinc-700 text-white text-sm h-8"
-                placeholder="Any accessibility needs"
-              />
-            ) : query.accessibility_needs ? (
-              <span className="ml-2 text-white">{query.accessibility_needs}</span>
-            ) : (
-              <span className="ml-2 text-zinc-500 italic">Not specified</span>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <div className="text-center">
-        <h2 className="text-3xl font-bold bg-gradient-to-r from-primary via-purple-400 to-emerald-400 bg-clip-text text-transparent flex items-center justify-center gap-3">
-          <Sparkles className="w-8 h-8 text-primary" />
-          <span>Inspired Ideas for Your Group</span>
-          <Sparkles className="w-8 h-8 text-emerald-400" />
-        </h2>
-      </div>
-
-      <div className="flex justify-end">
-        <Button
-          onClick={onNewSearch}
-          variant="outline"
-          className="border-zinc-700 hover:border-primary/50 bg-transparent"
-        >
-          New Search
-        </Button>
-      </div>
-
-      <div>
-        <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-          <Sparkles className="w-6 h-6 text-primary" />
-          Real World Fun
-        </h2>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {transformedActivities.map((activity, index) => (
-            <div
-              key={activity.id}
-              className="animate-in fade-in slide-in-from-bottom duration-500"
-              style={{ animationDelay: `${index * 100}ms` }}
-            >
-              <ActivityCard
-                activity={activity}
-                categoryType={query.activity_category}
-                onAddToShortlist={onAddToShortlist}
-                isShortlisted={shortlistedIds.includes(activity.id)}
-                isBookable={false}
-              />
+              )}
             </div>
-          ))}
-        </div>
-      </div>
+          </div>
 
-      {results.isRealActivities && displayActivities.length > 0 && (
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+            {/* Group Size */}
+            <div>
+              <span className="text-zinc-500">Group:</span>
+              {isEditingSearch ? (
+                <Input
+                  type="text"
+                  value={getCurrentValue("group_size") as string}
+                  onChange={(e) => setEditedParams({ ...editedParams, group_size: e.target.value })}
+                  className="mt-1 bg-zinc-800 border-zinc-700 text-white text-sm h-8"
+                  placeholder="e.g., 2-5 people"
+                />
+              ) : (
+                <span className="ml-2 text-white">{query.group_size}</span>
+              )}
+            </div>
+
+            {/* Budget */}
+            <div>
+              <span className="text-zinc-500">Budget:</span>
+              {isEditingSearch ? (
+                <div className="flex items-center gap-1 mt-1">
+                  <Input
+                    type="number"
+                    value={getCurrentValue("budget_per_person") as number}
+                    onChange={(e) =>
+                      setEditedParams({ ...editedParams, budget_per_person: Number.parseFloat(e.target.value) })
+                    }
+                    className="bg-zinc-800 border-zinc-700 text-white text-sm h-8 w-20"
+                  />
+                  <span className="text-white text-xs">per person</span>
+                </div>
+              ) : (
+                <span className="ml-2 text-white">
+                  {query.currency}
+                  {query.budget_per_person} per person
+                </span>
+              )}
+            </div>
+
+            {/* Category */}
+            <div>
+              <span className="text-zinc-500">Category:</span>
+              {isEditingSearch ? (
+                <Select
+                  value={getCurrentValue("activity_category") as string}
+                  onValueChange={(value) => setEditedParams({ ...editedParams, activity_category: value })}
+                >
+                  <SelectTrigger className="mt-1 bg-zinc-800 border-zinc-700 text-white text-sm h-8">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="diy">DIY</SelectItem>
+                    <SelectItem value="experience">Find Experience</SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : (
+                <span className="ml-2 text-white">{query.activity_category === "diy" ? "DIY" : "Find Experience"}</span>
+              )}
+            </div>
+
+            {/* Location */}
+            <div>
+              <span className="text-zinc-500">Location:</span>
+              {isEditingSearch ? (
+                <Input
+                  type="text"
+                  value={(getCurrentValue("location") as string) || ""}
+                  onChange={(e) => setEditedParams({ ...editedParams, location: e.target.value })}
+                  className="mt-1 bg-zinc-800 border-zinc-700 focus:border-primary text-white placeholder:text-zinc-500"
+                  placeholder="Enter location"
+                />
+              ) : query.location ? (
+                <span className="ml-2 text-white">{query.location}</span>
+              ) : (
+                <span className="ml-2 text-zinc-500 italic">Not specified</span>
+              )}
+            </div>
+
+            {/* Vibe */}
+            <div>
+              <span className="text-zinc-500">Vibe:</span>
+              {isEditingSearch ? (
+                <Select
+                  value={(getCurrentValue("vibe") as string) || "not-specified"}
+                  onValueChange={(value) =>
+                    setEditedParams({ ...editedParams, vibe: value === "not-specified" ? undefined : value })
+                  }
+                >
+                  <SelectTrigger className="mt-1 bg-zinc-800 border-zinc-700 text-white text-sm h-8">
+                    <SelectValue placeholder="Select vibe" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="not-specified">Not specified</SelectItem>
+                    <SelectItem value="adventurous">Adventurous</SelectItem>
+                    <SelectItem value="relaxed">Relaxed</SelectItem>
+                    <SelectItem value="creative">Creative</SelectItem>
+                    <SelectItem value="competitive">Competitive</SelectItem>
+                    <SelectItem value="cultural">Cultural</SelectItem>
+                    <SelectItem value="social">Social</SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : query.vibe ? (
+                <span className="ml-2 text-white">{query.vibe}</span>
+              ) : (
+                <span className="ml-2 text-zinc-500 italic">Not specified</span>
+              )}
+            </div>
+
+            {/* Group Type */}
+            <div>
+              <span className="text-zinc-500">Group Type:</span>
+              {isEditingSearch ? (
+                <Select
+                  value={(getCurrentValue("group_relationship") as string) || "not-specified"}
+                  onValueChange={(value) =>
+                    setEditedParams({
+                      ...editedParams,
+                      group_relationship: value === "not-specified" ? undefined : value,
+                    })
+                  }
+                >
+                  <SelectTrigger className="mt-1 bg-zinc-800 border-zinc-700 text-white text-sm h-8">
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="not-specified">Not specified</SelectItem>
+                    <SelectItem value="coworkers">Coworkers</SelectItem>
+                    <SelectItem value="friends">Friends</SelectItem>
+                    <SelectItem value="family">Family</SelectItem>
+                    <SelectItem value="mixed">Mixed group</SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : query.group_relationship ? (
+                <span className="ml-2 text-white">{query.group_relationship}</span>
+              ) : (
+                <span className="ml-2 text-zinc-500 italic">Not specified</span>
+              )}
+            </div>
+
+            {/* Time */}
+            <div>
+              <span className="text-zinc-500">Time:</span>
+              {isEditingSearch ? (
+                <Select
+                  value={(getCurrentValue("time_of_day") as string) || "not-specified"}
+                  onValueChange={(value) =>
+                    setEditedParams({ ...editedParams, time_of_day: value === "not-specified" ? undefined : value })
+                  }
+                >
+                  <SelectTrigger className="mt-1 bg-zinc-800 border-zinc-700 text-white text-sm h-8">
+                    <SelectValue placeholder="Select time" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="not-specified">Not specified</SelectItem>
+                    <SelectItem value="morning">Morning</SelectItem>
+                    <SelectItem value="afternoon">Afternoon</SelectItem>
+                    <SelectItem value="evening">Evening</SelectItem>
+                    <SelectItem value="night">Night</SelectItem>
+                    <SelectItem value="flexible">Flexible</SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : query.time_of_day ? (
+                <span className="ml-2 text-white">{query.time_of_day}</span>
+              ) : (
+                <span className="ml-2 text-zinc-500 italic">Not specified</span>
+              )}
+            </div>
+
+            {/* Setting */}
+            <div>
+              <span className="text-zinc-500">Setting:</span>
+              {isEditingSearch ? (
+                <Select
+                  value={(getCurrentValue("indoor_outdoor") as string) || "not-specified"}
+                  onValueChange={(value) =>
+                    setEditedParams({ ...editedParams, indoor_outdoor: value === "not-specified" ? undefined : value })
+                  }
+                >
+                  <SelectTrigger className="mt-1 bg-zinc-800 border-zinc-700 text-white text-sm h-8">
+                    <SelectValue placeholder="Select setting" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="not-specified">Not specified</SelectItem>
+                    <SelectItem value="indoor">Indoor</SelectItem>
+                    <SelectItem value="outdoor">Outdoor</SelectItem>
+                    <SelectItem value="no-preference">No preference</SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : query.indoor_outdoor ? (
+                <span className="ml-2 text-white">{query.indoor_outdoor}</span>
+              ) : (
+                <span className="ml-2 text-zinc-500 italic">Not specified</span>
+              )}
+            </div>
+
+            {/* Accessibility Needs */}
+            <div>
+              <span className="text-zinc-500">Accessibility:</span>
+              {isEditingSearch ? (
+                <Input
+                  type="text"
+                  value={(getCurrentValue("accessibility_needs") as string) || ""}
+                  onChange={(e) => setEditedParams({ ...editedParams, accessibility_needs: e.target.value })}
+                  className="mt-1 bg-zinc-800 border-zinc-700 text-white text-sm h-8"
+                  placeholder="Any accessibility needs"
+                />
+              ) : query.accessibility_needs ? (
+                <span className="ml-2 text-white">{query.accessibility_needs}</span>
+              ) : (
+                <span className="ml-2 text-zinc-500 italic">Not specified</span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!hasRealActivities && (
+        <>
+          <div className="text-center">
+            <h2 className="text-3xl font-bold bg-gradient-to-r from-primary via-purple-400 to-emerald-400 bg-clip-text text-transparent flex items-center justify-center gap-3">
+              <Sparkles className="w-8 h-8 text-primary" />
+              <span>Inspired Ideas for Your Group</span>
+              <Sparkles className="w-8 h-8 text-emerald-400" />
+            </h2>
+          </div>
+
+          <div className="flex justify-end">
+            <Button
+              onClick={onNewSearch}
+              variant="outline"
+              className="border-zinc-700 hover:border-primary/50 bg-transparent"
+            >
+              New Search
+            </Button>
+          </div>
+        </>
+      )}
+
+      {!hasRealActivities && (
+        <div>
+          <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+            <Sparkles className="w-6 h-6 text-primary" />
+            AI-Generated Inspiration
+          </h2>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {transformedActivities.map((activity, index) => (
+              <div
+                key={activity.id}
+                className="animate-in fade-in slide-in-from-bottom duration-500"
+                style={{ animationDelay: `${index * 100}ms` }}
+              >
+                <ActivityCard
+                  activity={activity}
+                  categoryType={query.activity_category}
+                  onAddToShortlist={onAddToShortlist}
+                  isShortlisted={shortlistedIds.includes(activity.id)}
+                  isBookable={false}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {hasRealActivities && (
         <div className="mt-16">
           {/* Section Divider */}
           <div className="relative mb-8">
@@ -458,7 +468,7 @@ export function ActivityResults({
               <div className="bg-zinc-950 px-6 py-2 rounded-full border-2 border-emerald-500/30">
                 <div className="flex items-center gap-2 text-emerald-400">
                   <Ticket className="w-5 h-5 text-primary" />
-                  <span className="font-semibold text-lg">Real Bookable Activities</span>
+                  <span className="font-semibold text-lg">Real World Fun</span>
                   <Ticket className="w-5 h-5 text-emerald-400" />
                 </div>
               </div>
@@ -484,27 +494,39 @@ export function ActivityResults({
                   onAddToShortlist={onAddToShortlist}
                   isShortlisted={shortlistedIds.includes(activity.id)}
                   isBookable={true}
+                  categoryType={query.activity_category}
                 />
               </div>
             ))}
           </div>
 
           {displayActivities.length > ACTIVITIES_PER_PAGE && (
-            <div className="mt-8 flex justify-center">
+            <div className="flex justify-center mt-8">
               <Button
                 onClick={handleRefreshRealActivities}
                 variant="outline"
-                className="border-emerald-500/30 hover:border-emerald-500/50 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400"
+                className="border-emerald-500/30 hover:border-emerald-500/50 bg-transparent hover:bg-emerald-500/10 text-emerald-400"
               >
                 <RefreshCw className="w-4 h-4 mr-2" />
                 Show Different Activities
               </Button>
             </div>
           )}
+
+          {/* New Search button for real activities */}
+          <div className="flex justify-center mt-8">
+            <Button
+              onClick={onNewSearch}
+              variant="outline"
+              className="border-zinc-700 hover:border-primary/50 bg-transparent"
+            >
+              New Search
+            </Button>
+          </div>
         </div>
       )}
 
-      {/* Find Real Activities CTA - only show if not already showing real activities */}
+      {/* Find Real Activities button */}
       {onFindRealActivities && !results.isRealActivities && (
         <div className="relative mt-12 md:mt-16">
           <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-emerald-400/20 blur-3xl -z-10" />
