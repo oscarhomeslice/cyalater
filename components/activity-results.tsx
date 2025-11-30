@@ -15,7 +15,6 @@ import {
   Loader2,
   MapPin,
   Edit2,
-  RefreshCw,
   AlertCircle,
   Ticket,
   Plus,
@@ -61,6 +60,7 @@ export function ActivityResults({
 
   const [realActivitiesPage, setRealActivitiesPage] = useState(1)
   const [refreshedActivities, setRefreshedActivities] = useState<ActivityData[]>([])
+  const [visibleRealActivitiesCount, setVisibleRealActivitiesCount] = useState(6)
   const ACTIVITIES_PER_PAGE = 6
 
   const { recommendations, query } = results
@@ -135,6 +135,14 @@ export function ActivityResults({
     // Shuffle the activities to show different ones
     const shuffled = [...results.realActivities].sort(() => Math.random() - 0.5)
     setRefreshedActivities(shuffled)
+  }
+
+  const handleShowMoreActivities = () => {
+    setVisibleRealActivitiesCount((prev) => prev + ACTIVITIES_PER_PAGE)
+  }
+
+  const handleShowLessActivities = () => {
+    setVisibleRealActivitiesCount(ACTIVITIES_PER_PAGE)
   }
 
   const displayActivities = refreshedActivities.length > 0 ? refreshedActivities : results.realActivities || []
@@ -458,15 +466,23 @@ export function ActivityResults({
             </div>
           </div>
 
-          <div className="mb-8 text-center max-w-2xl mx-auto">
-            <p className="text-zinc-300 leading-relaxed">
-              We found <span className="font-bold text-emerald-400">{displayActivities.length}</span> activities you can
-              book right now in {query.location}.
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-xl md:text-2xl font-bold text-emerald-400 flex items-center gap-2">
+              <Sparkles className="w-6 h-6" />
+              Real World Fun
+            </h3>
+            <p className="text-sm text-gray-400">
+              Showing{" "}
+              <span className="font-bold text-emerald-400">
+                {Math.min(visibleRealActivitiesCount, displayActivities.length)}
+              </span>{" "}
+              of <span className="font-bold text-emerald-400">{displayActivities.length}</span> activities in{" "}
+              {query.location}.
             </p>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {displayActivities.slice(0, ACTIVITIES_PER_PAGE).map((activity, index) => (
+            {displayActivities.slice(0, visibleRealActivitiesCount).map((activity, index) => (
               <div
                 key={activity.id}
                 className="animate-in fade-in slide-in-from-bottom duration-500"
@@ -483,18 +499,28 @@ export function ActivityResults({
             ))}
           </div>
 
-          {displayActivities.length > ACTIVITIES_PER_PAGE && (
-            <div className="flex justify-center mt-8">
+          <div className="flex justify-center gap-4 mt-8">
+            {visibleRealActivitiesCount < displayActivities.length && (
               <Button
-                onClick={handleRefreshRealActivities}
+                onClick={handleShowMoreActivities}
                 variant="outline"
                 className="border-emerald-500/30 hover:border-emerald-500/50 bg-transparent hover:bg-emerald-500/10 text-emerald-400"
               >
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Show Different Activities
+                <ChevronDown className="w-4 h-4 mr-2" />
+                Show More Activities
               </Button>
-            </div>
-          )}
+            )}
+            {visibleRealActivitiesCount > ACTIVITIES_PER_PAGE && (
+              <Button
+                onClick={handleShowLessActivities}
+                variant="outline"
+                className="border-emerald-500/30 hover:border-emerald-500/50 bg-transparent hover:bg-emerald-500/10 text-emerald-400"
+              >
+                <ChevronUp className="w-4 h-4 mr-2" />
+                Show Less
+              </Button>
+            )}
+          </div>
         </div>
       )}
 
