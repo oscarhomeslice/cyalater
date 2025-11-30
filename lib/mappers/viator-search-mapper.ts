@@ -216,7 +216,7 @@ export function mapUserSearchToViatorRequest(
 
   // Determine sorting - always use rating for better quality
   const sorting = {
-    sort: "REVIEW_AVG_RATING_D" as const,
+    sort: "DEFAULT" as const,
     order: "DESCENDING" as const,
   }
 

@@ -284,7 +284,7 @@ export async function POST(request: NextRequest) {
           includeAutomaticTranslations: true,
         },
         sorting: {
-          sort: "REVIEW_AVG_RATING_D",
+          sort: "DEFAULT",
           order: "DESCENDING",
         },
         pagination: {
@@ -335,6 +335,8 @@ export async function POST(request: NextRequest) {
           budgetPerPerson: body.budgetPerPerson,
           currency: body.currency || "EUR",
           groupSize: body.groupSize,
+          vibe: body.vibe,
+          activity_category: body.activityCategory,
         },
         isEmpty: true,
         suggestions: popularDestinations,
