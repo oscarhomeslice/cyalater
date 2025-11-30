@@ -33,6 +33,19 @@ interface RequestBody {
 
 const isDevelopment = process.env.NODE_ENV === "development"
 
+export const runtime = "nodejs"
+export const dynamic = "force-dynamic"
+
+export async function GET() {
+  return NextResponse.json({
+    status: "active",
+    endpoint: "/api/search-real-activities",
+    methods: ["GET", "POST"],
+    message: "POST requires: location, groupSize, budgetPerPerson, currency, vibe, inspirationActivities",
+    timestamp: new Date().toISOString(),
+  })
+}
+
 export async function POST(request: NextRequest) {
   console.log("[Viator API] ===== NEW REQUEST =====")
 
