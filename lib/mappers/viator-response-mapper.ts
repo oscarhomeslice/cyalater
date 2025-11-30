@@ -347,16 +347,16 @@ export function mapViatorProductToActivity(
   if (vibe) bestForParts.push(vibe)
   bestForParts.push(reviewText)
 
-  let specialElement = "Unique local experience"
+  let specialElement = "Authentic local experience"
   if (product.highlights && product.highlights.length > 0) {
     // Combine up to 3 highlights into a compelling description
     const topHighlights = product.highlights.slice(0, 3)
     if (topHighlights.length === 1) {
       specialElement = topHighlights[0]
     } else if (topHighlights.length === 2) {
-      specialElement = `${topHighlights[0]} and ${topHighlights[1].toLowerCase()}`
+      specialElement = `${topHighlights[0]} and ${topHighlights[1]}`
     } else {
-      specialElement = `${topHighlights[0]}, ${topHighlights[1].toLowerCase()}, and ${topHighlights[2].toLowerCase()}`
+      specialElement = `${topHighlights[0]}, ${topHighlights[1]}, and ${topHighlights[2]}`
     }
   }
 

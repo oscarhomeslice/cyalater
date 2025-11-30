@@ -7,7 +7,7 @@ import {
 import { transformSearchContextToViatorParams } from "@/lib/mappers/viator-search-mapper"
 import { mapViatorProductsToActivities, generateBestForSnippets } from "@/lib/mappers/viator-response-mapper"
 import { scoreAndSortActivities } from "@/lib/utils/activity-scorer"
-import { adaptReasonItFits, blendMemorableMoment } from "@/lib/utils/copy-adapter"
+import { generateText } from "ai"
 
 interface RequestBody {
   location?: string
@@ -379,110 +379,143 @@ export async function POST(request: NextRequest) {
     )
 
     console.log("[Viator API] STEP 8.6: Enriching activities with contextual descriptions...")
-    const enrichedActivities = scoredActivities.map((scored) => {
+
+    // First, generate enriched bestFor for all activities
+    const activitiesWithBestFor = scoredActivities.map((scored) => {
       const safeTagsArray = (scored.tags || []).filter((t): t is string => typeof t === "string")
       const safeHighlightsArray = (scored.highlights || []).filter((h): h is string => typeof h === "string")
 
-      // Find the best matching inspiration activity name for this scored activity
-      let matchedInspirationName: string | undefined
-      if (body.inspirationActivities && body.inspirationActivities.length > 0) {
-        // Simple heuristic: find inspiration with most tag overlap
-        const activityTagsLower = safeTagsArray.map((t) => t.toLowerCase())
-        let bestMatch = 0
-        body.inspirationActivities.forEach((inspiration) => {
-          const inspirationTagsLower = (inspiration.tags || []).map((t) => t.toLowerCase())
-          const overlap = activityTagsLower.filter((t) => inspirationTagsLower.includes(t)).length
-          if (overlap > bestMatch) {
-            bestMatch = overlap
-            matchedInspirationName = inspiration.name
-          }
-        })
-      }
-
       // Generate enriched bestFor text using scoring breakdown
-      let enrichedBestFor = generateBestForSnippets({
+      const enrichedBestFor = generateBestForSnippets({
         groupSize: body.groupSize,
         vibe: body.vibe,
         budgetPerPerson: body.budgetPerPerson || 50,
         timeOfDay: body.timeOfDay,
-        matchedInspirationName,
+        matchedInspirationName: undefined,
         scoring: scored.scoringBreakdown,
         rating: scored.rating,
         reviewCount: scored.reviewCount,
       })
 
-      let enrichedSpecialElement = scored.specialElement
-
-      if (scored.bestInspirationMatch && scored.matchScore > 30) {
-        console.log(
-          `[Copy Adapter] Adapting copy for "${scored.name}" matched to "${scored.bestInspirationMatch.name}" (score: ${scored.matchScore})`,
-        )
-
-        // If inspiration has reasonItFits, use it to enhance bestFor
-        if (scored.bestInspirationMatch.reasonItFits) {
-          enrichedBestFor = adaptReasonItFits(scored.bestInspirationMatch.reasonItFits, {
-            userGroupSize: body.groupSize,
-            userVibe: body.vibe,
-            userBudget: body.budgetPerPerson || 50,
-            viatorRating: scored.rating,
-            viatorReviewCount: scored.reviewCount,
-            viatorHighlights: safeHighlightsArray,
-            viatorTags: safeTagsArray,
-            viatorName: scored.name,
-          })
-        }
-
-        // If inspiration has memorableMoment, blend it with Viator highlights
-        if (scored.bestInspirationMatch.memorableMoment) {
-          enrichedSpecialElement = blendMemorableMoment(
-            scored.bestInspirationMatch.memorableMoment,
-            safeHighlightsArray,
-            {
-              userGroupSize: body.groupSize,
-              userVibe: body.vibe,
-              userBudget: body.budgetPerPerson || 50,
-              viatorRating: scored.rating,
-              viatorReviewCount: scored.reviewCount,
-              viatorHighlights: safeHighlightsArray,
-              viatorTags: safeTagsArray,
-              viatorName: scored.name,
-            },
-          )
-        }
-      } else {
-        if (safeHighlightsArray.length > 0) {
-          // Check if current specialElement is generic
-          const genericPhrases = ["unique local experience", "authentic experience", "local experience"]
-          const isGeneric = genericPhrases.some((phrase) => scored.specialElement?.toLowerCase().includes(phrase))
-
-          if (isGeneric) {
-            // Build better specialElement from highlights
-            const topHighlights = safeHighlightsArray.slice(0, 3)
-            if (topHighlights.length === 1) {
-              enrichedSpecialElement = topHighlights[0]
-            } else if (topHighlights.length === 2) {
-              enrichedSpecialElement = `${topHighlights[0]} and ${topHighlights[1].toLowerCase()}`
-            } else if (topHighlights.length === 3) {
-              enrichedSpecialElement = `${topHighlights[0]}, ${topHighlights[1].toLowerCase()}, and ${topHighlights[2].toLowerCase()}`
-            }
-
-            console.log(
-              `[Copy Adapter] No match for "${scored.name}", but improved specialElement from highlights: "${enrichedSpecialElement}"`,
-            )
-          }
-        }
-      }
-
-      // Return activity with enriched copy
       return {
         ...scored,
         bestFor: enrichedBestFor,
-        specialElement: enrichedSpecialElement,
+        highlights: safeHighlightsArray,
       }
     })
 
+    console.log("[Viator API] Enriching specialElement with OpenAI for top activities...")
+
+    let enrichedActivities = activitiesWithBestFor
+
+    try {
+      // Take top 10 activities for enrichment
+      const activitiesToEnrich = activitiesWithBestFor.slice(0, 10)
+
+      if (activitiesToEnrich.length > 0 && process.env.OPENAI_API_KEY) {
+        const enrichmentPrompt = `You are personalizing activity descriptions for travelers.
+
+USER CONTEXT:
+- Group: ${body.groupSize} ${body.groupRelationship || "travelers"}
+- Budget: €${body.budgetPerPerson || 50} per person
+- Vibe: ${body.vibe || "adventurous"}
+- Preferences: ${body.timeOfDay || "flexible"}, ${body.indoorOutdoor || "flexible"}
+
+ACTIVITIES TO ENRICH:
+${activitiesToEnrich
+  .map(
+    (activity, idx) => `
+${idx + 1}. ID: ${activity.id}
+   Name: ${activity.name}
+   Highlights: ${activity.highlights?.join(", ") || "N/A"}
+   Rating: ${activity.rating ? activity.rating.toFixed(1) : "N/A"}/5
+`,
+  )
+  .join("\n")}
+
+For each activity, write ONE compelling sentence (max 20 words) for "what makes it special" that:
+1. Uses the ACTUAL highlights provided (never make anything up)
+2. Explains why THIS specific group would love it
+3. Focuses on the memorable experience, not just listing features
+4. Is specific and vivid
+
+Return ONLY a JSON array with this exact format:
+[{ "id": "activity-id", "specialElement": "Your compelling sentence here" }]
+
+Do not include any text before or after the JSON array.`
+
+        console.log("[Viator API] Calling OpenAI for enrichment...")
+
+        const { text } = await generateText({
+          model: "openai/gpt-4o-mini",
+          prompt: enrichmentPrompt,
+          maxTokens: 500,
+        })
+
+        console.log("[Viator API] OpenAI enrichment response received")
+
+        // Parse the response
+        const enrichmentResults = JSON.parse(text.trim())
+
+        console.log("[Viator API] Parsed enrichment results:", enrichmentResults.length)
+
+        // Apply enriched specialElement to activities
+        enrichedActivities = activitiesWithBestFor.map((activity) => {
+          const enrichment = enrichmentResults.find((r: any) => r.id === activity.id)
+
+          if (enrichment && enrichment.specialElement) {
+            console.log(`[Viator API] Enriched "${activity.name}" specialElement: "${enrichment.specialElement}"`)
+            return {
+              ...activity,
+              specialElement: enrichment.specialElement,
+            }
+          }
+
+          // Fallback to formatted highlights if no enrichment
+          if (activity.highlights && activity.highlights.length > 0) {
+            const formatted = activity.highlights.slice(0, 3).join(", ")
+            return {
+              ...activity,
+              specialElement: formatted,
+            }
+          }
+
+          return activity
+        })
+
+        console.log("[Viator API] ✓ OpenAI enrichment completed successfully")
+      } else {
+        console.log("[Viator API] Skipping OpenAI enrichment (no activities or API key not set)")
+      }
+    } catch (enrichmentError) {
+      console.error("[Viator API] OpenAI enrichment failed, using fallback:", enrichmentError)
+
+      // Fallback: Format highlights nicely
+      enrichedActivities = activitiesWithBestFor.map((activity) => {
+        if (activity.highlights && activity.highlights.length > 0) {
+          const topHighlights = activity.highlights.slice(0, 3)
+          let formatted: string
+
+          if (topHighlights.length === 1) {
+            formatted = topHighlights[0]
+          } else if (topHighlights.length === 2) {
+            formatted = `${topHighlights[0]} and ${topHighlights[1]}`
+          } else {
+            formatted = `${topHighlights[0]}, ${topHighlights[1]}, and ${topHighlights[2]}`
+          }
+
+          return {
+            ...activity,
+            specialElement: formatted,
+          }
+        }
+        return activity
+      })
+    }
+
     console.log("[Viator API] ✓ Activities enriched with contextual descriptions")
     console.log("[Viator API] Example enriched bestFor:", enrichedActivities[0]?.bestFor)
+    console.log("[Viator API] Example enriched specialElement:", enrichedActivities[0]?.specialElement)
 
     // Step 10: Build final response with scored activities
     console.log("[Viator API] STEP 9: Building response...")
