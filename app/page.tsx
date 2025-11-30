@@ -657,17 +657,17 @@ export default function Page() {
           </>
         )}
 
-        {searchResults && !isLoading && (
+        {showResults && searchResults && (
           <>
             <ActivityResults
               results={searchResults}
               onNewSearch={handleNewSearch}
-              onFindRealActivities={handleFindRealActivities}
-              isSearchingReal={isSearchingReal}
-              hasLocation={!!searchResults.query?.location}
               onAddToShortlist={handleAddToShortlist}
               shortlistedIds={shortlistedIds}
+              onFindRealActivities={handleFindRealActivities}
+              isRegenerating={isLoading}
               onRegenerateWithParams={handleRegenerateWithParams}
+              isSearchingReal={isSearchingReal}
             />
 
             {showRealActivities && realActivitiesResults?.isEmpty && (

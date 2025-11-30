@@ -35,6 +35,7 @@ interface ActivityResultsProps {
   onFindRealActivities?: (context: SearchContext) => void
   isRegenerating?: boolean
   onRegenerateWithParams?: (params: Partial<ParsedQuery>) => void
+  isSearchingReal?: boolean
 }
 
 export function ActivityResults({
@@ -45,11 +46,11 @@ export function ActivityResults({
   onFindRealActivities,
   isRegenerating = false,
   onRegenerateWithParams,
+  isSearchingReal = false,
 }: ActivityResultsProps) {
   const [showProTips, setShowProTips] = useState(false)
   const [locationInput, setLocationInput] = useState("")
   const [locationError, setLocationError] = useState("")
-  const [isSearchingReal, setIsSearchingReal] = useState(false)
 
   console.log("[ActivityResults] Received results:", results)
   console.log("[ActivityResults] results.recommendations:", results.recommendations)
@@ -549,7 +550,6 @@ export function ActivityResults({
                   if (locationToUse) {
                     const context = buildSearchContext(locationToUse)
                     console.log("[ActivityResults] Calling onFindRealActivities with context:", context)
-                    setIsSearchingReal(true)
                     onFindRealActivities(context)
                   }
                 }}
