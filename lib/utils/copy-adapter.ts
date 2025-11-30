@@ -74,35 +74,61 @@ export function blendMemorableMoment(
   viatorHighlights: string[],
   viatorContext: AdaptationContext,
 ): string {
-  if (!inspirationMoment) return ""
+  console.log("[v0 Copy Adapter] blendMemorableMoment called with:")
+  console.log("  - inspirationMoment:", inspirationMoment)
+  console.log("  - viatorHighlights:", viatorHighlights)
+  console.log("  - viatorName:", viatorContext.viatorName)
+
+  if (!inspirationMoment) {
+    console.log("[v0 Copy Adapter] No inspiration moment provided, returning empty")
+    return ""
+  }
 
   // If Viator has no highlights, return inspiration moment as-is
   if (!viatorHighlights || viatorHighlights.length === 0) {
+    console.log("[v0 Copy Adapter] No Viator highlights, using inspiration moment as-is")
     return inspirationMoment
   }
 
   // Extract the core memorable element from inspiration
   const coreElement = extractCoreElement(inspirationMoment)
+  console.log("[v0 Copy Adapter] Extracted core element:", coreElement)
 
   // Find best matching Viator highlight
   const bestMatch = findBestMatchingHighlight(coreElement, viatorHighlights)
+  console.log("[v0 Copy Adapter] Best matching highlight:", bestMatch)
 
   if (bestMatch) {
     // Replace generic element with specific Viator feature
     const replaced = inspirationMoment.replace(new RegExp(coreElement, "gi"), bestMatch.toLowerCase())
+    console.log("[v0 Copy Adapter] Replaced result:", replaced)
     return replaced
   }
 
   // If no semantic match, combine inspiration theme + top Viator highlights
   const topHighlights = viatorHighlights.slice(0, 2).join(" and ")
   const theme = extractTheme(inspirationMoment)
+  console.log("[v0 Copy Adapter] Theme extracted:", theme)
+  console.log("[v0 Copy Adapter] Top highlights:", topHighlights)
 
   if (theme) {
-    return `Experience ${topHighlights} ${theme}`
+    const result = `Experience ${topHighlights} ${theme}`
+    console.log("[v0 Copy Adapter] Final result with theme:", result)
+    return result
   }
 
-  // Fallback: just use top highlights
-  return viatorHighlights.slice(0, 3).join(", ")
+  const genericHighlights = ["unique local experience", "authentic experience", "local experience", "unique experience"]
+  const isGeneric = viatorHighlights.every((h) => genericHighlights.some((g) => h.toLowerCase().includes(g)))
+
+  if (isGeneric) {
+    console.log("[v0 Copy Adapter] Highlights are too generic, using inspiration moment")
+    return inspirationMoment
+  }
+
+  // Fallback: use top 3 highlights but format nicely
+  const result = viatorHighlights.slice(0, 3).join(", ")
+  console.log("[v0 Copy Adapter] Final fallback result:", result)
+  return result
 }
 
 /**
