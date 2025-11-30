@@ -94,6 +94,7 @@ function enrichUserContext(formData: any): EnrichedUserContext {
     groupRelationship: formData.groupRelationship,
     timeOfDay: formData.timeOfDay,
     indoorOutdoor: formData.indoorOutdoor,
+    indoorOutdoorPreference: formData.indoorOutdoorPreference, // Accept both field name variants
     accessibilityNeeds: formData.accessibilityNeeds,
     vibe: formData.vibe,
     budgetTier,
@@ -262,7 +263,7 @@ ${varietySeed.distributionHint}
 ${varietySeed.locationPrompt}
 
 YOUR MISSION:
-Generate exactly 4 activity ideas that feel FRESH, UNEXPECTED, and perfectly suited to their situation.
+Generate exactly 10 activity ideas that feel FRESH, UNEXPECTED, and perfectly suited to their situation.
 
 CRITICAL RULES:
 
@@ -326,12 +327,8 @@ CRITICAL RULES:
    ${enrichedContext.accessibilityNeeds ? `IMPORTANT: Ensure all suggestions accommodate: ${enrichedContext.accessibilityNeeds}` : ""}
 
 LENGTH REQUIREMENTS (CRITICAL):
-- Return EXACTLY 4 activities, no more, no less
+- Return EXACTLY 10 activities, no more, no less
 - Each "experience" field: maximum 100 words
-- Each "preparation" field: maximum 50 words
-- Each "reasonItFits" field: ONE sentence (max 25 words)
-- Each "memorableMoment" field: ONE sentence (max 25 words)
-- Keep descriptions concise and impactful
 
 OUTPUT FORMAT (JSON):
 {
