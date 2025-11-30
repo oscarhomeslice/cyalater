@@ -284,6 +284,19 @@ export function mapViatorProductToActivity(
   if (vibe) bestForParts.push(vibe)
   bestForParts.push(reviewText)
 
+  let specialElement = "Unique local experience"
+  if (product.highlights && product.highlights.length > 0) {
+    // Combine up to 3 highlights into a compelling description
+    const topHighlights = product.highlights.slice(0, 3)
+    if (topHighlights.length === 1) {
+      specialElement = topHighlights[0]
+    } else if (topHighlights.length === 2) {
+      specialElement = `${topHighlights[0]} and ${topHighlights[1].toLowerCase()}`
+    } else {
+      specialElement = `${topHighlights[0]}, ${topHighlights[1].toLowerCase()}, and ${topHighlights[2].toLowerCase()}`
+    }
+  }
+
   return {
     id: product.productCode,
     name: product.title,
@@ -293,12 +306,13 @@ export function mapViatorProductToActivity(
     duration: mapDuration(product.duration),
     locationType: inferLocationType(product.tags),
     activityLevel: inferActivityLevel(product.tags),
-    specialElement: product.highlights?.[0] || "Unique local experience",
+    specialElement: specialElement, // Now uses highlights instead of generic text
     preparation: buildPreparationText(product),
     viatorUrl: product.productUrl,
     rating: product.reviews?.combinedAverageRating,
     reviewCount: product.reviews?.totalReviews,
     tags: extractReadableTags(product.tags),
+    image: selectBestImage(product.images), // Add image to activity
   }
 }
 

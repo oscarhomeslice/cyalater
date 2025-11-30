@@ -160,7 +160,7 @@ export function ActivityCard({
           <img
             src={activity.image || "/placeholder.svg"}
             alt={activityName}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
             loading="lazy"
             onError={(e) => {
               e.currentTarget.parentElement?.classList.add("hidden")
@@ -219,13 +219,26 @@ export function ActivityCard({
         )}
 
         {/* Header */}
-        <div className="mb-4">
-          <h3 className="text-xl md:text-2xl font-bold text-white leading-tight mb-2">{activityName}</h3>
-          <div className="flex items-center gap-2 text-sm text-zinc-400">
-            <MapPin className="w-4 h-4" />
-            <span className="capitalize">{activity.locationType}</span>
+        {isBookable && activity.viatorUrl ? (
+          <a href={activity.viatorUrl} target="_blank" rel="noopener noreferrer" className="block mb-4 group/title">
+            <h3 className="text-xl md:text-2xl font-bold text-white leading-tight mb-2 group-hover/title:text-emerald-400 transition-colors flex items-center gap-2">
+              {activityName}
+              <ExternalLink className="w-5 h-5 opacity-0 group-hover/title:opacity-100 transition-opacity" />
+            </h3>
+            <div className="flex items-center gap-2 text-sm text-zinc-400">
+              <MapPin className="w-4 h-4" />
+              <span className="capitalize">{activity.locationType}</span>
+            </div>
+          </a>
+        ) : (
+          <div className="mb-4">
+            <h3 className="text-xl md:text-2xl font-bold text-white leading-tight mb-2">{activityName}</h3>
+            <div className="flex items-center gap-2 text-sm text-zinc-400">
+              <MapPin className="w-4 h-4" />
+              <span className="capitalize">{activity.locationType}</span>
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="mb-4">
           <p className="text-zinc-300 leading-relaxed">
@@ -308,6 +321,51 @@ export function ActivityCard({
           </div>
         )}
 
+        {!isBookable && categoryType === "diy" && activity.preparation && (
+          <div className="mb-4">
+            <button
+              onClick={() => toggleSection("preparation")}
+              className="w-full p-3 rounded-lg bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/20 hover:border-amber-500/40 transition-all duration-200 text-left"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Package className="w-4 h-4 text-amber-400" aria-hidden="true" />
+                  <span className="text-sm font-semibold text-amber-300">Materials You'll Need</span>
+                </div>
+                {expandedSections.preparation ? (
+                  <ChevronUp className="w-4 h-4 text-amber-400" />
+                ) : (
+                  <ChevronDown className="w-4 h-4 text-amber-400" />
+                )}
+              </div>
+            </button>
+            {expandedSections.preparation && (
+              <div className="mt-2 p-3 rounded-lg bg-amber-500/5 border border-amber-500/10 animate-in slide-in-from-top-2 duration-200">
+                {activity.preparation ? (
+                  activity.preparation.includes("•") || activity.preparation.includes(",") ? (
+                    <ul className="space-y-2">
+                      {activity.preparation
+                        .split(/[•,]/)
+                        .map((item) => item.trim())
+                        .filter((item) => item.length > 0)
+                        .map((item, index) => (
+                          <li key={index} className="flex items-start gap-2 text-sm text-zinc-200">
+                            <Check className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                            <span>{item}</span>
+                          </li>
+                        ))}
+                    </ul>
+                  ) : (
+                    <p className="text-sm text-zinc-200 leading-relaxed">{activity.preparation}</p>
+                  )
+                ) : (
+                  <p className="text-sm text-zinc-400 italic">No materials specified</p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="mb-3">
           <button
             onClick={() => toggleSection("bestFor")}
@@ -355,51 +413,6 @@ export function ActivityCard({
             </div>
           )}
         </div>
-
-        {!isBookable && categoryType === "diy" && (
-          <div className="mb-4">
-            <button
-              onClick={() => toggleSection("preparation")}
-              className="w-full p-3 rounded-lg bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/20 hover:border-amber-500/40 transition-all duration-200 text-left"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Package className="w-4 h-4 text-amber-400" aria-hidden="true" />
-                  <span className="text-sm font-semibold text-amber-300">Materials You'll Need</span>
-                </div>
-                {expandedSections.preparation ? (
-                  <ChevronUp className="w-4 h-4 text-amber-400" />
-                ) : (
-                  <ChevronDown className="w-4 h-4 text-amber-400" />
-                )}
-              </div>
-            </button>
-            {expandedSections.preparation && (
-              <div className="mt-2 p-3 rounded-lg bg-amber-500/5 border border-amber-500/10 animate-in slide-in-from-top-2 duration-200">
-                {activity.preparation ? (
-                  activity.preparation.includes("•") || activity.preparation.includes(",") ? (
-                    <ul className="space-y-2">
-                      {activity.preparation
-                        .split(/[•,]/)
-                        .map((item) => item.trim())
-                        .filter((item) => item.length > 0)
-                        .map((item, index) => (
-                          <li key={index} className="flex items-start gap-2 text-sm text-zinc-200">
-                            <Check className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                            <span>{item}</span>
-                          </li>
-                        ))}
-                    </ul>
-                  ) : (
-                    <p className="text-sm text-zinc-200 leading-relaxed">{activity.preparation}</p>
-                  )
-                ) : (
-                  <p className="text-sm text-zinc-400 italic">No materials specified</p>
-                )}
-              </div>
-            )}
-          </div>
-        )}
 
         {isBookable ? (
           // Bookable activities: Show "Book on Viator" button with attribution

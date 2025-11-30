@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useMemo } from "react"
 import { ActivityCard, type ActivityData } from "./activity-card"
 import { Button } from "./ui/button"
 import { Badge } from "./ui/badge"
@@ -17,6 +17,7 @@ import {
   Edit2,
   RefreshCw,
   AlertCircle,
+  Ticket,
 } from "lucide-react"
 import type { ActivityRecommendation, ParsedQuery, SearchContext } from "@/lib/types"
 
@@ -25,13 +26,13 @@ interface ActivityResultsProps {
     recommendations: ActivityRecommendation
     query: ParsedQuery
     isRealActivities?: boolean
+    realActivities?: ActivityData[]
   }
   onNewSearch: () => void
   onAddToShortlist?: (id: string) => void
   shortlistedIds?: string[]
   onFindRealActivities?: (context: SearchContext) => void
-  isSearchingReal?: boolean
-  hasLocation?: boolean
+  isRegenerating?: boolean
   onRegenerateWithParams?: (params: Partial<ParsedQuery>) => void
 }
 
@@ -41,70 +42,32 @@ export function ActivityResults({
   onAddToShortlist,
   shortlistedIds = [],
   onFindRealActivities,
-  isSearchingReal = false,
-  hasLocation = false,
+  isRegenerating = false,
   onRegenerateWithParams,
 }: ActivityResultsProps) {
   const [showProTips, setShowProTips] = useState(false)
   const [locationInput, setLocationInput] = useState("")
   const [locationError, setLocationError] = useState("")
+  const [isSearchingReal, setIsSearchingReal] = useState(false)
 
   const [isEditingSearch, setIsEditingSearch] = useState(false)
   const [editedParams, setEditedParams] = useState<Partial<ParsedQuery>>({})
 
-  const [isRegenerating, setIsRegenerating] = useState(false)
-
-  useEffect(() => {
-    setIsRegenerating(false)
-  }, [results])
-
-  console.log("[Results] Received results:", results)
-  console.log("[Results] Has recommendations:", !!results?.recommendations)
-
-  if (!results || !results.recommendations) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-zinc-400">No results to display</p>
-        <Button onClick={onNewSearch} className="mt-4 bg-transparent" variant="outline">
-          Try again
-        </Button>
-      </div>
-    )
-  }
+  const [realActivitiesPage, setRealActivitiesPage] = useState(1)
+  const ACTIVITIES_PER_PAGE = 5
 
   const { recommendations, query } = results
   const { activities = [], proTips = [], refinementPrompts = [] } = recommendations
 
-  console.log("[Results] Activities count:", activities?.length || 0)
-  console.log("[Results] First activity:", activities?.[0])
-
-  if (!activities || activities.length === 0) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-zinc-400">No activities were generated. Please try again.</p>
-        <Button onClick={onNewSearch} className="mt-4 bg-transparent" variant="outline">
-          New Search
-        </Button>
-      </div>
-    )
-  }
-
-  const transformedActivities: ActivityData[] = activities.map((activity, index) => ({
-    id: activity.id || `activity-${index}`,
-    name: activity.name,
-    experience: activity.experience,
-    bestFor: activity.bestFor,
-    specialElement: activity.specialElement,
-    preparation: activity.preparation,
-    tags: activity.tags || [],
-    cost: activity.cost,
-    duration: activity.duration,
-    activityLevel: activity.activityLevel,
-    locationType: activity.locationType,
-    isInspiration: true,
-  }))
-
-  console.log("[Results] Transformed activities with all fields:", transformedActivities)
+  const transformedActivities = useMemo(() => {
+    return (results.activities || []).map((activity) => {
+      const costValue = Number.parseFloat(activity.cost.toString().replace(/[^0-9.]/g, ""))
+      return {
+        ...activity,
+        cost: costValue,
+      }
+    })
+  }, [results.activities])
 
   const getCurrentValue = (field: keyof ParsedQuery) => {
     return isEditingSearch && editedParams[field] !== undefined ? editedParams[field] : query[field]
@@ -117,7 +80,6 @@ export function ActivityResults({
 
     if (onRegenerateWithParams && Object.keys(editedParams).length > 0) {
       console.log("[v0] ActivityResults: Calling onRegenerateWithParams")
-      setIsRegenerating(true)
       onRegenerateWithParams(editedParams)
       setIsEditingSearch(false)
       setEditedParams({})
@@ -275,7 +237,7 @@ export function ActivityResults({
                 type="text"
                 value={(getCurrentValue("location") as string) || ""}
                 onChange={(e) => setEditedParams({ ...editedParams, location: e.target.value })}
-                className="mt-1 bg-zinc-800 border-zinc-700 text-white text-sm h-8"
+                className="mt-1 bg-zinc-800 border-zinc-700 focus:border-primary text-white placeholder:text-zinc-500"
                 placeholder="Enter location"
               />
             ) : query.location ? (
@@ -443,7 +405,7 @@ export function ActivityResults({
       <div>
         <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
           <Sparkles className="w-6 h-6 text-primary" />
-          Creative Ideas to Explore
+          {results.isRealActivities ? "AI-Generated Inspiration" : "Creative Ideas to Explore"}
         </h2>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {transformedActivities.map((activity, index) => (
@@ -457,12 +419,100 @@ export function ActivityResults({
                 categoryType={query.activity_category}
                 onAddToShortlist={onAddToShortlist}
                 isShortlisted={shortlistedIds.includes(activity.id)}
+                isBookable={false}
               />
             </div>
           ))}
         </div>
       </div>
 
+      {results.isRealActivities && results.realActivities && results.realActivities.length > 0 && (
+        <div className="mt-16">
+          {/* Section Divider */}
+          <div className="relative mb-8">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-emerald-500/30" />
+            </div>
+            <div className="relative flex justify-center">
+              <div className="bg-zinc-950 px-6 py-2 rounded-full border-2 border-emerald-500/30">
+                <div className="flex items-center gap-2 text-emerald-400">
+                  <Ticket className="w-5 h-5" />
+                  <span className="font-semibold text-lg">Real Bookable Activities</span>
+                  <Ticket className="w-5 h-5" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Intro Text */}
+          <div className="mb-8 text-center max-w-2xl mx-auto">
+            <p className="text-zinc-300 leading-relaxed">
+              Based on your inspiration, we found{" "}
+              <span className="font-bold text-emerald-400">{results.realActivities.length}</span> real activities you
+              can book right now in {query.location}.
+            </p>
+          </div>
+
+          {/* Paginated Activities Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {results.realActivities
+              .slice((realActivitiesPage - 1) * ACTIVITIES_PER_PAGE, realActivitiesPage * ACTIVITIES_PER_PAGE)
+              .map((activity, index) => (
+                <div
+                  key={activity.id}
+                  className="animate-in fade-in slide-in-from-bottom duration-500"
+                  style={{ animationDelay: `${index * 100}ms` }}
+                >
+                  <ActivityCard
+                    activity={activity}
+                    onAddToShortlist={onAddToShortlist}
+                    isShortlisted={shortlistedIds.includes(activity.id)}
+                    isBookable={true}
+                  />
+                </div>
+              ))}
+          </div>
+
+          {/* Pagination Controls */}
+          {results.realActivities.length > ACTIVITIES_PER_PAGE && (
+            <div className="mt-8 flex items-center justify-center gap-4">
+              <Button
+                onClick={() => setRealActivitiesPage((p) => Math.max(1, p - 1))}
+                disabled={realActivitiesPage === 1}
+                variant="outline"
+                className="border-emerald-500/30 hover:border-emerald-500/50 disabled:opacity-50"
+              >
+                <ChevronUp className="w-4 h-4 mr-2 rotate-[-90deg]" />
+                Previous
+              </Button>
+
+              <div className="flex items-center gap-2 text-sm text-zinc-400">
+                <span>
+                  Page {realActivitiesPage} of {Math.ceil(results.realActivities.length / ACTIVITIES_PER_PAGE)}
+                </span>
+                <span className="text-zinc-600">•</span>
+                <span>{results.realActivities.length} total activities</span>
+              </div>
+
+              <Button
+                onClick={() =>
+                  setRealActivitiesPage((p) =>
+                    Math.min(Math.ceil(results.realActivities.length / ACTIVITIES_PER_PAGE), p + 1),
+                  )
+                }
+                disabled={realActivitiesPage >= Math.ceil(results.realActivities.length / ACTIVITIES_PER_PAGE)}
+                variant="outline"
+                className="border-emerald-500/30 hover:border-emerald-500/50 disabled:opacity-50"
+              >
+                Next
+                <ChevronUp className="w-4 h-4 ml-2 rotate-90" />
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Find Real Activities CTA - only show if not already showing real activities */}
       {onFindRealActivities && !results.isRealActivities && (
         <div className="relative mt-12 md:mt-16">
           <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-emerald-400/20 blur-3xl -z-10" />
@@ -474,12 +524,12 @@ export function ActivityResults({
               </div>
               <h3 className="text-2xl md:text-3xl font-bold mb-3 text-white">Ready to Book Real Activities?</h3>
               <p className="text-zinc-400 mb-6 max-w-md mx-auto text-base md:text-lg leading-relaxed">
-                {hasLocation && query?.location
+                {query.location
                   ? `Find actual bookable experiences in ${query.location}`
                   : "Search for real activities you can book right now"}
               </p>
 
-              {!hasLocation && (
+              {!query.location && (
                 <div className="max-w-md mx-auto mb-6">
                   <div className="relative">
                     <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" />
@@ -506,14 +556,15 @@ export function ActivityResults({
 
               <Button
                 onClick={() => {
-                  if (!hasLocation && !locationInput.trim()) {
+                  if (!query.location && !locationInput.trim()) {
                     setLocationError("Please enter a location to find real activities")
                     return
                   }
-                  const locationToUse = hasLocation ? query?.location : locationInput.trim()
+                  const locationToUse = query.location || locationInput.trim()
                   if (locationToUse) {
                     const context = buildSearchContext(locationToUse)
                     console.log("[ActivityResults] Calling onFindRealActivities with context:", context)
+                    setIsSearchingReal(true)
                     onFindRealActivities(context)
                   }
                 }}
