@@ -11,7 +11,6 @@ import { ActivitySearchForm, type ActivitySearchFormData } from "@/components/ac
 import { ActivityResults } from "@/components/activity-results"
 import { Button } from "@/components/ui/button"
 import { ShortlistViewer } from "@/components/shortlist-viewer"
-import { EmptySearchResults } from "@/components/empty-search-results"
 import type { ParsedQuery } from "query-string"
 import type { SearchContext, DestinationSuggestion } from "@/lib/types"
 
@@ -670,38 +669,8 @@ export default function Page() {
               isSearchingReal={isSearchingReal}
             />
 
-            {showRealActivities && realActivitiesResults?.isEmpty && (
-              <div id="real-activities" className="mt-16 pt-16 border-t border-zinc-800">
-                <EmptySearchResults
-                  location={realActivitiesResults.query?.location || "this location"}
-                  suggestions={realActivitiesResults.suggestions || []}
-                  budgetHint={
-                    realActivitiesResults.query?.budget_per_person
-                      ? `Most activities here cost ${realActivitiesResults.query.currency}${Math.round(Number(realActivitiesResults.query.budget_per_person) * 2)}+`
-                      : undefined
-                  }
-                  onSelectDestination={(dest) => handleFindRealActivities(dest)}
-                />
-              </div>
-            )}
-
-            {showRealActivities && realActivitiesResults && !realActivitiesResults.isEmpty && (
-              <div id="real-activities" className="mt-16 pt-16 border-t border-zinc-800">
-                <div className="text-center mb-12">
-                  <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 border border-primary/30 rounded-full mb-4">
-                    <span className="text-2xl">🎫</span>
-                    <span className="text-sm font-semibold text-primary">Real Bookable Activities</span>
-                  </div>
-
-                  <h2 className="text-3xl md:text-4xl font-bold mb-3">
-                    {realActivitiesResults.query?.location
-                      ? `Activities in ${realActivitiesResults.query.location}`
-                      : "Real Activities You Can Book"}
-                  </h2>
-
-                  <p className="text-zinc-400 max-w-2xl mx-auto">Based on your preferences • Powered by Viator</p>
-                </div>
-
+            {showRealActivities && realActivitiesResults && (
+              <div id="real-activities" className="mt-12">
                 <ActivityResults
                   results={realActivitiesResults}
                   onNewSearch={() => {

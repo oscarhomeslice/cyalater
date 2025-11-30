@@ -149,6 +149,10 @@ export function ActivityResults({
 
   const hasRealActivities = results.isRealActivities && displayActivities.length > 0
 
+  console.log("[v0] ActivityResults - hasRealActivities:", hasRealActivities)
+  console.log("[v0] ActivityResults - results.isRealActivities:", results.isRealActivities)
+  console.log("[v0] ActivityResults - displayActivities:", displayActivities)
+
   return (
     <div className="space-y-8 pb-16 animate-in fade-in slide-in-from-bottom duration-500">
       {isRegenerating && (
@@ -482,21 +486,24 @@ export function ActivityResults({
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {displayActivities.slice(0, visibleRealActivitiesCount).map((activity, index) => (
-              <div
-                key={activity.id}
-                className="animate-in fade-in slide-in-from-bottom duration-500"
-                style={{ animationDelay: `${index * 100}ms` }}
-              >
-                <ActivityCard
-                  activity={activity}
-                  onAddToShortlist={onAddToShortlist}
-                  isShortlisted={shortlistedIds.includes(activity.id)}
-                  isBookable={true}
-                  categoryType={query.activity_category}
-                />
-              </div>
-            ))}
+            {displayActivities.slice(0, visibleRealActivitiesCount).map((activity, index) => {
+              console.log("[v0] Rendering real activity card:", activity.name, "isBookable: true")
+              return (
+                <div
+                  key={activity.id}
+                  className="animate-in fade-in slide-in-from-bottom duration-500"
+                  style={{ animationDelay: `${index * 100}ms` }}
+                >
+                  <ActivityCard
+                    activity={activity}
+                    onAddToShortlist={onAddToShortlist}
+                    isShortlisted={shortlistedIds.includes(activity.id)}
+                    isBookable={true}
+                    categoryType={query.activity_category}
+                  />
+                </div>
+              )
+            })}
           </div>
 
           <div className="flex justify-center gap-4 mt-8">
