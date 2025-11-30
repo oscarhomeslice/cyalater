@@ -7,6 +7,7 @@ import {
 import { transformSearchContextToViatorParams } from "@/lib/mappers/viator-search-mapper"
 import { mapViatorProductsToActivities, generateBestForSnippets } from "@/lib/mappers/viator-response-mapper"
 import { scoreAndSortActivities } from "@/lib/utils/activity-scorer"
+import { createOpenAI } from "@ai-sdk/openai"
 import { generateText } from "ai"
 
 interface RequestBody {
@@ -446,8 +447,12 @@ Do not include any text before or after the JSON array.`
 
         console.log("[Viator API] Calling OpenAI for enrichment...")
 
+        const openai = createOpenAI({
+          apiKey: process.env.OPENAI_API_KEY,
+        })
+
         const { text } = await generateText({
-          model: "openai/gpt-4o-mini",
+          model: openai("gpt-4o-mini"),
           prompt: enrichmentPrompt,
           maxTokens: 500,
         })

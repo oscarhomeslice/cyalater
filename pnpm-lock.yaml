@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@ai-sdk/openai':
+        specifier: latest
+        version: 2.0.75(zod@3.25.76)
       '@hookform/resolvers':
         specifier: ^3.10.0
         version: 3.10.0(react-hook-form@7.67.0(react@19.2.0))
@@ -212,6 +215,12 @@ packages:
 
   '@ai-sdk/gateway@2.0.17':
     resolution: {integrity: sha512-oVAG6q72KsjKlrYdLhWjRO7rcqAR8CjokAbYuyVZoCO4Uh2PH/VzZoxZav71w2ipwlXhHCNaInGYWNs889MMDA==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
+  '@ai-sdk/openai@2.0.75':
+    resolution: {integrity: sha512-ThDHg1+Jes7S0AOXa01EyLBSzZiZwzB5do9vAlufNkoiRHGTH1BmoShrCyci/TUsg4ky1HwbK4hPK+Z0isiE6g==}
     engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
@@ -2011,6 +2020,12 @@ snapshots:
       '@ai-sdk/provider': 2.0.0
       '@ai-sdk/provider-utils': 3.0.18(zod@3.25.76)
       '@vercel/oidc': 3.0.5
+      zod: 3.25.76
+
+  '@ai-sdk/openai@2.0.75(zod@3.25.76)':
+    dependencies:
+      '@ai-sdk/provider': 2.0.0
+      '@ai-sdk/provider-utils': 3.0.18(zod@3.25.76)
       zod: 3.25.76
 
   '@ai-sdk/provider-utils@3.0.18(zod@3.25.76)':
