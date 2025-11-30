@@ -321,7 +321,13 @@ export function transformSearchContextToViatorParams(params: {
   currency: string
   groupSize: string
   vibe?: string
-  inspirationActivities?: string[]
+  inspirationActivities?: Array<{
+    name: string
+    tags?: string[]
+    activityLevel?: string
+    locationType?: string
+    [key: string]: any
+  }>
 }) {
   // Build UserSearchContext from simplified params
   const context: UserSearchContext = {
@@ -331,7 +337,7 @@ export function transformSearchContextToViatorParams(params: {
     groupSize: params.groupSize,
     vibe: params.vibe,
     activityCategory: "experience", // Default to experience
-    inspirationActivities: params.inspirationActivities?.map((name) => ({ name })),
+    inspirationActivities: params.inspirationActivities,
   }
 
   const viatorRequest = mapUserSearchToViatorRequest(context, params.destinationId, {
