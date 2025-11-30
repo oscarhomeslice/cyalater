@@ -467,6 +467,13 @@ OUTPUT FORMAT (JSON):
     if (recommendations.activities && recommendations.activities.length > 0) {
       const originalCount = recommendations.activities.length
 
+      recommendations.activities = recommendations.activities.map((activity: any) => ({
+        ...activity,
+        reasonItFits: activity.reasonItFits || activity.bestFor, // Fallback to bestFor
+        memorableMoment: activity.memorableMoment || activity.specialElement, // Fallback to specialElement
+        searchKeywords: activity.searchKeywords || activity.tags?.slice(0, 3) || [], // Fallback to first 3 tags
+      }))
+
       recommendations.activities = recommendations.activities.filter((activity: any) => {
         const isValid =
           activity.name &&
@@ -520,13 +527,6 @@ OUTPUT FORMAT (JSON):
           { status: 500 },
         )
       }
-
-      recommendations.activities = recommendations.activities.map((activity: any) => ({
-        ...activity,
-        reasonItFits: activity.reasonItFits || activity.bestFor, // Fallback to bestFor
-        memorableMoment: activity.memorableMoment || activity.specialElement, // Fallback to specialElement
-        searchKeywords: activity.searchKeywords || activity.tags?.slice(0, 3) || [], // Fallback to first 3 tags
-      }))
 
       console.log("[API] Activity breakdown:")
       recommendations.activities.forEach((activity: any, index: number) => {
