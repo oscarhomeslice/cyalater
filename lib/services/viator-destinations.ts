@@ -98,6 +98,9 @@ function calculateSimilarity(str1: string, str2: string): number {
  */
 export async function initializeDestinations(): Promise<void> {
   console.log("[Viator Destinations] ===== INITIALIZATION START =====")
+  console.log("[Viator Destinations] VIATOR_API_BASE_URL from env:", process.env.VIATOR_API_BASE_URL)
+  console.log("[Viator Destinations] VIATOR_BASE_URL constant:", VIATOR_BASE_URL)
+  console.log("[Viator Destinations] DESTINATIONS_ENDPOINT:", DESTINATIONS_ENDPOINT)
 
   // Return existing initialization promise if already in progress
   if (initializationPromise) {
@@ -123,6 +126,7 @@ export async function initializeDestinations(): Promise<void> {
   initializationPromise = (async () => {
     console.log("[Viator Destinations] Fetching all destinations from:", DESTINATIONS_ENDPOINT)
     console.log("[Viator Destinations] Using API key starting with:", VIATOR_API_KEY.substring(0, 10) + "...")
+    console.log("[Viator Destinations] Request headers:", JSON.stringify(getHeaders(), null, 2))
 
     try {
       console.log("[Viator Destinations] Making fetch request...")
@@ -132,10 +136,17 @@ export async function initializeDestinations(): Promise<void> {
       })
 
       console.log("[Viator Destinations] Response received - status:", response.status)
+      console.log(
+        "[Viator Destinations] Response headers:",
+        JSON.stringify(Object.fromEntries(response.headers.entries()), null, 2),
+      )
 
       if (!response.ok) {
         const errorText = await response.text()
         console.error(`[Viator Destinations] API Error ${response.status}:`, errorText)
+        console.error(
+          `[Viator Destinations] Full error context - URL: ${DESTINATIONS_ENDPOINT}, Status: ${response.status}`,
+        )
         throw new Error(`Viator API responded with status ${response.status}: ${errorText}`)
       }
 
