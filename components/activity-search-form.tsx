@@ -87,7 +87,7 @@ export function ActivitySearchForm({ onSubmit, isLoading = false }: ActivitySear
               >
                 <SelectValue placeholder="Select group size" />
               </SelectTrigger>
-              <SelectContent className="bg-zinc-900 border-zinc-700">
+              <SelectContent className="bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700">
                 <SelectItem value="2-5">2-5 people</SelectItem>
                 <SelectItem value="6-10">6-10 people</SelectItem>
                 <SelectItem value="11-20">11-20 people</SelectItem>
@@ -116,7 +116,7 @@ export function ActivitySearchForm({ onSubmit, isLoading = false }: ActivitySear
                 <SelectTrigger className="w-24 bg-black/50 border-zinc-700 text-white hover:border-primary/50 focus:border-primary transition-all duration-300 h-12">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-zinc-900 border-zinc-700">
+                <SelectContent className="bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700">
                   <SelectItem value="EUR">€</SelectItem>
                   <SelectItem value="USD">$</SelectItem>
                   <SelectItem value="GBP">£</SelectItem>
@@ -277,7 +277,7 @@ export function ActivitySearchForm({ onSubmit, isLoading = false }: ActivitySear
                     >
                       <SelectValue placeholder="Not specified" />
                     </SelectTrigger>
-                    <SelectContent className="bg-zinc-900 border-zinc-700">
+                    <SelectContent className="bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700">
                       <SelectItem value="not-specified">Not specified</SelectItem>
                       <SelectItem value="coworkers">Coworkers</SelectItem>
                       <SelectItem value="friends">Friends</SelectItem>
@@ -303,7 +303,7 @@ export function ActivitySearchForm({ onSubmit, isLoading = false }: ActivitySear
                     >
                       <SelectValue placeholder="Not specified" />
                     </SelectTrigger>
-                    <SelectContent className="bg-zinc-900 border-zinc-700">
+                    <SelectContent className="bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700">
                       <SelectItem value="not-specified">Not specified</SelectItem>
                       <SelectItem value="morning">Morning</SelectItem>
                       <SelectItem value="afternoon">Afternoon</SelectItem>
@@ -332,7 +332,7 @@ export function ActivitySearchForm({ onSubmit, isLoading = false }: ActivitySear
                     >
                       <SelectValue placeholder="Not specified" />
                     </SelectTrigger>
-                    <SelectContent className="bg-zinc-900 border-zinc-700">
+                    <SelectContent className="bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700">
                       <SelectItem value="not-specified">Not specified</SelectItem>
                       <SelectItem value="indoor">Indoor only</SelectItem>
                       <SelectItem value="outdoor">Outdoor only</SelectItem>
